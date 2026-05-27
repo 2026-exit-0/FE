@@ -15,6 +15,11 @@ function goToStep(stepId) {
   document.querySelectorAll(".step").forEach((s) => s.classList.remove("active"));
   document.getElementById(stepId).classList.add("active");
   window.scrollTo({ top: 0, behavior: "smooth" });
+
+  // Step 3 진입 시 스캐너 상태 자동 체크
+  if (stepId === "step-3" && typeof checkScannerStatus === "function") {
+    checkScannerStatus();
+  }
 }
 
 // ===== Step 1: 선택 카드 =====
@@ -169,18 +174,8 @@ document.getElementById("btn-back-to-step2").addEventListener("click", () => {
   }
 });
 
-document.getElementById("measure-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  goToStep("step-4");
-  document.getElementById("loading").style.display = "block";
-  document.getElementById("result-content").hidden = true;
-
-  const formEl = e.target;
-  const fd = new FormData();
-  fd.append("image", formEl.elements.image.files[0]);
-  fd.append("region", formEl.elements.region.value);
-
-  // 사용자 입력 추가
+// ----- 사용자 입력 → FormData 헬퍼 -----
+function appendUserInputs(fd) {
   const u = state.user_inputs;
   if (u.skin_type) fd.append("skin_type", u.skin_type);
   if (u.sensitivity != null) fd.append("sensitivity", u.sensitivity);
@@ -191,18 +186,18 @@ document.getElementById("measure-form").addEventListener("submit", async (e) => 
     if (u.lifestyle_flags.sleep) fd.append("sleep_flag", u.lifestyle_flags.sleep);
     if (u.lifestyle_flags.sunscreen) fd.append("sunscreen_flag", u.lifestyle_flags.sunscreen);
   }
+}
 
-  // 센서 값
-  const moistureVal = formEl.elements.moisture.value;
-  if (moistureVal) fd.append("moisture", moistureVal);
-  const illuminanceVal = formEl.elements.illuminance.value;
-  if (illuminanceVal) fd.append("illuminance", illuminanceVal);
+// ----- 측정 결과 처리 공통 -----
+async function postMeasurement(endpoint, fd, loadingText) {
+  goToStep("step-4");
+  const loading = document.getElementById("loading");
+  loading.style.display = "block";
+  loading.textContent = loadingText;
+  document.getElementById("result-content").hidden = true;
 
   try {
-    const res = await fetch(`${API_BASE}/api/predict`, {
-      method: "POST",
-      body: fd,
-    });
+    const res = await fetch(`${API_BASE}${endpoint}`, { method: "POST", body: fd });
     if (!res.ok) {
       const errText = await res.text();
       throw new Error(`서버 오류 (${res.status}): ${errText}`);
@@ -210,9 +205,83 @@ document.getElementById("measure-form").addEventListener("submit", async (e) => 
     const result = await res.json();
     renderResult(result);
   } catch (err) {
-    document.getElementById("loading").textContent = "분석 실패: " + err.message;
+    loading.textContent = "측정 실패: " + err.message;
   }
+}
+
+// ----- 사진 업로드 path (/api/predict) -----
+document.getElementById("measure-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const formEl = e.target;
+
+  const imageFile = formEl.elements.image.files[0];
+  if (!imageFile) {
+    alert("사진을 업로드하거나 위의 '스캐너로 측정' 버튼을 누르세요");
+    return;
+  }
+  const region = formEl.elements.region.value;
+  if (!region) {
+    alert("부위를 먼저 선택해주세요");
+    return;
+  }
+
+  const fd = new FormData();
+  fd.append("image", imageFile);
+  fd.append("region", region);
+  appendUserInputs(fd);
+
+  const moistureVal = formEl.elements.moisture.value;
+  if (moistureVal) fd.append("moisture", moistureVal);
+  const illuminanceVal = formEl.elements.illuminance.value;
+  if (illuminanceVal) fd.append("illuminance", illuminanceVal);
+
+  await postMeasurement("/api/predict", fd, "📷 분석 중...");
 });
+
+// ----- 스캐너 측정 path (/api/measure) -----
+document.getElementById("btn-scan").addEventListener("click", async () => {
+  const region = document.querySelector('select[name="region"]').value;
+  if (!region) {
+    alert("먼저 부위를 선택해주세요");
+    return;
+  }
+
+  const fd = new FormData();
+  fd.append("region", region);
+  appendUserInputs(fd);
+
+  await postMeasurement(
+    "/api/measure",
+    fd,
+    "📡 스캐너 측정 중... (LED 점등 + 사진 + 센서, 약 6초)"
+  );
+});
+
+// ----- 스캐너 상태 자동 체크 (Step 3 진입 시) -----
+async function checkScannerStatus() {
+  const dot = document.getElementById("scanner-dot");
+  const txt = document.getElementById("scanner-status-text");
+  if (!dot || !txt) return;
+
+  dot.className = "status-dot checking";
+  txt.textContent = "스캐너 상태 확인 중...";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/scanner/health`);
+    const data = await res.json();
+    if (data.status === "ok") {
+      dot.className = "status-dot ok";
+      const state = data.esp32_data?.state || "?";
+      txt.textContent = `스캐너 연결됨 (상태: ${state})`;
+    } else {
+      dot.className = "status-dot unreachable";
+      txt.textContent = "스캐너 연결 안 됨 — Wi-Fi / 전원 확인 또는 사진 업로드 사용";
+    }
+  } catch (err) {
+    dot.className = "status-dot unreachable";
+    txt.textContent = "BE 서버 응답 없음";
+  }
+}
 
 // ===== Step 4: 결과 렌더링 =====
 function renderResult(result) {

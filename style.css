@@ -365,3 +365,89 @@ fieldset legend {
   content: "\A";
   white-space: pre;
 }
+
+/* ===== Step 3 측정 방식 카드 ===== */
+.method-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.method-card.primary {
+  border: 2px solid var(--primary);
+  background: linear-gradient(135deg, rgba(42, 127, 255, 0.04), rgba(108, 92, 231, 0.04));
+}
+.method-card.secondary {
+  background: var(--bg);
+}
+.method-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+.method-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+.btn-large {
+  padding: 14px 24px;
+  font-size: 16px;
+}
+
+/* ===== "또는" 디바이더 ===== */
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 4px 0;
+}
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid var(--border);
+}
+.divider span {
+  padding: 0 12px;
+}
+
+/* ===== 스캐너 상태 표시 ===== */
+.scanner-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 8px 12px;
+  background: var(--bg);
+  border-radius: 6px;
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ccc;
+  flex-shrink: 0;
+}
+.status-dot.ok {
+  background: var(--good);
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+}
+.status-dot.unreachable {
+  background: var(--poor);
+}
+.status-dot.checking {
+  background: var(--fair);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}

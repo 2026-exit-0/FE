@@ -89,7 +89,7 @@
       </div>
     </section>
 
-    <!-- ============ Step 3: 측정 (사진 + 부위 + 센서) ============ -->
+    <!-- ============ Step 3: 측정 (스캐너 또는 사진 업로드) ============ -->
     <section id="step-3" class="step">
       <h2>Step 3. 측정</h2>
       <form id="measure-form" class="form">
@@ -108,25 +108,49 @@
             <option value="PART_0">전체 얼굴</option>
           </select>
         </label>
-        <label>
-          <span class="label-text">사진 업로드</span>
-          <input type="file" name="image" accept="image/*" required />
-          <small class="hint">시연 시 ESP32-CAM 캡처 이미지 자동 전송 예정</small>
-        </label>
-        <fieldset class="sensor-group">
-          <legend>스캐너 센서값 (시연 시 자동 입력)</legend>
+
+        <!-- Method 1: 스캐너 (primary, 권장) -->
+        <div class="method-card primary">
+          <h3 class="method-title">📡 스캐너로 측정 (권장)</h3>
+          <p class="method-desc">
+            ESP32-CAM 스캐너를 선택한 부위에 대고 버튼을 누르세요.
+            <br />백색 LED 점등 + 사진 + 센서 측정이 자동으로 진행됩니다 (약 6초).
+          </p>
+          <div id="scanner-status" class="scanner-status">
+            <span class="status-dot" id="scanner-dot"></span>
+            <span id="scanner-status-text">스캐너 상태 확인 중...</span>
+          </div>
+          <button type="button" id="btn-scan" class="btn-primary btn-large">
+            📡 스캐너로 측정 시작
+          </button>
+        </div>
+
+        <div class="divider"><span>또는</span></div>
+
+        <!-- Method 2: 사진 업로드 (fallback) -->
+        <div class="method-card secondary">
+          <h3 class="method-title">📷 사진 직접 업로드</h3>
+          <p class="method-desc">스캐너 없이 사진과 센서값을 직접 입력합니다.</p>
           <label>
-            <span class="label-text">수분 (FDC2112)</span>
-            <input type="number" step="0.1" name="moisture" placeholder="예: 38.5" />
+            <span class="label-text">사진</span>
+            <input type="file" name="image" accept="image/*" />
           </label>
-          <label>
-            <span class="label-text">조도 (VEML7700)</span>
-            <input type="number" step="1" name="illuminance" placeholder="예: 320" />
-          </label>
-        </fieldset>
+          <fieldset class="sensor-group">
+            <legend>센서값 (있으면 입력 — 없어도 OK)</legend>
+            <label>
+              <span class="label-text">수분 (FDC2112)</span>
+              <input type="number" step="0.1" name="moisture" placeholder="예: 38.5" />
+            </label>
+            <label>
+              <span class="label-text">조도 (VEML7700)</span>
+              <input type="number" step="1" name="illuminance" placeholder="예: 320" />
+            </label>
+          </fieldset>
+          <button type="submit" class="btn-secondary">사진으로 측정</button>
+        </div>
+
         <div class="form-actions">
           <button type="button" class="btn-secondary" id="btn-back-to-step2">이전</button>
-          <button type="submit" class="btn-primary">측정 시작</button>
         </div>
       </form>
     </section>
