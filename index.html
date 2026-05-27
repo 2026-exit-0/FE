@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>damda — 피부 상태 측정</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>damda</h1>
+      <p class="subtitle">스캐너로 측정한 피부 상태를 분석해 드립니다</p>
+    </header>
+
+    <!-- ============ Step 1: 사용자 정보 입력 방식 선택 ============ -->
+    <section id="step-1" class="step active">
+      <h2>Step 1. 본인 피부 정보를 알고 계신가요?</h2>
+      <div class="choice-grid">
+        <button class="choice-card" data-target="direct">
+          <div class="choice-icon">✓</div>
+          <div class="choice-title">알고 있어요</div>
+          <div class="choice-desc">피부 타입과 민감도를 직접 입력합니다</div>
+        </button>
+        <button class="choice-card" data-target="questionnaire">
+          <div class="choice-icon">?</div>
+          <div class="choice-title">잘 모르겠어요</div>
+          <div class="choice-desc">15개 질문으로 자가진단합니다 (약 3분)</div>
+        </button>
+      </div>
+    </section>
+
+    <!-- ============ Step 2A: 직접 입력 ============ -->
+    <section id="step-2-direct" class="step">
+      <h2>Step 2. 피부 정보를 입력하세요</h2>
+      <form id="direct-form" class="form">
+        <label>
+          <span class="label-text">피부 타입</span>
+          <select name="skin_type" required>
+            <option value="">선택...</option>
+            <option value="건성">건성 (Dry)</option>
+            <option value="중성">중성 (Normal)</option>
+            <option value="지성">지성 (Oily)</option>
+            <option value="복합성">복합성 (Combination)</option>
+            <option value="민감성">민감성 (Sensitive)</option>
+          </select>
+        </label>
+        <label>
+          <span class="label-text">민감도 (1: 거의 없음 ~ 5: 매우 민감)</span>
+          <div class="range-wrap">
+            <input type="range" name="sensitivity" min="1" max="5" value="3" />
+            <span class="range-value" data-target="sensitivity">3</span>
+          </div>
+        </label>
+        <label>
+          <span class="label-text">노화 정도 (1: 매우 좋음 ~ 5: 관리 필요)</span>
+          <div class="range-wrap">
+            <input type="range" name="aging_score" min="1" max="5" value="3" />
+            <span class="range-value" data-target="aging_score">3</span>
+          </div>
+        </label>
+        <label>
+          <span class="label-text">나이 (선택)</span>
+          <input type="number" name="age" min="10" max="90" placeholder="예: 28" />
+        </label>
+        <label>
+          <span class="label-text">성별 (선택)</span>
+          <select name="gender">
+            <option value="">선택 안 함</option>
+            <option value="F">여성</option>
+            <option value="M">남성</option>
+          </select>
+        </label>
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" data-back="1">이전</button>
+          <button type="submit" class="btn-primary">다음</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ============ Step 2B: 자가진단 질문지 ============ -->
+    <section id="step-2-questionnaire" class="step">
+      <h2>Step 2. 자가진단</h2>
+      <div id="questionnaire-progress" class="progress-bar"><div class="progress-fill"></div></div>
+      <div id="questionnaire-list"><!-- JS 로 채워짐 --></div>
+      <div class="form-actions">
+        <button type="button" class="btn-secondary" data-back="1">이전</button>
+        <button type="button" id="btn-submit-questionnaire" class="btn-primary">자가진단 완료</button>
+      </div>
+    </section>
+
+    <!-- ============ Step 3: 측정 (사진 + 부위 + 센서) ============ -->
+    <section id="step-3" class="step">
+      <h2>Step 3. 측정</h2>
+      <form id="measure-form" class="form">
+        <label>
+          <span class="label-text">측정 부위</span>
+          <select name="region" required>
+            <option value="">선택...</option>
+            <option value="FOREHEAD">이마</option>
+            <option value="GLABELLA">미간</option>
+            <option value="L_EYE">좌 안주변</option>
+            <option value="R_EYE">우 안주변</option>
+            <option value="L_CHEEK">좌 볼</option>
+            <option value="R_CHEEK">우 볼</option>
+            <option value="LIP">입술</option>
+            <option value="CHIN">턱</option>
+            <option value="PART_0">전체 얼굴</option>
+          </select>
+        </label>
+        <label>
+          <span class="label-text">사진 업로드</span>
+          <input type="file" name="image" accept="image/*" required />
+          <small class="hint">시연 시 ESP32-CAM 캡처 이미지 자동 전송 예정</small>
+        </label>
+        <fieldset class="sensor-group">
+          <legend>스캐너 센서값 (시연 시 자동 입력)</legend>
+          <label>
+            <span class="label-text">수분 (FDC2112)</span>
+            <input type="number" step="0.1" name="moisture" placeholder="예: 38.5" />
+          </label>
+          <label>
+            <span class="label-text">조도 (VEML7700)</span>
+            <input type="number" step="1" name="illuminance" placeholder="예: 320" />
+          </label>
+        </fieldset>
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" id="btn-back-to-step2">이전</button>
+          <button type="submit" class="btn-primary">측정 시작</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ============ Step 4: 결과 ============ -->
+    <section id="step-4" class="step">
+      <h2>측정 결과</h2>
+      <div id="loading" class="loading">분석 중...</div>
+      <div id="result-content" hidden>
+        <div class="result-card overall">
+          <div class="overall-score">
+            <span id="overall-number">--</span>
+            <span class="overall-unit">/ 100</span>
+          </div>
+          <p id="overall-summary" class="overall-summary">--</p>
+        </div>
+
+        <div class="result-section">
+          <h3>세부 측정값</h3>
+          <div id="metric-list" class="metric-grid"></div>
+        </div>
+
+        <div class="result-section">
+          <h3>케어 팁</h3>
+          <ul id="tips-list" class="tips"></ul>
+        </div>
+
+        <div class="result-section">
+          <h3>참고 정보</h3>
+          <dl id="meta-info" class="meta-list"></dl>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-primary" id="btn-restart">처음으로</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>
