@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: BE API 명세
+    url: http://localhost:8000/docs
+    about: BE 서버 띄운 상태에서 Swagger UI
