@@ -451,3 +451,80 @@ fieldset legend {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
+
+/* ===== Metric tooltip (결과 화면 hover) ===== */
+.metric-item {
+  position: relative;
+  cursor: help;
+}
+.metric-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #2a2a2a;
+  color: white;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  width: max-content;
+  max-width: 260px;
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s, visibility 0.15s;
+  pointer-events: none;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+.metric-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #2a2a2a;
+}
+.metric-item:hover .metric-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+.metric-tooltip .tooltip-desc {
+  color: #ddd;
+}
+.metric-tooltip .tooltip-note {
+  color: #ffe082;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #444;
+}
+
+/* ===== 종합 점수 카드에도 hover hint ===== */
+.result-card.overall {
+  position: relative;
+  cursor: help;
+}
+.overall-hint {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+/* ===== 개인화 적용 표시 배지 ===== */
+.personalization-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255,255,255,0.2);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  margin-top: 8px;
+}
+.personalization-badge::before {
+  content: "✨";
+}

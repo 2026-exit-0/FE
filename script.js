@@ -284,26 +284,48 @@ async function checkScannerStatus() {
 }
 
 // ===== Step 4: 결과 렌더링 =====
+function escapeHtml(s) {
+  if (s == null) return "";
+  return String(s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
 function renderResult(result) {
   document.getElementById("loading").style.display = "none";
   document.getElementById("result-content").hidden = false;
 
   const n = result.narrative;
 
-  // 종합 점수
+  // 종합 점수 + 개인화 적용 배지
   document.getElementById("overall-number").textContent = n.overall_score;
-  document.getElementById("overall-summary").textContent = n.summary;
+  let summaryHtml = escapeHtml(n.summary);
+  if (n.user_context && n.user_context.applied) {
+    summaryHtml += `<div class="personalization-badge">사용자 입력 반영됨</div>`;
+  }
+  document.getElementById("overall-summary").innerHTML = summaryHtml;
 
-  // 세부 측정값
+  // 세부 측정값 + hover tooltip
   const metricList = document.getElementById("metric-list");
   metricList.innerHTML = "";
   n.per_metric.forEach((m) => {
     const div = document.createElement("div");
     div.className = `metric-item ${m.rating}`;
+
+    let tooltipHtml = "";
+    if (m.description || m.personalized_note) {
+      const desc = m.description
+        ? `<div class="tooltip-desc">${escapeHtml(m.description)}</div>` : "";
+      const note = m.personalized_note
+        ? `<div class="tooltip-note">💡 ${escapeHtml(m.personalized_note)}</div>` : "";
+      tooltipHtml = `<div class="metric-tooltip">${desc}${note}</div>`;
+    }
+
     div.innerHTML = `
-      <div class="metric-name">${m.name}</div>
-      <div class="metric-value">${m.value}</div>
-      <div class="metric-rating">${m.rating_text}</div>
+      <div class="metric-name">${escapeHtml(m.name)}</div>
+      <div class="metric-value">${escapeHtml(m.value)}</div>
+      <div class="metric-rating">${escapeHtml(m.rating_text)}</div>
+      ${tooltipHtml}
     `;
     metricList.appendChild(div);
   });
