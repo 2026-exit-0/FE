@@ -399,20 +399,43 @@ function renderRecommendations(products) {
       ? `<div class="recommend-ingredients">${p.main_ingredients.slice(0, 3).map(escapeHtml).join(", ")}</div>`
       : "";
 
+    // 효과 문장 ("이 제품으로 ~ 효과를 기대할 수 있어요")
+    const effectHtml = p.effect
+      ? `<div class="recommend-effect">${escapeHtml(p.effect)}</div>`
+      : "";
+
+    // 주의 사항 배지 (위험도별 색상)
+    const warningsHtml = (p.warnings && p.warnings.length > 0)
+      ? `<div class="recommend-warnings">
+           <span class="recommend-warnings-label">주의</span>
+           ${p.warnings.map((w) =>
+             `<span class="recommend-warning recommend-warning-${escapeHtml(w.level || "low")}">${escapeHtml(w.label)}</span>`
+           ).join("")}
+         </div>`
+      : "";
+
+    // 구매처 버튼
+    const buyBtnHtml = p.purchase_url
+      ? `<a class="recommend-buy-btn" href="${escapeHtml(p.purchase_url)}" target="_blank" rel="noopener noreferrer">구매처 보기 →</a>`
+      : "";
+
     card.innerHTML = `
       ${imgHtml}
       <div class="recommend-body">
         <div class="recommend-header">
-          <div>
+          <div class="recommend-header-text">
             <div class="recommend-brand">${escapeHtml(p.brand || "")}</div>
             <div class="recommend-name">${escapeHtml(p.name || "")}</div>
             <div class="recommend-categories">${catTags}</div>
           </div>
           <div class="recommend-score">${p.score ? p.score.toFixed(1) : "0"}점</div>
         </div>
+        ${effectHtml}
         <div class="recommend-reason">${escapeHtml(p.reason || "범용 케어")}</div>
         ${ingHtml}
         ${metaHtml}
+        ${warningsHtml}
+        ${buyBtnHtml}
       </div>
     `;
     list.appendChild(card);
