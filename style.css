@@ -855,6 +855,9 @@ fieldset legend {
   justify-content: center;
   padding: 16px;
 }
+.product-modal[hidden] {
+  display: none !important;
+}
 .modal-overlay {
   position: absolute;
   inset: 0;
