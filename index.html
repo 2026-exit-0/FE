@@ -179,9 +179,28 @@
         </div>
 
         <div class="result-section" id="recommend-section" hidden>
-          <h3>맞춤 제품 추천</h3>
+          <div class="recommend-section-header">
+            <h3>맞춤 제품 추천</h3>
+            <button type="button" id="btn-refresh-recommend" class="btn-icon" title="다른 추천 보기">
+              <span class="refresh-icon" aria-hidden="true">↻</span>
+              <span class="btn-label">다른 추천</span>
+            </button>
+          </div>
           <p class="section-desc">오늘 측정 결과와 입력한 정보를 분석해 선별한 제품입니다</p>
+
+          <div id="recommend-filters" class="recommend-filters">
+            <button type="button" class="filter-btn active" data-filter="">전체</button>
+            <button type="button" class="filter-btn" data-filter="보습">보습</button>
+            <button type="button" class="filter-btn" data-filter="진정">진정 / 민감</button>
+            <button type="button" class="filter-btn" data-filter="미백">미백 / 톤업</button>
+            <button type="button" class="filter-btn" data-filter="모공">모공 / 각질</button>
+            <button type="button" class="filter-btn" data-filter="탄력">탄력 / 항노화</button>
+          </div>
+
           <div id="recommend-list" class="recommend-grid"></div>
+          <p id="recommend-empty" class="recommend-empty" hidden>
+            해당 카테고리에 맞는 제품이 없어요. 다른 카테고리를 눌러보세요.
+          </p>
         </div>
 
         <div class="result-section">
@@ -194,6 +213,55 @@
         </div>
       </div>
     </section>
+  </div>
+
+  <!-- ============ 제품 상세 모달 ============ -->
+  <div id="product-modal" class="product-modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-name">
+    <div class="modal-overlay" data-close-modal></div>
+    <div class="modal-content" role="document">
+      <button type="button" class="modal-close" data-close-modal aria-label="닫기">✕</button>
+      <div class="modal-scroll">
+        <div class="modal-image-wrap">
+          <img id="modal-image" class="modal-image" alt="" />
+        </div>
+        <div class="modal-header">
+          <div class="modal-brand" id="modal-brand"></div>
+          <h2 class="modal-name" id="modal-name"></h2>
+          <div class="modal-score-row">
+            <span class="recommend-score" id="modal-score">--</span>
+            <div class="recommend-categories" id="modal-categories"></div>
+          </div>
+        </div>
+
+        <div class="modal-section">
+          <div class="recommend-effect" id="modal-effect"></div>
+        </div>
+
+        <div class="modal-section">
+          <h4>왜 추천했나요?</h4>
+          <p id="modal-reason" class="modal-reason"></p>
+        </div>
+
+        <div class="modal-section" id="modal-warnings-section" hidden>
+          <h4>주의 사항</h4>
+          <div class="recommend-warnings" id="modal-warnings"></div>
+        </div>
+
+        <div class="modal-section">
+          <h4>전성분</h4>
+          <ul id="modal-ingredients" class="modal-ingredients"></ul>
+        </div>
+
+        <div class="modal-section">
+          <h4>제품 정보</h4>
+          <dl class="modal-meta" id="modal-meta"></dl>
+        </div>
+
+        <div class="modal-actions">
+          <a id="modal-buy-btn" class="recommend-buy-btn modal-buy-btn" href="#" target="_blank" rel="noopener noreferrer">구매처 보기 →</a>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="/static/script.js"></script>
