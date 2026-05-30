@@ -657,11 +657,103 @@ fieldset legend {
   font-size: 11px;
   color: var(--text-muted);
   margin-top: 2px;
+  flex-wrap: wrap;
 }
 .recommend-meta-item {
   display: inline-flex;
   align-items: center;
   gap: 3px;
+}
+
+/* ===== 효과 문장 — 카드 상단에 가장 눈에 띄게 ===== */
+.recommend-effect {
+  font-size: 13px;
+  color: var(--text);
+  background: linear-gradient(135deg, rgba(42, 127, 255, 0.08), rgba(108, 92, 231, 0.08));
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-top: 6px;
+  font-weight: 500;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
+/* ===== 주의 사항 배지 ===== */
+.recommend-warnings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+}
+.recommend-warnings-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-right: 2px;
+}
+.recommend-warning {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+.recommend-warning-high {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.25);
+}
+.recommend-warning-medium {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+  border-color: rgba(245, 158, 11, 0.25);
+}
+.recommend-warning-low {
+  background: rgba(100, 116, 139, 0.1);
+  color: #475569;
+  border-color: rgba(100, 116, 139, 0.2);
+}
+
+/* ===== 구매처 버튼 ===== */
+.recommend-buy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  margin-top: 10px;
+  align-self: flex-start;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.recommend-buy-btn:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+.recommend-buy-btn:active {
+  transform: translateY(0);
+}
+
+/* 헤더 텍스트 영역 (overflow 방지) */
+.recommend-header-text {
+  min-width: 0;
+  flex: 1;
+}
+
+/* 카테고리 태그 강화 — 약간 더 진하게 */
+.recommend-cat-tag {
+  font-size: 11px;
+  background: rgba(42, 127, 255, 0.12);
+  color: var(--primary);
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
 }
 
 /* 모바일 — 세로 스택 */
@@ -672,5 +764,8 @@ fieldset legend {
   .recommend-image {
     width: 100%;
     height: 140px;
+  }
+  .recommend-buy-btn {
+    align-self: stretch;
   }
 }
