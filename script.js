@@ -8,6 +8,13 @@ const API_BASE = "";  // 같은 origin (FastAPI 가 /static 서빙). 분리 배�
 // ===== 전역 상태 =====
 const state = {
   user_inputs: {},   // {skin_type, sensitivity, aging_score, age, gender, lifestyle_flags}
+  // 추천 재호출 (필터/새로고침) 을 위한 마지막 측정 결과 캐시
+  lastMeasurement: null,
+  lastWeather: null,
+  lastFilter: "",
+  lastSeed: null,
+  // 현재 표시 중인 추천 (모달 열 때 사용)
+  currentRecommendations: [],
 };
 
 // ===== 유틸: Step 전환 =====
@@ -343,7 +350,15 @@ function renderResult(result) {
     tipsList.innerHTML = "<li>특별한 케어 권장 사항 없음 — 현재 루틴을 유지하세요</li>";
   }
 
-  // 추천 제품
+  // 추천 제품 — 필터/새로고침 재호출용으로 측정값 캐시
+  state.lastMeasurement = {
+    ...(result.predictions?.regression || {}),
+    ...(result.predictions?.classification || {}),
+  };
+  state.lastWeather = null;  // TODO: weather 통합되면 result.weather
+  state.lastFilter = "";
+  state.lastSeed = null;
+  resetFilterButtons();
   renderRecommendations(result.recommended_products || []);
 
   // 메타 정보
@@ -360,16 +375,34 @@ function renderResult(result) {
 function renderRecommendations(products) {
   const section = document.getElementById("recommend-section");
   const list = document.getElementById("recommend-list");
+  const empty = document.getElementById("recommend-empty");
+
+  // 현재 캐시 (모달용)
+  state.currentRecommendations = products || [];
+
+  // 결과 없을 때
   if (!products || products.length === 0) {
+    // 필터가 적용된 상태이면 섹션은 그대로 두고 empty 메시지만 노출
+    if (state.lastFilter) {
+      section.hidden = false;
+      list.innerHTML = "";
+      if (empty) empty.hidden = false;
+      return;
+    }
     section.hidden = true;
+    if (empty) empty.hidden = true;
     return;
   }
   section.hidden = false;
+  if (empty) empty.hidden = true;
   list.innerHTML = "";
 
-  products.forEach((p) => {
+  products.forEach((p, idx) => {
     const card = document.createElement("div");
     card.className = "recommend-card";
+    card.dataset.productIndex = idx;
+    card.setAttribute("role", "button");
+    card.setAttribute("tabindex", "0");
 
     // 이미지 (없으면 placeholder)
     const imgHtml = p.image_url
@@ -414,9 +447,9 @@ function renderRecommendations(products) {
          </div>`
       : "";
 
-    // 구매처 버튼
+    // 구매처 버튼 (카드 클릭과 분리)
     const buyBtnHtml = p.purchase_url
-      ? `<a class="recommend-buy-btn" href="${escapeHtml(p.purchase_url)}" target="_blank" rel="noopener noreferrer">구매처 보기 →</a>`
+      ? `<a class="recommend-buy-btn" href="${escapeHtml(p.purchase_url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">구매처 보기 →</a>`
       : "";
 
     card.innerHTML = `
@@ -438,9 +471,173 @@ function renderRecommendations(products) {
         ${buyBtnHtml}
       </div>
     `;
+
+    // 카드 클릭 → 상세 모달
+    card.addEventListener("click", () => openProductModal(idx));
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openProductModal(idx);
+      }
+    });
+
     list.appendChild(card);
   });
 }
+
+// ===== 추천 재호출 (필터/새로고침) =====
+async function fetchAndRenderRecommendations(opts = {}) {
+  if (!state.lastMeasurement) {
+    console.warn("측정 결과가 없습니다 — 추천 재호출 불가");
+    return;
+  }
+  const list = document.getElementById("recommend-list");
+  list.style.opacity = "0.4";
+
+  try {
+    const body = {
+      measurement: state.lastMeasurement,
+      user_inputs: state.user_inputs,
+      weather: state.lastWeather,
+      filter_category: opts.filter_category ?? state.lastFilter ?? "",
+      seed: opts.seed ?? state.lastSeed,
+      top_k: 5,
+    };
+    if (!body.filter_category) delete body.filter_category;
+    if (body.seed == null) delete body.seed;
+
+    const resp = await fetch(`${API_BASE}/api/recommend`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) throw new Error(`API ${resp.status}`);
+    const data = await resp.json();
+
+    state.lastFilter = body.filter_category || "";
+    state.lastSeed = body.seed ?? null;
+    renderRecommendations(data.recommended_products || []);
+  } catch (e) {
+    console.error("추천 재호출 실패:", e);
+  } finally {
+    list.style.opacity = "1";
+  }
+}
+
+// ===== 필터 버튼 =====
+function resetFilterButtons() {
+  document.querySelectorAll(".filter-btn").forEach((b) => {
+    b.classList.toggle("active", b.dataset.filter === "");
+  });
+}
+
+document.querySelectorAll(".filter-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const f = btn.dataset.filter;
+    document.querySelectorAll(".filter-btn").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    // 필터를 누를 때 시드는 리셋 (결정적 결과)
+    fetchAndRenderRecommendations({ filter_category: f, seed: null });
+  });
+});
+
+// ===== 새로고침 =====
+document.getElementById("btn-refresh-recommend")?.addEventListener("click", () => {
+  const newSeed = Math.floor(Math.random() * 100000);
+  fetchAndRenderRecommendations({ seed: newSeed });
+});
+
+// ===== 제품 상세 모달 =====
+function openProductModal(idx) {
+  const p = state.currentRecommendations[idx];
+  if (!p) return;
+  const modal = document.getElementById("product-modal");
+
+  // 이미지
+  const img = document.getElementById("modal-image");
+  if (p.image_url) {
+    img.src = p.image_url;
+    img.alt = p.name || "";
+    img.style.display = "";
+    img.onerror = () => { img.style.display = "none"; };
+  } else {
+    img.style.display = "none";
+  }
+
+  // 헤더
+  document.getElementById("modal-brand").textContent = p.brand || "";
+  document.getElementById("modal-name").textContent = p.name || "";
+  document.getElementById("modal-score").textContent = `${p.score ? p.score.toFixed(1) : "0"}점`;
+
+  // 카테고리
+  const catsEl = document.getElementById("modal-categories");
+  catsEl.innerHTML = (p.category || [])
+    .map((c) => `<span class="recommend-cat-tag">${escapeHtml(c)}</span>`)
+    .join("");
+
+  // 효과 / 추천 이유
+  document.getElementById("modal-effect").textContent = p.effect || "";
+  document.getElementById("modal-reason").textContent = p.reason || "범용 케어";
+
+  // 주의 사항
+  const warnSection = document.getElementById("modal-warnings-section");
+  const warnEl = document.getElementById("modal-warnings");
+  if (p.warnings && p.warnings.length > 0) {
+    warnSection.hidden = false;
+    warnEl.innerHTML = p.warnings.map((w) =>
+      `<span class="recommend-warning recommend-warning-${escapeHtml(w.level || "low")}">${escapeHtml(w.label)}</span>`
+    ).join("");
+  } else {
+    warnSection.hidden = true;
+  }
+
+  // 전성분
+  const ingEl = document.getElementById("modal-ingredients");
+  const ings = p.all_ingredients && p.all_ingredients.length > 0
+    ? p.all_ingredients
+    : (p.main_ingredients || []);
+  ingEl.innerHTML = ings.length > 0
+    ? ings.map((i) => `<li>${escapeHtml(i)}</li>`).join("")
+    : "<li class=\"muted\">전성분 정보 없음</li>";
+
+  // 메타
+  const metaEl = document.getElementById("modal-meta");
+  const metaRows = [];
+  if (p.subcategory && p.subcategory !== "?") metaRows.push(["분류", p.subcategory]);
+  if (p.for_skin && p.for_skin.length > 0) metaRows.push(["적합 피부", p.for_skin.join(", ")]);
+  if (p.fragrance_free) metaRows.push(["향료", "무향"]);
+  if (p.alcohol_free) metaRows.push(["알코올", "무알코올"]);
+  if (p.price_range && p.price_range !== "?") metaRows.push(["가격대", p.price_range]);
+  metaEl.innerHTML = metaRows.length > 0
+    ? metaRows.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd>`).join("")
+    : "<dt>정보 없음</dt><dd>—</dd>";
+
+  // 구매 링크
+  const buyBtn = document.getElementById("modal-buy-btn");
+  if (p.purchase_url) {
+    buyBtn.href = p.purchase_url;
+    buyBtn.style.display = "";
+  } else {
+    buyBtn.style.display = "none";
+  }
+
+  modal.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+
+function closeProductModal() {
+  document.getElementById("product-modal").hidden = true;
+  document.body.style.overflow = "";
+}
+
+document.querySelectorAll("[data-close-modal]").forEach((el) => {
+  el.addEventListener("click", closeProductModal);
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !document.getElementById("product-modal").hidden) {
+    closeProductModal();
+  }
+});
 
 // ===== 처음으로 =====
 document.getElementById("btn-restart").addEventListener("click", () => {
