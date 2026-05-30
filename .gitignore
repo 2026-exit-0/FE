@@ -1,0 +1,39 @@
+# Node / 패키지 매니저 (추후 React/Vue 도입 시)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# Build / dist (추후 빌드 도구 도입 시)
+dist/
+build/
+.cache/
+.parcel-cache/
+.next/
+out/
+
+# 환경변수
+.env
+.env.local
+.env.*.local
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# 로그
+*.log
+
+# 테스트 / 커버리지
+coverage/
+.nyc_output/
+
+# 임시 / 캐시
+tmp/
+*.tmp

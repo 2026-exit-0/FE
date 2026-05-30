@@ -343,6 +343,9 @@ function renderResult(result) {
     tipsList.innerHTML = "<li>특별한 케어 권장 사항 없음 — 현재 루틴을 유지하세요</li>";
   }
 
+  // 추천 제품
+  renderRecommendations(result.recommended_products || []);
+
   // 메타 정보
   const meta = result.meta;
   const metaInfo = document.getElementById("meta-info");
@@ -351,6 +354,69 @@ function renderResult(result) {
     <dt>모델 epoch</dt><dd>${meta.ckpt_epoch}</dd>
     <dt>센서 입력</dt><dd>${meta.sensor_inputs_used.length > 0 ? meta.sensor_inputs_used.join(", ") : "없음"}</dd>
   `;
+}
+
+// ===== 추천 제품 렌더링 =====
+function renderRecommendations(products) {
+  const section = document.getElementById("recommend-section");
+  const list = document.getElementById("recommend-list");
+  if (!products || products.length === 0) {
+    section.hidden = true;
+    return;
+  }
+  section.hidden = false;
+  list.innerHTML = "";
+
+  products.forEach((p) => {
+    const card = document.createElement("div");
+    card.className = "recommend-card";
+
+    // 이미지 (없으면 placeholder)
+    const imgHtml = p.image_url
+      ? `<img class="recommend-image" src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" onerror="this.outerHTML='<div class=\\'recommend-image placeholder\\'>📦</div>'" />`
+      : `<div class="recommend-image placeholder">📦</div>`;
+
+    // 카테고리 배지
+    const catTags = (p.category || [])
+      .map((c) => `<span class="recommend-cat-tag">${escapeHtml(c)}</span>`)
+      .join("");
+
+    // 메타 (무향, 가격)
+    const metaItems = [];
+    if (p.fragrance_free) metaItems.push(`<span class="recommend-meta-item">🌿 무향</span>`);
+    if (p.price_range && p.price_range !== "?") {
+      metaItems.push(`<span class="recommend-meta-item">💰 ${escapeHtml(p.price_range)}</span>`);
+    }
+    if (p.subcategory && p.subcategory !== "?") {
+      metaItems.push(`<span class="recommend-meta-item">📋 ${escapeHtml(p.subcategory)}</span>`);
+    }
+    const metaHtml = metaItems.length > 0
+      ? `<div class="recommend-meta">${metaItems.join("")}</div>`
+      : "";
+
+    // 주성분
+    const ingHtml = p.main_ingredients && p.main_ingredients.length > 0
+      ? `<div class="recommend-ingredients">${p.main_ingredients.slice(0, 3).map(escapeHtml).join(", ")}</div>`
+      : "";
+
+    card.innerHTML = `
+      ${imgHtml}
+      <div class="recommend-body">
+        <div class="recommend-header">
+          <div>
+            <div class="recommend-brand">${escapeHtml(p.brand || "")}</div>
+            <div class="recommend-name">${escapeHtml(p.name || "")}</div>
+            <div class="recommend-categories">${catTags}</div>
+          </div>
+          <div class="recommend-score">${p.score ? p.score.toFixed(1) : "0"}점</div>
+        </div>
+        <div class="recommend-reason">${escapeHtml(p.reason || "범용 케어")}</div>
+        ${ingHtml}
+        ${metaHtml}
+      </div>
+    `;
+    list.appendChild(card);
+  });
 }
 
 // ===== 처음으로 =====
