@@ -385,13 +385,32 @@ function renderRecommendations(products) {
 
   // 결과 없을 때
   if (!products || products.length === 0) {
-    // 필터가 적용된 상태이면 섹션은 그대로 두고 empty 메시지만 노출
-    if (state.lastFilter) {
+    const filtersActive = state.lastFilters && state.lastFilters.length > 0;
+    const hasExcludes = state.shownProductIds && state.shownProductIds.size > 0;
+
+    // 필터 적용 중이거나 재추천으로 후보 소진된 경우 → empty 메시지
+    if (filtersActive || hasExcludes) {
       section.hidden = false;
       list.innerHTML = "";
-      if (empty) empty.hidden = false;
+      if (empty) {
+        empty.hidden = false;
+        empty.innerHTML = hasExcludes && !filtersActive
+          ? "더 이상 추천할 새로운 제품이 없어요. <a href=\"#\" id=\"reset-recommendations\">처음부터 다시 보기</a>"
+          : "해당 카테고리에 맞는 제품이 없어요. 다른 카테고리를 눌러보세요.";
+        // 리셋 링크 핸들러
+        const resetLink = document.getElementById("reset-recommendations");
+        if (resetLink) {
+          resetLink.addEventListener("click", (e) => {
+            e.preventDefault();
+            state.shownProductIds = new Set();
+            state.lastSeed = null;
+            fetchAndRenderRecommendations({ seed: null, excludeIds: [] });
+          });
+        }
+      }
       return;
     }
+    // 정말로 추천할 게 하나도 없을 때만 섹션 숨김
     section.hidden = true;
     if (empty) empty.hidden = true;
     return;
