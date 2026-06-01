@@ -756,6 +756,18 @@ fieldset legend {
   letter-spacing: -0.2px;
 }
 
+/* 서브라벨 — 성분 기반 chip (카테고리 옆에 작게) */
+.recommend-sub-label {
+  font-size: 10.5px;
+  background: rgba(108, 92, 231, 0.10);
+  color: #6c5ce7;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-weight: 500;
+  letter-spacing: -0.2px;
+  border: 1px solid rgba(108, 92, 231, 0.18);
+}
+
 /* ===== 추천 섹션 헤더 (새로고침 버튼) ===== */
 .recommend-section-header {
   display: flex;

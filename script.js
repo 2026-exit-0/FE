@@ -11,10 +11,12 @@ const state = {
   // 추천 재호출 (필터/새로고침) 을 위한 마지막 측정 결과 캐시
   lastMeasurement: null,
   lastWeather: null,
-  lastFilter: "",
+  lastFilters: [],          // 다중 선택 카테고리 배열 (빈 배열 = 전체)
   lastSeed: null,
   // 현재 표시 중인 추천 (모달 열 때 사용)
   currentRecommendations: [],
+  // 이미 본 제품 ID 누적 (재추천 시 exclude)
+  shownProductIds: new Set(),
 };
 
 // ===== 유틸: Step 전환 =====
@@ -356,8 +358,9 @@ function renderResult(result) {
     ...(result.predictions?.classification || {}),
   };
   state.lastWeather = null;  // TODO: weather 통합되면 result.weather
-  state.lastFilter = "";
+  state.lastFilters = [];
   state.lastSeed = null;
+  state.shownProductIds = new Set();
   resetFilterButtons();
   renderRecommendations(result.recommended_products || []);
 
@@ -398,6 +401,9 @@ function renderRecommendations(products) {
   list.innerHTML = "";
 
   products.forEach((p, idx) => {
+    // 본 제품 ID 누적
+    if (p.id) state.shownProductIds.add(p.id);
+
     const card = document.createElement("div");
     card.className = "recommend-card";
     card.dataset.productIndex = idx;
@@ -409,9 +415,12 @@ function renderRecommendations(products) {
       ? `<img class="recommend-image" src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" onerror="this.outerHTML='<div class=\\'recommend-image placeholder\\'>📦</div>'" />`
       : `<div class="recommend-image placeholder">📦</div>`;
 
-    // 카테고리 배지
+    // 카테고리 배지 + 서브라벨 (성분 chip)
     const catTags = (p.category || [])
       .map((c) => `<span class="recommend-cat-tag">${escapeHtml(c)}</span>`)
+      .join("");
+    const subLabels = (p.sub_labels || [])
+      .map((l) => `<span class="recommend-sub-label">${escapeHtml(l)}</span>`)
       .join("");
 
     // 메타 (무향, 가격)
@@ -459,7 +468,7 @@ function renderRecommendations(products) {
           <div class="recommend-header-text">
             <div class="recommend-brand">${escapeHtml(p.brand || "")}</div>
             <div class="recommend-name">${escapeHtml(p.name || "")}</div>
-            <div class="recommend-categories">${catTags}</div>
+            <div class="recommend-categories">${catTags}${subLabels}</div>
           </div>
           <div class="recommend-score">${p.score ? p.score.toFixed(1) : "0"}점</div>
         </div>
@@ -495,16 +504,19 @@ async function fetchAndRenderRecommendations(opts = {}) {
   list.style.opacity = "0.4";
 
   try {
+    const filters = opts.filters !== undefined ? opts.filters : state.lastFilters;
+    const seed = opts.seed !== undefined ? opts.seed : state.lastSeed;
+    const excludeIds = opts.excludeIds !== undefined ? opts.excludeIds : null;
+
     const body = {
       measurement: state.lastMeasurement,
       user_inputs: state.user_inputs,
       weather: state.lastWeather,
-      filter_category: opts.filter_category ?? state.lastFilter ?? "",
-      seed: opts.seed ?? state.lastSeed,
       top_k: 5,
     };
-    if (!body.filter_category) delete body.filter_category;
-    if (body.seed == null) delete body.seed;
+    if (filters && filters.length > 0) body.filter_categories = filters;
+    if (seed != null) body.seed = seed;
+    if (excludeIds && excludeIds.length > 0) body.exclude_ids = excludeIds;
 
     const resp = await fetch(`${API_BASE}/api/recommend`, {
       method: "POST",
@@ -514,8 +526,8 @@ async function fetchAndRenderRecommendations(opts = {}) {
     if (!resp.ok) throw new Error(`API ${resp.status}`);
     const data = await resp.json();
 
-    state.lastFilter = body.filter_category || "";
-    state.lastSeed = body.seed ?? null;
+    state.lastFilters = filters || [];
+    state.lastSeed = seed ?? null;
     renderRecommendations(data.recommended_products || []);
   } catch (e) {
     console.error("추천 재호출 실패:", e);
@@ -524,7 +536,7 @@ async function fetchAndRenderRecommendations(opts = {}) {
   }
 }
 
-// ===== 필터 버튼 =====
+// ===== 필터 버튼 — 다중 선택 가능 =====
 function resetFilterButtons() {
   document.querySelectorAll(".filter-btn").forEach((b) => {
     b.classList.toggle("active", b.dataset.filter === "");
@@ -534,17 +546,38 @@ function resetFilterButtons() {
 document.querySelectorAll(".filter-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
     const f = btn.dataset.filter;
-    document.querySelectorAll(".filter-btn").forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-    // 필터를 누를 때 시드는 리셋 (결정적 결과)
-    fetchAndRenderRecommendations({ filter_category: f, seed: null });
+    if (f === "") {
+      // "전체" — 모든 필터 해제
+      document.querySelectorAll(".filter-btn").forEach((b) => {
+        b.classList.toggle("active", b.dataset.filter === "");
+      });
+      state.shownProductIds = new Set();
+      fetchAndRenderRecommendations({ filters: [], seed: null });
+      return;
+    }
+    // 개별 카테고리 토글
+    btn.classList.toggle("active");
+    document.querySelector('.filter-btn[data-filter=""]')?.classList.remove("active");
+
+    const activeFilters = Array.from(document.querySelectorAll(".filter-btn.active"))
+      .map((b) => b.dataset.filter)
+      .filter((f) => f);
+
+    // 다 끄면 "전체" 활성
+    if (activeFilters.length === 0) {
+      document.querySelector('.filter-btn[data-filter=""]')?.classList.add("active");
+    }
+
+    state.shownProductIds = new Set();
+    fetchAndRenderRecommendations({ filters: activeFilters, seed: null });
   });
 });
 
-// ===== 새로고침 =====
+// ===== 새로고침 — 이전 추천 제외하고 다음 풀에서 =====
 document.getElementById("btn-refresh-recommend")?.addEventListener("click", () => {
+  const excludeIds = Array.from(state.shownProductIds);
   const newSeed = Math.floor(Math.random() * 100000);
-  fetchAndRenderRecommendations({ seed: newSeed });
+  fetchAndRenderRecommendations({ seed: newSeed, excludeIds });
 });
 
 // ===== 제품 상세 모달 =====
@@ -569,11 +602,15 @@ function openProductModal(idx) {
   document.getElementById("modal-name").textContent = p.name || "";
   document.getElementById("modal-score").textContent = `${p.score ? p.score.toFixed(1) : "0"}점`;
 
-  // 카테고리
+  // 카테고리 + 서브라벨
   const catsEl = document.getElementById("modal-categories");
-  catsEl.innerHTML = (p.category || [])
+  const catHtml = (p.category || [])
     .map((c) => `<span class="recommend-cat-tag">${escapeHtml(c)}</span>`)
     .join("");
+  const subHtml = (p.sub_labels || [])
+    .map((l) => `<span class="recommend-sub-label">${escapeHtml(l)}</span>`)
+    .join("");
+  catsEl.innerHTML = catHtml + subHtml;
 
   // 효과 / 추천 이유
   document.getElementById("modal-effect").textContent = p.effect || "";
