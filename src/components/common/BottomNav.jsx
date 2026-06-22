@@ -5,14 +5,15 @@ import {
   BarChart3,
   FileText,
   ShoppingBag,
+  User,
 } from 'lucide-react';
 
 const navItems = [
   { path: '/dashboard', label: '대시보드', icon: LayoutDashboard },
   { path: '/scan', label: '스캔', icon: Scan },
   { path: '/analysis', label: '분석', icon: BarChart3 },
-  { path: '/report', label: '리포트', icon: FileText },
   { path: '/products', label: '추천', icon: ShoppingBag },
+  { path: '/mypage', label: 'MY', icon: User },
 ];
 
 const BottomNav = () => {

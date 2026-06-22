@@ -1,91 +1,107 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Scan as ScanIcon, CheckCircle, AlertTriangle, Circle,
-  Thermometer, Droplets, Sun, ChevronDown,
-} from 'lucide-react';
+import { Scan as ScanIcon, CheckCircle, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
 import Header from '../components/common/Header';
 import Sidebar from '../components/common/Sidebar';
 import BottomNav from '../components/common/BottomNav';
 import Button from '../components/common/Button';
-import useMockAuth from '../hooks/useMockAuth';
-import useWeather from '../hooks/useWeather';
-import { mockAnalysis } from '../utils/mockData';
-import { SCAN_AREAS, MEASUREMENT_ITEMS, UV_LEVELS } from '../utils/constants';
+import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
+import { getScannerHealth, measureWithScanner } from '../api/scan';
+import { SCAN_AREAS, MEASUREMENT_ITEMS } from '../utils/constants';
+
+const REGION_MAP = {
+  '얼굴 전체': 'PART_0',
+  '이마': 'FOREHEAD',
+  '눈': 'L_EYE',
+  '턱': 'CHIN',
+  '목': 'CHIN',
+  '손등': 'PART_0',
+};
 
 const ScanPage = () => {
   const navigate = useNavigate();
-  const { user } = useMockAuth(true);
-  const { weather } = useWeather();
-  const { scans, addScan, initializeIfNeeded } = useScanStore();
+  useAuth(true);
+  const { addScan, initializeIfNeeded } = useScanStore();
 
-  useEffect(() => {
-    initializeIfNeeded();
-  }, [initializeIfNeeded]);
-
-  const [scanStatus, setScanStatus] = useState('ready'); // ready | countdown | scanning | complete
+  const [scanStatus, setScanStatus] = useState('ready');
   const [countdown, setCountdown] = useState(3);
   const [scanProgress, setScanProgress] = useState(0);
   const [selectedArea, setSelectedArea] = useState('얼굴 전체');
-
+  const [scannerStatus, setScannerStatus] = useState('checking');
+  const [scannerMsg, setScannerMsg] = useState('스캐너 상태 확인 중...');
   const [measurements, setMeasurements] = useState(
     MEASUREMENT_ITEMS.reduce((acc, item) => ({ ...acc, [item.id]: item.default }), {})
   );
 
-  const uvInfo = UV_LEVELS[weather?.uv] || UV_LEVELS.moderate;
+  useEffect(() => { initializeIfNeeded(); }, [initializeIfNeeded]);
 
-  const toggleMeasurement = (id) => {
-    setMeasurements(prev => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const startScan = useCallback(() => {
-    setScanStatus('countdown');
-    setCountdown(3);
+  // 스캐너 상태 확인
+  useEffect(() => {
+    let cancelled = false;
+    getScannerHealth().then((data) => {
+      if (cancelled) return;
+      if (data.status === 'ok') {
+        setScannerStatus('ok');
+        setScannerMsg(`스캐너 연결됨 (상태: ${data.esp32_data?.state || '대기 중'})`);
+      } else {
+        setScannerStatus('unreachable');
+        setScannerMsg(data.message || '스캐너 미연결 — Wi-Fi 확인');
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setScannerStatus('unreachable');
+        setScannerMsg('서버 응답 없음');
+      }
+    });
+    return () => { cancelled = true; };
   }, []);
 
-  // Countdown effect
+  const toggleMeasurement = (id) => setMeasurements((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  // 카운트다운
   useEffect(() => {
     if (scanStatus !== 'countdown') return;
-    
     if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
-      return () => clearTimeout(timer);
-    } else {
-      setScanStatus('scanning');
-      setScanProgress(0);
+      const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
+      return () => clearTimeout(t);
     }
+    setScanStatus('scanning');
+    setScanProgress(0);
   }, [scanStatus, countdown]);
 
-  // Scan progress effect
+  // 스캔 진행 (mock: 프로그레스 바, real: API 응답 대기)
   useEffect(() => {
     if (scanStatus !== 'scanning') return;
 
     if (scanProgress < 100) {
-      const timer = setTimeout(() => {
-        setScanProgress(p => Math.min(p + 2, 100));
-      }, 100);
-      return () => clearTimeout(timer);
-    } else {
-      setScanStatus('complete');
-      // Generate mock result and save
-      const result = {
-        ...mockAnalysis,
-        moisture: Math.floor(60 + Math.random() * 30),
-        oil: Math.floor(30 + Math.random() * 40),
-        elasticity: Math.floor(30 + Math.random() * 40),
-        spots: Math.floor(40 + Math.random() * 40),
-        pigmentation: Math.floor(40 + Math.random() * 30),
-        overallScore: Math.floor(60 + Math.random() * 30),
-        date: new Date().toISOString().split('T')[0].replace(/-/g, '.'),
-        area: selectedArea,
-        skinType: '최근 분석 상태',
-      };
-      addScan(result);
-      
-      setTimeout(() => navigate('/analysis'), 1500);
+      const t = setTimeout(() => setScanProgress((p) => Math.min(p + 2, 100)), 100);
+      return () => clearTimeout(t);
     }
+
+    // 진행바 완료 → 실제 API 호출
+    const run = async () => {
+      try {
+        const fd = new FormData();
+        fd.append('region', REGION_MAP[selectedArea] || 'PART_0');
+        const result = await measureWithScanner(fd);
+        addScan(result);
+        setScanStatus('complete');
+        setTimeout(() => navigate('/analysis'), 1200);
+      } catch (err) {
+        console.error('측정 실패:', err);
+        setScanStatus('ready');
+        alert('측정에 실패했습니다. 다시 시도해주세요.');
+      }
+    };
+    run();
   }, [scanStatus, scanProgress, navigate, selectedArea, addScan]);
+
+  const startScan = useCallback(() => {
+    setScanStatus('countdown');
+    setCountdown(3);
+    setScanProgress(0);
+  }, []);
 
   const checklist = [
     { icon: CheckCircle, text: '밝은 환경에서 측정하세요', type: 'ok' },
@@ -103,34 +119,34 @@ const ScanPage = () => {
 
         <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-24 desktop:pb-8">
           <div className="grid grid-cols-1 desktop:grid-cols-12 gap-6">
-            
-            {/* Center - Scan Interface */}
+
+            {/* 스캔 인터페이스 */}
             <div className="desktop:col-span-7 space-y-6">
-              {/* Scan Visualization */}
               <div className="card overflow-hidden">
+                {/* 스캐너 연결 상태 */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${scanStatus === 'scanning' ? 'bg-green-500 animate-pulse' : 'bg-orange-400'}`}></span>
-                    <span className="text-sm text-text-secondary">
-                      {scanStatus === 'scanning' ? '스캐너 연결됨' : '스캐너 미연결'}
-                    </span>
+                    <span className={`w-2 h-2 rounded-full transition-colors ${
+                      scannerStatus === 'ok' ? 'bg-green-500' :
+                      scannerStatus === 'checking' ? 'bg-yellow-400 animate-pulse' :
+                      'bg-orange-400'
+                    }`} />
+                    <span className="text-sm text-text-secondary">{scannerMsg}</span>
                   </div>
                   <span className="text-xs text-text-secondary">UV 모드</span>
                 </div>
 
-                {/* Face Guide Area */}
+                {/* 얼굴 가이드 */}
                 <div className="bg-gray-900 rounded-2xl aspect-[4/3] relative flex items-center justify-center mb-4 overflow-hidden">
-                  {/* Grid lines */}
                   <div className="absolute inset-0 opacity-10">
                     {[...Array(10)].map((_, i) => (
-                      <div key={`h${i}`} className="absolute w-full h-px bg-green-400" style={{ top: `${i * 10}%` }}></div>
+                      <div key={`h${i}`} className="absolute w-full h-px bg-green-400" style={{ top: `${i * 10}%` }} />
                     ))}
                     {[...Array(10)].map((_, i) => (
-                      <div key={`v${i}`} className="absolute h-full w-px bg-green-400" style={{ left: `${i * 10}%` }}></div>
+                      <div key={`v${i}`} className="absolute h-full w-px bg-green-400" style={{ left: `${i * 10}%` }} />
                     ))}
                   </div>
 
-                  {/* Face outline SVG */}
                   <svg viewBox="0 0 200 280" className="h-[80%] w-auto opacity-40" fill="none" stroke="#4CAF50" strokeWidth="1.5">
                     <ellipse cx="100" cy="130" rx="70" ry="90" />
                     <ellipse cx="70" cy="115" rx="12" ry="8" />
@@ -139,12 +155,9 @@ const ScanPage = () => {
                     <path d="M85 175 Q100 185 115 175" />
                   </svg>
 
-                  {/* Scan line animation */}
                   {scanStatus === 'scanning' && (
-                    <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-green-400 to-transparent animate-scan-line"></div>
+                    <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-green-400 to-transparent animate-scan-line" />
                   )}
-
-                  {/* Countdown */}
                   {scanStatus === 'countdown' && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/60">
                       <div className="text-center">
@@ -153,8 +166,6 @@ const ScanPage = () => {
                       </div>
                     </div>
                   )}
-
-                  {/* Complete */}
                   {scanStatus === 'complete' && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/60">
                       <div className="text-center">
@@ -164,8 +175,6 @@ const ScanPage = () => {
                       </div>
                     </div>
                   )}
-
-                  {/* Guide text */}
                   {scanStatus === 'ready' && (
                     <div className="absolute bottom-6 left-0 right-0 text-center">
                       <p className="text-green-400/80 text-sm">스캔 부위를 중앙에 맞춰주세요</p>
@@ -173,49 +182,41 @@ const ScanPage = () => {
                   )}
                 </div>
 
-                {/* Status & Progress */}
-                <div>
-                  {scanStatus === 'scanning' && (
-                    <div className="mb-4">
-                      <div className="flex justify-between text-xs text-text-secondary mb-1">
-                        <span>스캔 진행 중...</span>
-                        <span>{scanProgress}%</span>
-                      </div>
-                      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-primary-500 rounded-full transition-all duration-100"
-                          style={{ width: `${scanProgress}%` }}
-                        ></div>
-                      </div>
+                {/* 진행 바 */}
+                {scanStatus === 'scanning' && (
+                  <div className="mb-4">
+                    <div className="flex justify-between text-xs text-text-secondary mb-1">
+                      <span>스캔 진행 중...</span>
+                      <span>{scanProgress}%</span>
                     </div>
-                  )}
-
-                  <div className="flex items-center justify-between text-sm text-text-secondary mb-4">
-                    <span>
-                      {scanStatus === 'ready' && '스캔 준비 완료'}
-                      {scanStatus === 'countdown' && '카운트다운...'}
-                      {scanStatus === 'scanning' && '스캔 중 움직이지 마세요'}
-                      {scanStatus === 'complete' && '스캔 완료!'}
-                    </span>
-                    <div className="flex gap-2">
-                      <span className="text-xs px-2 py-1 bg-gray-100 rounded">해상도</span>
+                    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div className="h-full bg-primary-500 rounded-full transition-all duration-100" style={{ width: `${scanProgress}%` }} />
                     </div>
                   </div>
+                )}
 
-                  <Button
-                    onClick={startScan}
-                    disabled={scanStatus === 'scanning' || scanStatus === 'countdown'}
-                    className="w-full text-base"
-                    size="lg"
-                  >
-                    <ScanIcon size={20} />
-                    {scanStatus === 'ready' ? '스캔 시작하기' : 
-                     scanStatus === 'complete' ? '다시 스캔하기' : '스캔 중...'}
-                  </Button>
+                <div className="flex items-center justify-between text-sm text-text-secondary mb-4">
+                  <span>
+                    {scanStatus === 'ready' && '스캔 준비 완료'}
+                    {scanStatus === 'countdown' && '카운트다운...'}
+                    {scanStatus === 'scanning' && '스캔 중 움직이지 마세요'}
+                    {scanStatus === 'complete' && '스캔 완료!'}
+                  </span>
                 </div>
+
+                <Button
+                  onClick={startScan}
+                  disabled={scanStatus === 'scanning' || scanStatus === 'countdown'}
+                  className="w-full text-base"
+                  size="lg"
+                >
+                  <ScanIcon size={20} />
+                  {scanStatus === 'ready' ? '스캔 시작하기' :
+                   scanStatus === 'complete' ? '다시 스캔하기' : '스캔 중...'}
+                </Button>
               </div>
 
-              {/* Checklist */}
+              {/* 주의사항 */}
               <div className="card">
                 <h3 className="text-sm font-semibold text-text-primary mb-4">스캔 시 주의사항</h3>
                 <div className="space-y-3">
@@ -223,10 +224,7 @@ const ScanPage = () => {
                     const Icon = item.icon;
                     return (
                       <div key={idx} className="flex items-center gap-3">
-                        <Icon
-                          size={18}
-                          className={item.type === 'ok' ? 'text-primary-500' : 'text-orange-400'}
-                        />
+                        <Icon size={18} className={item.type === 'ok' ? 'text-primary-500' : 'text-orange-400'} />
                         <span className="text-sm text-text-secondary">{item.text}</span>
                       </div>
                     );
@@ -235,13 +233,11 @@ const ScanPage = () => {
               </div>
             </div>
 
-            {/* Right Panel - Settings */}
+            {/* 설정 패널 */}
             <div className="desktop:col-span-5 space-y-6">
-              {/* Scan Settings */}
               <div className="card">
                 <h3 className="text-sm font-semibold text-text-primary mb-4">스캔 설정</h3>
-                
-                {/* Area Selection */}
+
                 <div className="mb-5">
                   <p className="text-xs font-medium text-text-secondary mb-2">측정 부위</p>
                   <div className="flex flex-wrap gap-2">
@@ -261,9 +257,6 @@ const ScanPage = () => {
                   </div>
                 </div>
 
-
-
-                {/* Measurement Toggles */}
                 <div>
                   <p className="text-xs font-medium text-text-secondary mb-2">측정 항목</p>
                   <div className="space-y-3">
@@ -276,11 +269,9 @@ const ScanPage = () => {
                             measurements[item.id] ? 'bg-primary-500' : 'bg-gray-200'
                           }`}
                         >
-                          <span
-                            className={`inline-block w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                              measurements[item.id] ? 'translate-x-[22px]' : 'translate-x-[2px]'
-                            }`}
-                          ></span>
+                          <span className={`inline-block w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                            measurements[item.id] ? 'translate-x-[22px]' : 'translate-x-[2px]'
+                          }`} />
                         </button>
                       </div>
                     ))}
@@ -288,37 +279,29 @@ const ScanPage = () => {
                 </div>
               </div>
 
-              {/* Scan History */}
+              {/* 스캐너 연결 카드 */}
               <div className="card">
-                <h3 className="text-sm font-semibold text-text-primary mb-4">이전 스캔 기록</h3>
-                {scans.length > 0 ? (
-                  <div className="space-y-3">
-                    {scans.slice(0, 5).map((scan) => (
-                      <div
-                        key={scan.id}
-                        className="flex items-center justify-between p-3 bg-background-gray rounded-xl cursor-pointer hover:bg-gray-100 transition-colors"
-                        onClick={() => {
-                          useScanStore.getState().setCurrentScan(scan);
-                          navigate('/analysis');
-                        }}
-                      >
-                        <div>
-                          <p className="text-xs font-medium text-text-primary">
-                            {scan.date} — {scan.area}
-                          </p>
-                          <p className="text-[11px] text-text-secondary mt-0.5">
-                            {scan.skinType} · 수분 {scan.moisture}%
-                          </p>
-                        </div>
-                        <span className="text-lg font-bold text-primary-500">{scan.overallScore}</span>
-                      </div>
-                    ))}
+                <h3 className="text-sm font-semibold text-text-primary mb-3">스캐너 연결</h3>
+                <div className={`rounded-xl p-4 flex items-center gap-3 ${
+                  scannerStatus === 'ok' ? 'bg-primary-50' : 'bg-orange-50'
+                }`}>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    scannerStatus === 'ok' ? 'bg-primary-100' : 'bg-orange-100'
+                  }`}>
+                    {scannerStatus === 'ok'
+                      ? <Wifi size={18} className="text-primary-500" />
+                      : <WifiOff size={18} className="text-orange-500" />
+                    }
                   </div>
-                ) : (
-                  <p className="text-sm text-text-secondary text-center py-6">
-                    아직 스캔 기록이 없습니다.
-                  </p>
-                )}
+                  <div>
+                    <p className={`text-sm font-medium ${scannerStatus === 'ok' ? 'text-primary-700' : 'text-orange-700'}`}>
+                      {scannerStatus === 'ok' ? '스캐너 연결됨' : '스캐너 미연결'}
+                    </p>
+                    <p className={`text-xs ${scannerStatus === 'ok' ? 'text-primary-500' : 'text-orange-500'}`}>
+                      {scannerMsg}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

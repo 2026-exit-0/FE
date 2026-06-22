@@ -42,7 +42,7 @@ const Sidebar = () => {
       title: '기타',
       items: [
         { path: '#', label: '케어 가이드', icon: 'BookOpen' },
-        { path: '#', label: '마이페이지', icon: 'User' },
+        { path: '/mypage', label: '마이페이지', icon: 'User' },
         { path: '#', label: '설정', icon: 'Settings' },
       ],
     },

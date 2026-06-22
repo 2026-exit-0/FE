@@ -7,12 +7,12 @@ import {
 import Header from '../components/common/Header';
 import Sidebar from '../components/common/Sidebar';
 import BottomNav from '../components/common/BottomNav';
-import useMockAuth from '../hooks/useMockAuth';
+import useAuth from '../hooks/useAuth';
 import useWeather from '../hooks/useWeather';
 import { UV_LEVELS } from '../utils/constants';
 
 const DashboardPage = () => {
-  const { user } = useMockAuth(true);
+  const { user } = useAuth(true);
   const { weather } = useWeather();
 
   const hasScanData = user?.scanCount > 0;

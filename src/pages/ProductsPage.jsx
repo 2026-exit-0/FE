@@ -1,196 +1,230 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ShoppingBag, Scan, ArrowRight, Leaf, Sparkles,
-} from 'lucide-react';
+import { ShoppingBag, Scan, RefreshCw, Sparkles, Leaf } from 'lucide-react';
 import Header from '../components/common/Header';
 import Sidebar from '../components/common/Sidebar';
 import BottomNav from '../components/common/BottomNav';
 import Button from '../components/common/Button';
-import useMockAuth from '../hooks/useMockAuth';
-import { mockProducts, calculateCompatibility } from '../utils/mockData';
+import useAuth from '../hooks/useAuth';
+import useScanStore from '../store/scanStore';
+import { getRecommendations } from '../api/products';
 
-// ─── 카테고리 정의 ─────────────────────────────────────
-const categories = [
-  { id: 'all', label: '전체' },
-  { id: '클렌저', label: '클렌저' },
-  { id: '토너', label: '토너' },
-  { id: '세럼/앰플', label: '세럼/앰플' },
-  { id: '크림', label: '크림' },
-  { id: '선크림', label: '선크림' },
+const FILTER_CATEGORIES = [
+  { id: '', label: '전체' },
+  { id: '보습', label: '보습' },
+  { id: '진정', label: '진정 / 민감' },
+  { id: '미백', label: '미백 / 톤업' },
+  { id: '모공', label: '모공 / 각질' },
+  { id: '탄력', label: '탄력 / 항노화' },
 ];
 
-// ─── 제품 카드 컴포넌트 ───────────────────────────────────
-const ProductCard = ({ product }) => {
+// 카드
+const ProductCard = ({ product, onClick }) => {
+  const catTags = (product.category || []).map((c) => (
+    <span key={c} className="text-[10px] bg-primary-50 text-primary-600 px-2 py-0.5 rounded-full font-semibold">{c}</span>
+  ));
+
   return (
     <div
-      className="bg-white rounded-2xl border border-gray-100 overflow-hidden
-                 hover:shadow-lg hover:border-primary-200 transition-all duration-300 group"
+      onClick={onClick}
+      className="bg-white rounded-2xl border border-gray-100 p-4 flex gap-4 cursor-pointer
+                 hover:border-primary-200 hover:shadow-md transition-all duration-200 group"
     >
-      {/* 제품 이미지 영역 */}
-      <div
-        className="aspect-square flex items-center justify-center relative overflow-hidden"
-        style={{ backgroundColor: product.bgColor || '#F5F5F5' }}
-      >
-        <div
-          className="w-20 h-20 rounded-2xl opacity-70 group-hover:scale-110 transition-transform duration-500"
-          style={{ backgroundColor: product.accentColor || '#A5D6A7' }}
-        />
+      {/* 이미지 */}
+      <div className="w-20 h-20 rounded-xl bg-gray-50 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform text-2xl">
+        {product.image_url
+          ? <img src={product.image_url} alt={product.name} className="w-full h-full object-cover rounded-xl" onError={(e) => { e.target.parentNode.textContent = '📦'; }} />
+          : '📦'
+        }
       </div>
 
-      {/* 제품 정보 영역 */}
-      <div className="p-4">
-        {/* 카테고리 배지 */}
-        <span className="inline-block text-[10px] font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded mb-2">
-          {product.badgeLabel || product.category}
-        </span>
-
-        {/* 브랜드 */}
-        <p className="text-[11px] text-text-secondary mb-0.5">{product.brand}</p>
-
-        {/* 제품명 */}
-        <h3 className="text-sm font-bold text-text-primary mb-1 leading-snug line-clamp-2">
-          {product.name}
-        </h3>
-
-        {/* 주요 성분 */}
-        <p className="text-[11px] text-text-secondary mb-3 line-clamp-1">
-          {product.ingredients.join(', ')}
-        </p>
-
-        {/* 하단: 궁합도 + 자세히 버튼 */}
-        <div className="flex items-center justify-between">
-          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary-700 bg-primary-50 px-2.5 py-1 rounded-full">
-            궁합 {product.compatibility}%
+      {/* 본문 */}
+      <div className="flex-1 min-w-0">
+        <div className="flex justify-between items-start gap-2 mb-1">
+          <div className="min-w-0">
+            <p className="text-[11px] text-text-secondary">{product.brand || ''}</p>
+            <p className="text-sm font-bold text-text-primary leading-snug line-clamp-2">{product.name}</p>
+            <div className="flex flex-wrap gap-1 mt-1">{catTags}</div>
+          </div>
+          <span className="text-xs font-bold bg-gradient-to-br from-primary-500 to-purple-500 text-white px-2.5 py-1 rounded-full flex-shrink-0">
+            {product.score?.toFixed(1) ?? '0'}점
           </span>
-          <button className="text-[11px] text-text-secondary font-medium flex items-center gap-0.5 hover:text-primary-600 transition-colors">
-            자세히 <ArrowRight size={12} />
-          </button>
         </div>
+
+        {product.effect && (
+          <p className="text-xs text-text-secondary bg-gray-50 rounded-lg px-3 py-2 mt-2 line-clamp-2">{product.effect}</p>
+        )}
+
+        <p className="text-xs text-text-secondary mt-2 line-clamp-1">
+          <span className="font-medium text-primary-600">왜 추천? </span>
+          {product.reason || '범용 케어'}
+        </p>
+
+        {product.main_ingredients?.length > 0 && (
+          <p className="text-[11px] text-text-secondary mt-1">
+            <span className="font-medium">주성분: </span>
+            {product.main_ingredients.slice(0, 3).join(', ')}
+          </p>
+        )}
       </div>
     </div>
   );
 };
 
-// ─── 사이드바 카테고리 메뉴 (데스크톱) ─────────────────────
-const CategorySidebar = ({ categories, active, onSelect, lowStim, onLowStim, vegan, onVegan }) => {
+// 제품 상세 모달
+const ProductModal = ({ product, onClose }) => {
+  if (!product) return null;
+
   return (
-    <div className="hidden desktop:block w-40 flex-shrink-0 mr-6">
-      {/* 카테고리 섹션 */}
-      <div className="mb-6">
-        <p className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-3 px-2">
-          카테고리
-        </p>
-        <nav className="flex flex-col gap-0.5">
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => onSelect(cat.id)}
-              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 text-left ${
-                active === cat.id
-                  ? 'bg-primary-50 text-primary-600 font-semibold'
-                  : 'text-text-secondary hover:bg-gray-50 hover:text-text-primary'
-              }`}
-            >
-              <span
-                className={`w-3 h-3 rounded flex-shrink-0 ${
-                  active === cat.id ? 'bg-primary-400' : 'bg-gray-200'
-                }`}
-              />
-              {cat.label}
-            </button>
-          ))}
-        </nav>
-      </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl">
+        <button onClick={onClose} className="absolute top-3 right-3 z-10 w-8 h-8 bg-white border border-gray-200 rounded-full flex items-center justify-center text-text-secondary hover:text-text-primary text-sm">✕</button>
 
-      {/* 필터 섹션 */}
-      <div>
-        <p className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-3 px-2">
-          필터
-        </p>
-        <div className="flex flex-col gap-0.5">
-          <button
-            onClick={onLowStim}
-            className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 text-left ${
-              lowStim
-                ? 'bg-primary-50 text-primary-600 font-semibold'
-                : 'text-text-secondary hover:bg-gray-50 hover:text-text-primary'
-            }`}
-          >
-            <span className={`w-3 h-3 rounded flex-shrink-0 ${lowStim ? 'bg-primary-400' : 'bg-gray-200'}`} />
-            저자극
-          </button>
-          <button
-            onClick={onVegan}
-            className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 text-left ${
-              vegan
-                ? 'bg-primary-50 text-primary-600 font-semibold'
-                : 'text-text-secondary hover:bg-gray-50 hover:text-text-primary'
-            }`}
-          >
-            <span className={`w-3 h-3 rounded flex-shrink-0 ${vegan ? 'bg-primary-400' : 'bg-gray-200'}`} />
-            비건
-          </button>
+        <div className="overflow-y-auto p-5 space-y-4">
+          {/* 이미지 */}
+          <div className="w-full h-40 bg-gray-50 rounded-xl flex items-center justify-center text-5xl">
+            {product.image_url
+              ? <img src={product.image_url} alt={product.name} className="h-full object-contain" />
+              : '📦'
+            }
+          </div>
+
+          {/* 헤더 */}
+          <div>
+            <p className="text-xs text-text-secondary uppercase tracking-wide font-semibold">{product.brand}</p>
+            <h2 className="text-lg font-bold text-text-primary mt-1">{product.name}</h2>
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <span className="text-sm font-bold bg-gradient-to-br from-primary-500 to-purple-500 text-white px-3 py-1 rounded-full">
+                {product.score?.toFixed(1) ?? '0'}점
+              </span>
+              {(product.category || []).map((c) => (
+                <span key={c} className="text-xs bg-primary-50 text-primary-600 px-2 py-0.5 rounded-full">{c}</span>
+              ))}
+            </div>
+          </div>
+
+          {/* 효과 */}
+          {product.effect && (
+            <div>
+              <p className="text-xs text-text-secondary font-semibold uppercase tracking-wide mb-1">기대 효과</p>
+              <p className="text-sm text-text-primary bg-primary-50 rounded-lg px-3 py-2">{product.effect}</p>
+            </div>
+          )}
+
+          {/* 추천 이유 */}
+          <div>
+            <p className="text-xs text-text-secondary font-semibold uppercase tracking-wide mb-1">왜 추천했나요?</p>
+            <p className="text-sm text-text-primary bg-gray-50 rounded-lg px-3 py-2 border-l-2 border-primary-400">{product.reason || '범용 케어'}</p>
+          </div>
+
+          {/* 주의 사항 */}
+          {product.warnings?.length > 0 && (
+            <div>
+              <p className="text-xs text-text-secondary font-semibold uppercase tracking-wide mb-1">주의 사항</p>
+              <div className="flex flex-wrap gap-1">
+                {product.warnings.map((w, i) => (
+                  <span key={i} className={`text-xs px-2 py-0.5 rounded-md ${w.level === 'high' ? 'bg-red-50 text-red-600' : w.level === 'medium' ? 'bg-amber-50 text-amber-600' : 'bg-gray-100 text-gray-600'}`}>
+                    {w.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 전성분 */}
+          {product.main_ingredients?.length > 0 && (
+            <div>
+              <p className="text-xs text-text-secondary font-semibold uppercase tracking-wide mb-1">주성분</p>
+              <div className="flex flex-wrap gap-1">
+                {product.main_ingredients.map((ing, i) => (
+                  <span key={i} className="text-xs bg-gray-100 text-text-secondary px-2 py-0.5 rounded">{ing}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 구매 버튼 */}
+          {product.purchase_url && (
+            <a
+              href={product.purchase_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full text-center bg-primary-500 text-white py-3 rounded-xl font-semibold hover:bg-primary-600 transition-colors"
+            >
+              구매처 보기 →
+            </a>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-// ─── ProductsPage 메인 ─────────────────────────────────
 const ProductsPage = () => {
-  const { user } = useMockAuth(true);
-  const [activeCategory, setActiveCategory] = useState('all');
-  const [lowStimulation, setLowStimulation] = useState(false);
-  const [veganOnly, setVeganOnly] = useState(false);
+  useAuth(true);
+  const { currentScan } = useScanStore();
 
-  const hasScanData = !!localStorage.getItem('skinlab_last_scan');
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [activeFilters, setActiveFilters] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const shownIds = useRef(new Set());
 
-  // 유저 프로필 (localStorage에서 가져오기)
-  const userProfile = useMemo(() => {
-    const stored = localStorage.getItem('skinlab_current_user');
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      return {
-        skinType: parsed.skinType || '복합성',
-        concerns: parsed.concerns || ['모공', '건조'],
+  const hasScanData = !!currentScan;
+  const userInputs = currentScan
+    ? { skin_type: currentScan.skinType, sensitivity: 3 }
+    : {};
+
+  const fetchProducts = useCallback(async ({ filters = [], seed = null, excludeIds = [] } = {}) => {
+    setLoading(true);
+    try {
+      const body = {
+        measurement: currentScan
+          ? { moisture: currentScan.moisture, oil: currentScan.oil, elasticity: currentScan.elasticity }
+          : {},
+        user_inputs: userInputs,
+        top_k: 5,
       };
+      if (filters.length > 0) body.filter_categories = filters;
+      if (seed != null) body.seed = seed;
+      if (excludeIds.length > 0) body.exclude_ids = excludeIds;
+
+      const data = await getRecommendations(body);
+      const list = data.recommended_products || [];
+      list.forEach((p) => p.id && shownIds.current.add(p.id));
+      setProducts(list);
+    } catch (err) {
+      console.error('추천 로드 실패:', err);
+    } finally {
+      setLoading(false);
     }
-    return { skinType: '복합성', concerns: ['모공', '건조'] };
-  }, []);
+  }, [currentScan, userInputs]);
 
-  // 궁합도 계산 후 정렬 + 필터
-  const filteredProducts = useMemo(() => {
-    let list = mockProducts.map((p) => ({
-      ...p,
-      compatibility: calculateCompatibility(p, userProfile),
-    }));
+  useEffect(() => {
+    if (hasScanData) fetchProducts();
+  }, [hasScanData]);
 
-    // 카테고리 필터
-    if (activeCategory !== 'all') {
-      list = list.filter((p) => p.category === activeCategory);
+  const handleFilterToggle = (filterId) => {
+    if (filterId === '') {
+      setActiveFilters([]);
+      shownIds.current = new Set();
+      fetchProducts({ filters: [] });
+      return;
     }
+    const next = activeFilters.includes(filterId)
+      ? activeFilters.filter((f) => f !== filterId)
+      : [...activeFilters, filterId];
+    setActiveFilters(next);
+    shownIds.current = new Set();
+    fetchProducts({ filters: next });
+  };
 
-    // 저자극 필터
-    if (lowStimulation) {
-      list = list.filter((p) => p.isLowStimulation);
-    }
+  const handleRefresh = () => {
+    const excludeIds = Array.from(shownIds.current);
+    fetchProducts({ filters: activeFilters, seed: Math.floor(Math.random() * 99999), excludeIds });
+  };
 
-    // 비건 필터
-    if (veganOnly) {
-      list = list.filter((p) => p.isVegan);
-    }
-
-    // 궁합도 순 정렬 (높은 순)
-    list.sort((a, b) => b.compatibility - a.compatibility);
-
-    return list;
-  }, [activeCategory, lowStimulation, veganOnly, userProfile]);
-
-  const toggleLowStim = useCallback(() => setLowStimulation((v) => !v), []);
-  const toggleVegan = useCallback(() => setVeganOnly((v) => !v), []);
-
-  // ─── 스캔 데이터 없을 때 Empty State ────────────────
   if (!hasScanData) {
     return (
       <div className="min-h-screen bg-background-gray">
@@ -202,15 +236,9 @@ const ProductsPage = () => {
               <div className="w-20 h-20 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-6">
                 <ShoppingBag size={36} className="text-primary-300" />
               </div>
-              <h2 className="text-xl font-bold text-text-primary mb-3">
-                맞춤 제품을 추천받으세요
-              </h2>
-              <p className="text-text-secondary mb-8">
-                피부 스캔을 완료하면 AI가 맞춤 제품을 추천해드립니다.
-              </p>
-              <Link to="/scan">
-                <Button icon={Scan}>스캔하러 가기</Button>
-              </Link>
+              <h2 className="text-xl font-bold text-text-primary mb-3">맞춤 제품을 추천받으세요</h2>
+              <p className="text-text-secondary mb-8">피부 스캔을 완료하면 AI가 맞춤 제품을 추천해드립니다.</p>
+              <Link to="/scan"><Button icon={Scan}>스캔하러 가기</Button></Link>
             </div>
           </main>
         </div>
@@ -227,106 +255,83 @@ const ProductsPage = () => {
         <Sidebar />
 
         <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-24 desktop:pb-8 animate-fadeIn">
-          <div className="max-w-6xl mx-auto">
-            {/* ── 안내 배너 ─────────────────────────────── */}
-            <div className="bg-primary-50 border border-primary-100 rounded-2xl p-4 tablet:p-5 mb-6">
+          <div className="max-w-3xl mx-auto">
+
+            {/* 안내 배너 */}
+            <div className="bg-primary-50 border border-primary-100 rounded-2xl p-4 mb-6">
               <div className="flex items-start gap-3">
                 <Sparkles size={18} className="text-primary-500 mt-0.5 flex-shrink-0" />
                 <p className="text-sm text-primary-700 leading-relaxed">
-                  모공 개선 + 수분 보습이 필요한 복합성 피부에 맞는 제품이에요.
-                  피부 분석 결과를 기반으로 궁합 점수를 계산했어요.
+                  오늘 측정 결과를 분석해 선별한 제품이에요. 카드를 누르면 상세 정보를 볼 수 있어요.
                 </p>
               </div>
             </div>
 
-            {/* ── 모바일 카테고리 탭 + 필터 ──────────────── */}
-            <div className="desktop:hidden mb-6">
-              {/* 카테고리 탭 (모바일/태블릿) */}
-              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide mb-3">
-                {categories.map((cat) => (
+            {/* 헤더 + 새로고침 */}
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-bold text-text-primary">맞춤 제품 추천</h2>
+              <button
+                onClick={handleRefresh}
+                disabled={loading}
+                className="flex items-center gap-1.5 text-xs font-medium text-text-secondary border border-gray-200 px-3 py-1.5 rounded-lg hover:border-primary-300 hover:text-primary-600 transition-all disabled:opacity-50"
+              >
+                <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+                다른 추천
+              </button>
+            </div>
+
+            {/* 필터 */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              {FILTER_CATEGORIES.map((cat) => {
+                const isActive = cat.id === '' ? activeFilters.length === 0 : activeFilters.includes(cat.id);
+                return (
                   <button
                     key={cat.id}
-                    onClick={() => setActiveCategory(cat.id)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                      activeCategory === cat.id
+                    onClick={() => handleFilterToggle(cat.id)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                      isActive
                         ? 'bg-primary-500 text-white'
                         : 'bg-white border border-gray-200 text-text-secondary hover:border-primary-300'
                     }`}
                   >
                     {cat.label}
                   </button>
+                );
+              })}
+            </div>
+
+            {/* 제품 목록 */}
+            {loading ? (
+              <div className="space-y-3">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 h-28 animate-pulse" />
                 ))}
               </div>
-              {/* 필터 토글 (모바일/태블릿) */}
-              <div className="flex gap-2">
-                <button
-                  onClick={toggleLowStim}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    lowStimulation
-                      ? 'bg-primary-500 text-white'
-                      : 'bg-white border border-gray-200 text-text-secondary'
-                  }`}
-                >
-                  <Leaf size={12} />
-                  저자극
-                </button>
-                <button
-                  onClick={toggleVegan}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    veganOnly
-                      ? 'bg-primary-500 text-white'
-                      : 'bg-white border border-gray-200 text-text-secondary'
-                  }`}
-                >
-                  🌱 비건
+            ) : products.length === 0 ? (
+              <div className="text-center py-16 text-text-secondary">
+                <ShoppingBag size={40} className="mx-auto mb-3 text-gray-300" />
+                <p className="text-sm">해당 조건에 맞는 제품이 없어요.</p>
+                <button onClick={() => { setActiveFilters([]); fetchProducts(); }} className="mt-3 text-primary-500 text-sm font-medium">
+                  전체 보기
                 </button>
               </div>
-            </div>
-
-            {/* ── 메인 컨텐츠: 사이드바 + 그리드 ─────────── */}
-            <div className="flex">
-              {/* 데스크톱 사이드 카테고리 */}
-              <CategorySidebar
-                categories={categories}
-                active={activeCategory}
-                onSelect={setActiveCategory}
-                lowStim={lowStimulation}
-                onLowStim={toggleLowStim}
-                vegan={veganOnly}
-                onVegan={toggleVegan}
-              />
-
-              {/* 제품 그리드 */}
-              <div className="flex-1 min-w-0">
-                {filteredProducts.length === 0 ? (
-                  <div className="text-center py-16">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <ShoppingBag size={28} className="text-gray-300" />
-                    </div>
-                    <p className="text-sm text-text-secondary">
-                      해당 조건에 맞는 제품이 없습니다.
-                    </p>
+            ) : (
+              <div className="space-y-3">
+                {products.map((p, idx) => (
+                  <div key={p.id ?? idx} className="animate-fadeIn" style={{ animationDelay: `${idx * 60}ms` }}>
+                    <ProductCard product={p} onClick={() => setSelectedProduct(p)} />
                   </div>
-                ) : (
-                  <div className="grid grid-cols-1 tablet:grid-cols-2 desktop:grid-cols-3 gap-4">
-                    {filteredProducts.map((product, idx) => (
-                      <div
-                        key={product.id}
-                        className="animate-fadeIn"
-                        style={{ animationDelay: `${idx * 50}ms` }}
-                      >
-                        <ProductCard product={product} />
-                      </div>
-                    ))}
-                  </div>
-                )}
+                ))}
               </div>
-            </div>
+            )}
           </div>
         </main>
       </div>
 
       <BottomNav />
+
+      {/* 모달 */}
+      <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />
     </div>
   );
 };

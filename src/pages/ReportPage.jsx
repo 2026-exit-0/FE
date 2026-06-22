@@ -11,7 +11,8 @@ import Header from '../components/common/Header';
 import Sidebar from '../components/common/Sidebar';
 import BottomNav from '../components/common/BottomNav';
 import Button from '../components/common/Button';
-import useMockAuth from '../hooks/useMockAuth';
+import useAuth from '../hooks/useAuth';
+import useScanStore from '../store/scanStore';
 import { weeklyData, measurementHistory } from '../utils/mockData';
 
 // ─── 기간 필터 ──────────────────────────────────────────
@@ -152,11 +153,12 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 // ─── ReportPage 메인 ────────────────────────────────────
 const ReportPage = () => {
-  const { user } = useMockAuth(true);
+  useAuth(true);
+  const { currentScan } = useScanStore();
   const [period, setPeriod] = useState('month');
   const [metric, setMetric] = useState('moisture');
 
-  const hasScanData = !!localStorage.getItem('skinlab_last_scan');
+  const hasScanData = !!currentScan;
   const scanCount = measurementHistory.length;
   const hasEnoughScans = scanCount >= 2;
 

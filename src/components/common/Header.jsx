@@ -65,9 +65,9 @@ const Header = ({ variant = 'landing' }) => {
           <div className="hidden tablet:flex items-center gap-3">
             {isLoggedIn ? (
               <>
-                <span className="text-sm text-text-secondary">
+                <Link to="/mypage" className="text-sm font-medium text-text-secondary hover:text-primary-500 transition-colors duration-200">
                   {user?.nickname || '사용자'}님
-                </span>
+                </Link>
                 <button
                   onClick={logout}
                   className="text-sm font-medium text-text-secondary hover:text-text-primary border border-gray-200 px-4 py-2 rounded-lg transition-colors duration-200"
@@ -133,12 +133,21 @@ const Header = ({ variant = 'landing' }) => {
               ))}
               <div className="border-t border-gray-100 pt-3 mt-2 flex flex-col gap-2">
                 {isLoggedIn ? (
-                  <button
-                    onClick={() => { logout(); setMobileMenuOpen(false); }}
-                    className="px-4 py-3 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50 text-left"
-                  >
-                    로그아웃
-                  </button>
+                  <>
+                    <Link
+                      to="/mypage"
+                      className="px-4 py-3 rounded-lg text-sm font-medium text-text-secondary hover:bg-gray-50 text-left"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      마이페이지
+                    </Link>
+                    <button
+                      onClick={() => { logout(); setMobileMenuOpen(false); }}
+                      className="px-4 py-3 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50 text-left"
+                    >
+                      로그아웃
+                    </button>
+                  </>
                 ) : (
                   <>
                     <Link

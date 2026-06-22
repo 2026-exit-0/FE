@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import Button from '../components/common/Button';
+import { isMock } from '../api/client';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -22,10 +23,7 @@ const LoginPage = () => {
     setLoading(true);
     setError('');
 
-    // Mock 지연
-    await new Promise((r) => setTimeout(r, 800));
-
-    const result = login(data.email, data.password);
+    const result = await login(data.email, data.password);
     if (result.success) {
       navigate('/dashboard');
     } else {
@@ -43,6 +41,9 @@ const LoginPage = () => {
             <span className="w-3 h-3 rounded-full bg-primary-500"></span>
             <span className="text-2xl font-bold text-text-primary">담다</span>
           </Link>
+          {isMock && (
+            <p className="text-[11px] text-amber-600 bg-amber-50 px-3 py-1 rounded-full mt-1">개발 모드 — 회원가입 후 로그인 가능</p>
+          )}
           <p className="text-text-secondary text-sm">AI 기반 피부 분석 서비스</p>
         </div>
 
