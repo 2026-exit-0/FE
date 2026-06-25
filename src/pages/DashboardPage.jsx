@@ -23,7 +23,7 @@ const DashboardPage = () => {
       icon: Scan,
       title: '정밀 피부 스캔',
       desc: '수분·유분·모공·탄력을 한 번에 측정',
-      path: '/scan',
+      path: '/skin-check',
       color: 'text-primary-500',
       bg: 'bg-primary-50',
     },
@@ -96,7 +96,7 @@ const DashboardPage = () => {
                   스캐너를 연결하고 피부를 측정하세요
                 </p>
                 <Link
-                  to="/scan"
+                  to="/skin-check"
                   className="btn-primary inline-flex items-center gap-2"
                 >
                   스캔 시작하기

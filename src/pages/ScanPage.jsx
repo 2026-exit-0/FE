@@ -22,7 +22,7 @@ const REGION_MAP = {
 const ScanPage = () => {
   const navigate = useNavigate();
   useAuth(true);
-  const { addScan, initializeIfNeeded } = useScanStore();
+  const { addScan, initializeIfNeeded, userInputs } = useScanStore();
 
   const [scanStatus, setScanStatus] = useState('ready');
   const [countdown, setCountdown] = useState(3);
@@ -84,6 +84,12 @@ const ScanPage = () => {
       try {
         const fd = new FormData();
         fd.append('region', REGION_MAP[selectedArea] || 'PART_0');
+        // 자가진단 / 직접 입력 결과 첨부
+        if (userInputs) {
+          Object.entries(userInputs).forEach(([key, val]) => {
+            if (val !== null && val !== undefined) fd.append(key, String(val));
+          });
+        }
         const result = await measureWithScanner(fd);
         addScan(result);
         setScanStatus('complete');

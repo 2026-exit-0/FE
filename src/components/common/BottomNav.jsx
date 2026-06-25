@@ -10,7 +10,7 @@ import {
 
 const navItems = [
   { path: '/dashboard', label: '대시보드', icon: LayoutDashboard },
-  { path: '/scan', label: '스캔', icon: Scan },
+  { path: '/skin-check', label: '스캔', icon: Scan, matchPaths: ['/skin-check', '/scan'] },
   { path: '/analysis', label: '분석', icon: BarChart3 },
   { path: '/products', label: '추천', icon: ShoppingBag },
   { path: '/mypage', label: 'MY', icon: User },
@@ -24,7 +24,9 @@ const BottomNav = () => {
       <div className="flex items-center justify-around h-16 px-2">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = location.pathname === item.path;
+          const isActive = item.matchPaths
+            ? item.matchPaths.includes(location.pathname)
+            : location.pathname === item.path;
           return (
             <Link
               key={item.path}

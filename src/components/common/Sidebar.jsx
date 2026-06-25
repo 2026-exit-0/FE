@@ -32,7 +32,7 @@ const Sidebar = () => {
       title: '메뉴',
       items: [
         { path: '/dashboard', label: '대시보드', icon: 'LayoutDashboard' },
-        { path: '/scan', label: '피부 스캔', icon: 'Scan' },
+        { path: '/skin-check', label: '피부 스캔', icon: 'Scan', matchPaths: ['/skin-check', '/scan'] },
         { path: '/analysis', label: '분석 결과', icon: 'BarChart3' },
         { path: '/report', label: '분석 리포트', icon: 'FileText' },
         { path: '/products', label: '제품 추천', icon: 'ShoppingBag' },
@@ -58,7 +58,9 @@ const Sidebar = () => {
           <nav className="flex flex-col gap-1">
             {section.items.map((item) => {
               const Icon = iconMap[item.icon];
-              const isActive = location.pathname === item.path;
+              const isActive = item.matchPaths
+                ? item.matchPaths.includes(location.pathname)
+                : location.pathname === item.path;
               return (
                 <Link
                   key={item.label}
