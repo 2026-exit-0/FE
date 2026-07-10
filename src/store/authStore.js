@@ -6,16 +6,23 @@ const USER_KEY = 'damda_user';
 
 const useAuthStore = create((set, get) => ({
   isLoggedIn: false,
-  user: null,
+  user: null,       // MypageOut: { user_id, email, nickname, profile_image_url, notify_* }
+  survey: null,     // SurveyOut: { skin_type, concerns, allergies, ... }
+  wishlist: [],     // 찜한 화장품 목록
   loading: false,
   error: null,
 
-  // 앱 시작 시 토큰 검증
+  // ── 앱 시작 시 토큰 및 찜 목록 검증 ───────────────────
   checkAuth: async () => {
     const token = localStorage.getItem(TOKEN_KEY);
+    // 찜 목록 로컬스토리지 로드
+    const localWishlist = JSON.parse(localStorage.getItem('damda_wishlist') || '[]');
+    set({ wishlist: localWishlist });
+
     if (!token) return false;
 
     try {
+      // GET /mypage 로 로그인 상태 확인
       const user = await authApi.getMe();
       set({ isLoggedIn: true, user });
       localStorage.setItem(USER_KEY, JSON.stringify(user));
@@ -28,15 +35,18 @@ const useAuthStore = create((set, get) => ({
     }
   },
 
+  // ── 로그인 ────────────────────────────────────────────
   login: async (email, password) => {
     set({ loading: true, error: null });
     try {
-      const { access_token, user } = await authApi.login(email, password);
+      const { access_token } = await authApi.login(email, password);
       localStorage.setItem(TOKEN_KEY, access_token);
+
+      // 토큰 저장 후 내 정보 조회 (GET /mypage)
+      const user = await authApi.getMe();
       localStorage.setItem(USER_KEY, JSON.stringify(user));
-      // 기존 코드 호환용 키도 유지
-      localStorage.setItem('skinlab_current_user', JSON.stringify(user));
-      set({ isLoggedIn: true, user, loading: false });
+      const localWishlist = JSON.parse(localStorage.getItem('damda_wishlist') || '[]');
+      set({ isLoggedIn: true, user, wishlist: localWishlist, loading: false });
       return { success: true };
     } catch (err) {
       const message = err.response?.data?.detail || err.message || '로그인에 실패했습니다.';
@@ -45,13 +55,16 @@ const useAuthStore = create((set, get) => ({
     }
   },
 
+  // ── 회원가입 ──────────────────────────────────────────
   signup: async (data) => {
     set({ loading: true, error: null });
     try {
-      const { access_token, user } = await authApi.signup(data);
+      const { access_token } = await authApi.signup(data);
       localStorage.setItem(TOKEN_KEY, access_token);
+
+      // 가입 후 내 정보 조회
+      const user = await authApi.getMe();
       localStorage.setItem(USER_KEY, JSON.stringify(user));
-      localStorage.setItem('skinlab_current_user', JSON.stringify(user));
       set({ isLoggedIn: true, user, loading: false });
       return { success: true };
     } catch (err) {
@@ -61,19 +74,20 @@ const useAuthStore = create((set, get) => ({
     }
   },
 
+  // ── 로그아웃 ──────────────────────────────────────────
   logout: () => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
-    localStorage.removeItem('skinlab_current_user');
-    set({ isLoggedIn: false, user: null, error: null });
+    localStorage.removeItem('damda_survey');
+    set({ isLoggedIn: false, user: null, survey: null, wishlist: [], error: null });
   },
 
+  // ── 마이페이지 프로필 수정 (PATCH /mypage) ────────────
   updateUser: async (newData) => {
     set({ loading: true });
     try {
       const updated = await authApi.updateProfile(newData);
       localStorage.setItem(USER_KEY, JSON.stringify(updated));
-      localStorage.setItem('skinlab_current_user', JSON.stringify(updated));
       set({ user: updated, loading: false });
       return { success: true };
     } catch (err) {
@@ -83,6 +97,7 @@ const useAuthStore = create((set, get) => ({
     }
   },
 
+  // ── 비밀번호 변경 ─────────────────────────────────────
   changePassword: async (currentPassword, newPassword) => {
     set({ loading: true });
     try {
@@ -96,9 +111,55 @@ const useAuthStore = create((set, get) => ({
     }
   },
 
-  // 프로필 이미지 (base64) — 별도 API 없이 로컬 처리
+  // ── 피부 설문 조회 (GET /surveys/me) ─────────────────
+  fetchSurvey: async () => {
+    try {
+      const survey = await authApi.getSurvey();
+      set({ survey });
+      return survey;
+    } catch {
+      return null;
+    }
+  },
+
+  // ── 피부 설문 저장 (PUT /surveys/me) ─────────────────
+  saveSurvey: async (data) => {
+    set({ loading: true });
+    try {
+      const survey = await authApi.saveSurvey(data);
+      set({ survey, loading: false });
+      return { success: true, survey };
+    } catch (err) {
+      const message = err.response?.data?.detail || err.message;
+      set({ loading: false });
+      return { success: false, message };
+    }
+  },
+
+  // ── 찜 목록 토글 액션 (localStorage + State 동기화) ───
+  toggleWish: (product) => {
+    const list = get().wishlist;
+    const isExisted = list.some((p) => p.id === product.id);
+    let nextList;
+    if (isExisted) {
+      nextList = list.filter((p) => p.id !== product.id);
+    } else {
+      nextList = [...list, product];
+    }
+    set({ wishlist: nextList });
+    localStorage.setItem('damda_wishlist', JSON.stringify(nextList));
+    return !isExisted; // 추가됐으면 true, 제거됐으면 false 반환
+  },
+
+  // 찜 목록 직접 저장 (되돌리기 복원용)
+  setWishlist: (list) => {
+    set({ wishlist: list });
+    localStorage.setItem('damda_wishlist', JSON.stringify(list));
+  },
+
+  // ── 프로필 이미지 (profile_image_url) ────────────────
   updateProfileImage: async (base64Image) => {
-    return get().updateUser({ profileImage: base64Image });
+    return get().updateUser({ profile_image_url: base64Image });
   },
 
   clearError: () => set({ error: null }),

@@ -6,6 +6,7 @@ import Sidebar from '../components/common/Sidebar';
 import BottomNav from '../components/common/BottomNav';
 import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
+import useAuthStore from '../store/authStore';
 import { getQuestionnaire, scoreQuestionnaire } from '../api/products';
 
 // ─── 상수 ──────────────────────────────────────────────────
@@ -338,6 +339,7 @@ const SkinCheckPage = () => {
   const navigate = useNavigate();
   useAuth(true);
   const { setUserInputs } = useScanStore();
+  const { saveSurvey } = useAuthStore();
 
   // step: 1 = 방법 선택, 2 = 입력(직접/자가진단), 3 = 완료 후 redirect
   const [step, setStep] = useState(1);
@@ -348,9 +350,24 @@ const SkinCheckPage = () => {
     setStep(2);
   };
 
-  const handleDone = (inputs) => {
+  const handleDone = async (inputs) => {
     setUserInputs(inputs);
-    // 완료 후 바로 스캔 페이지로
+
+    // BE /surveys/me 에 피부 설문 저장 (백그라운드 — 실패해도 스캔은 진행)
+    try {
+      const surveyPayload = {
+        skin_type: inputs.skin_type || '',
+        concerns: inputs.concerns || [],
+        allergies: inputs.allergies || [],
+        preferred_categories: inputs.preferred_categories || [],
+        budget: inputs.budget || null,
+      };
+      await saveSurvey(surveyPayload);
+    } catch (e) {
+      // 설문 저장 실패는 무시하고 스캔 진행
+      console.warn('[SkinCheck] survey 저장 실패 (무시):', e.message);
+    }
+
     navigate('/scan');
   };
 

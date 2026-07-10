@@ -47,7 +47,7 @@ const DashboardPage = () => {
       icon: BookOpen,
       title: '케어 루틴 제안',
       desc: '환경 데이터 연동 맞춤 스킨케어',
-      path: '#',
+      path: '/care-guide',
       color: 'text-amber-500',
       bg: 'bg-amber-50',
     },

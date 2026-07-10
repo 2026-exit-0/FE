@@ -11,6 +11,7 @@ import AnalysisPage from './pages/AnalysisPage';
 import ReportPage from './pages/ReportPage';
 import ProductsPage from './pages/ProductsPage';
 import MyPage from './pages/MyPage';
+import CareGuidePage from './pages/CareGuidePage';
 
 const ProtectedRoute = ({ children }) => {
   const { isLoggedIn } = useAuthStore();
@@ -45,6 +46,7 @@ function App() {
       <Route path="/report" element={<ProtectedRoute><ReportPage /></ProtectedRoute>} />
       <Route path="/products" element={<ProtectedRoute><ProductsPage /></ProtectedRoute>} />
       <Route path="/mypage" element={<ProtectedRoute><MyPage /></ProtectedRoute>} />
+      <Route path="/care-guide" element={<ProtectedRoute><CareGuidePage /></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

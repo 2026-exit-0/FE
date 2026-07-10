@@ -1,39 +1,73 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, User, Lock, Save, ChevronRight } from 'lucide-react';
+import { Camera, User, Lock, Save, ChevronRight, Bell, Heart, RotateCcw } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import useScanStore from '../store/scanStore';
 import Header from '../components/common/Header';
 import Sidebar from '../components/common/Sidebar';
 import BottomNav from '../components/common/BottomNav';
 import Button from '../components/common/Button';
-import { SKIN_TYPES, SKIN_CONCERNS, COSMETIC_INTERESTS, AGE_GROUPS } from '../utils/constants';
+import { SKIN_TYPES, SKIN_CONCERNS } from '../utils/constants';
 
 const MyPage = () => {
   const navigate = useNavigate();
-  const { user, updateUser, changePassword, updateProfileImage } = useAuthStore();
+  const { user, survey, wishlist, toggleWish, setWishlist, updateUser, changePassword, updateProfileImage, fetchSurvey, saveSurvey } = useAuthStore();
   const { scans, setCurrentScan } = useScanStore();
-  
+
   const fileInputRef = useRef(null);
-  const [activeTab, setActiveTab] = useState('profile'); // profile, password, scans
+  const [activeTab, setActiveTab] = useState('profile'); // profile, password, scans, survey, wishlist
   const [toastMessage, setToastMessage] = useState('');
 
-  // Profile Form State
+  // 5초 되돌리기(Undo) 스낵바 상태
+  const [undoBackup, setUndoBackup] = useState(null);
+  const [showUndoSnackbar, setShowUndoSnackbar] = useState(false);
+
+  // BE MypageOut: { nickname, notify_analysis, notify_recommend }
   const [profileData, setProfileData] = useState({
     nickname: user?.nickname || '',
-    gender: user?.gender || '선택 안 함',
-    ageGroup: user?.ageGroup || '',
-    skinType: user?.skinType || '',
-    skinConcerns: user?.skinConcerns || [],
-    cosmeticInterests: user?.cosmeticInterests || [],
+    notify_analysis: user?.notify_analysis ?? true,
+    notify_recommend: user?.notify_recommend ?? true,
   });
 
-  // Password Form State
+  // 피부 설문 (SurveyIn/Out)
+  const [surveyData, setSurveyData] = useState({
+    skin_type: survey?.skin_type || '',
+    concerns: survey?.concerns || [],
+    allergies: survey?.allergies || [],
+    preferred_categories: survey?.preferred_categories || [],
+  });
+
+  // 비밀번호 폼
   const [pwdData, setPwdData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
+
+  // 마운트 시 최신 survey 조회
+  useEffect(() => {
+    fetchSurvey().then((s) => {
+      if (s) setSurveyData({
+        skin_type: s.skin_type || '',
+        concerns: s.concerns || [],
+        allergies: s.allergies || [],
+        preferred_categories: s.preferred_categories || [],
+      });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 5초 타이머 관리
+  useEffect(() => {
+    let timer;
+    if (showUndoSnackbar) {
+      timer = setTimeout(() => {
+        setShowUndoSnackbar(false);
+        setUndoBackup(null);
+      }, 5000);
+    }
+    return () => clearTimeout(timer);
+  }, [showUndoSnackbar]);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -52,28 +86,34 @@ const MyPage = () => {
     }
   };
 
-  const handleProfileChange = (key, value) => {
-    setProfileData(prev => ({ ...prev, [key]: value }));
-  };
-
-  const toggleArrayItem = (key, item) => {
-    setProfileData(prev => {
-      const array = prev[key];
-      if (array.includes(item)) {
-        return { ...prev, [key]: array.filter(i => i !== item) };
-      } else {
-        return { ...prev, [key]: [...array, item] };
-      }
-    });
-  };
-
   const handleSaveProfile = async () => {
-    const result = await updateUser(profileData);
+    // BE PATCH /mypage: nickname, notify_analysis, notify_recommend 만 전송
+    const result = await updateUser({
+      nickname: profileData.nickname,
+      notify_analysis: profileData.notify_analysis,
+      notify_recommend: profileData.notify_recommend,
+    });
     if (result.success) {
       showToast('내 정보가 성공적으로 수정되었습니다.');
     } else {
       showToast(result.message || '정보 수정에 실패했습니다.');
     }
+  };
+
+  const handleSaveSurvey = async () => {
+    const result = await saveSurvey(surveyData);
+    if (result.success) {
+      showToast('피부 설문이 저장되었습니다.');
+    } else {
+      showToast(result.message || '설문 저장에 실패했습니다.');
+    }
+  };
+
+  const toggleConcern = (concern) => {
+    setSurveyData(prev => {
+      const arr = prev.concerns;
+      return { ...prev, concerns: arr.includes(concern) ? arr.filter(c => c !== concern) : [...arr, concern] };
+    });
   };
 
   const handleSavePassword = async () => {
@@ -95,6 +135,24 @@ const MyPage = () => {
     }
   };
 
+  // 찜 삭제 핸들러 (5초 되돌리기 활성화)
+  const handleCancelWish = (product) => {
+    const backup = [...wishlist];
+    setUndoBackup(backup);
+    toggleWish(product);
+    setShowUndoSnackbar(true);
+  };
+
+  // 찜 되돌리기 실행
+  const handleUndo = () => {
+    if (undoBackup) {
+      setWishlist(undoBackup);
+      setShowUndoSnackbar(false);
+      setUndoBackup(null);
+      showToast('찜 취소가 복원되었습니다.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background-gray">
       <Header variant="dashboard" />
@@ -103,6 +161,19 @@ const MyPage = () => {
       {toastMessage && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg text-sm animate-fadeIn">
           {toastMessage}
+        </div>
+      )}
+
+      {/* 5초 되돌리기(Undo) 스낵바 */}
+      {showUndoSnackbar && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white px-6 py-4 rounded-2xl shadow-xl flex items-center justify-between gap-6 text-sm border border-gray-800 animate-slideUp">
+          <span>찜 목록에서 삭제되었습니다.</span>
+          <button
+            onClick={handleUndo}
+            className="flex items-center gap-1 text-primary-400 font-bold hover:text-primary-300 transition-colors uppercase tracking-wider"
+          >
+            <RotateCcw size={14} /> 되돌리기
+          </button>
         </div>
       )}
 
@@ -151,21 +222,33 @@ const MyPage = () => {
             </div>
 
             {/* Tabs */}
-            <div className="flex bg-white rounded-xl shadow-sm p-1 border border-gray-100">
+            <div className="flex bg-white rounded-xl shadow-sm p-1 border border-gray-100 overflow-x-auto scrollbar-hide">
               <button
-                className={`flex-1 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'profile' ? 'bg-primary-500 text-white' : 'text-text-secondary hover:bg-gray-50'}`}
+                className={`flex-1 py-3 px-4 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap ${activeTab === 'profile' ? 'bg-primary-500 text-white' : 'text-text-secondary hover:bg-gray-50'}`}
                 onClick={() => setActiveTab('profile')}
               >
                 내 정보 수정
               </button>
               <button
-                className={`flex-1 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'password' ? 'bg-primary-500 text-white' : 'text-text-secondary hover:bg-gray-50'}`}
+                className={`flex-1 py-3 px-4 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap ${activeTab === 'survey' ? 'bg-primary-500 text-white' : 'text-text-secondary hover:bg-gray-50'}`}
+                onClick={() => setActiveTab('survey')}
+              >
+                피부 설문
+              </button>
+              <button
+                className={`flex-1 py-3 px-4 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap ${activeTab === 'wishlist' ? 'bg-primary-500 text-white' : 'text-text-secondary hover:bg-gray-50'}`}
+                onClick={() => setActiveTab('wishlist')}
+              >
+                찜 목록 ({wishlist.length})
+              </button>
+              <button
+                className={`flex-1 py-3 px-4 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap ${activeTab === 'password' ? 'bg-primary-500 text-white' : 'text-text-secondary hover:bg-gray-50'}`}
                 onClick={() => setActiveTab('password')}
               >
                 비밀번호 변경
               </button>
               <button
-                className={`flex-1 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'scans' ? 'bg-primary-500 text-white' : 'text-text-secondary hover:bg-gray-50'}`}
+                className={`flex-1 py-3 px-4 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap ${activeTab === 'scans' ? 'bg-primary-500 text-white' : 'text-text-secondary hover:bg-gray-50'}`}
                 onClick={() => setActiveTab('scans')}
               >
                 스캔 기록
@@ -175,62 +258,80 @@ const MyPage = () => {
             {/* Tab Content */}
             <div className="card min-h-[400px]">
               
-              {/* Profile Tab */}
+              {/* Profile Tab - BE MypageOut 필드만 수정 */}
               {activeTab === 'profile' && (
                 <div className="space-y-6 animate-fadeIn">
-                  <h3 className="text-lg font-bold text-text-primary border-b pb-4">내 정보 및 피부 상태</h3>
-                  
-                  <div className="grid grid-cols-1 tablet:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-text-primary mb-2">닉네임</label>
-                      <input
-                        type="text"
-                        value={profileData.nickname}
-                        onChange={(e) => handleProfileChange('nickname', e.target.value)}
-                        className="input-field"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-text-primary mb-2">연령대</label>
-                      <select
-                        value={profileData.ageGroup}
-                        onChange={(e) => handleProfileChange('ageGroup', e.target.value)}
-                        className="input-field"
-                      >
-                        <option value="">선택 안 함</option>
-                        {AGE_GROUPS.map(age => <option key={age} value={age}>{age}</option>)}
-                      </select>
+                  <h3 className="text-lg font-bold text-text-primary border-b pb-4">내 계정 정보</h3>
+
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary mb-2">닉네임</label>
+                    <input
+                      type="text"
+                      value={profileData.nickname}
+                      onChange={(e) => setProfileData(p => ({ ...p, nickname: e.target.value }))}
+                      className="input-field"
+                    />
+                  </div>
+
+                  <div className="border-t pt-4">
+                    <h4 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
+                      <Bell size={16} /> 알림 설정
+                    </h4>
+                    <div className="space-y-3">
+                      <label className="flex items-center justify-between cursor-pointer">
+                        <div>
+                          <p className="text-sm font-medium text-text-primary">분석 결과 알림</p>
+                          <p className="text-xs text-text-secondary">스캔 분석이 완료되면 알려드려요</p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={profileData.notify_analysis}
+                          onChange={(e) => setProfileData(p => ({ ...p, notify_analysis: e.target.checked }))}
+                          className="w-5 h-5 text-primary-500 rounded focus:ring-primary-500"
+                        />
+                      </label>
+                      <label className="flex items-center justify-between cursor-pointer">
+                        <div>
+                          <p className="text-sm font-medium text-text-primary">제품 추천 알림</p>
+                          <p className="text-xs text-text-secondary">맞춤 화장품 추천이 있을 때 알려드려요</p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={profileData.notify_recommend}
+                          onChange={(e) => setProfileData(p => ({ ...p, notify_recommend: e.target.checked }))}
+                          className="w-5 h-5 text-primary-500 rounded focus:ring-primary-500"
+                        />
+                      </label>
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-text-primary mb-2">성별</label>
-                    <div className="flex gap-4">
-                      {['남', '여', '선택 안 함'].map((g) => (
-                        <label key={g} className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="gender"
-                            checked={profileData.gender === g}
-                            onChange={() => handleProfileChange('gender', g)}
-                            className="w-4 h-4 text-primary-500 focus:ring-primary-500"
-                          />
-                          <span className="text-sm">{g}</span>
-                        </label>
-                      ))}
-                    </div>
+                  <div className="pt-4 border-t">
+                    <Button onClick={handleSaveProfile} className="w-full tablet:w-auto">
+                      <Save size={18} className="mr-2" /> 변경사항 저장
+                    </Button>
                   </div>
+                </div>
+              )}
+
+              {/* Survey Tab - BE SurveyIn 필드 */}
+              {activeTab === 'survey' && (
+                <div className="space-y-6 animate-fadeIn">
+                  <h3 className="text-lg font-bold text-text-primary border-b pb-4">피부 설문 관리</h3>
 
                   <div>
                     <label className="block text-sm font-medium text-text-primary mb-2">피부 타입</label>
                     <div className="flex flex-wrap gap-2">
                       {SKIN_TYPES.map((type) => (
-                        <label key={type} className={`px-3 py-2 border rounded-lg cursor-pointer transition-colors ${profileData.skinType === type ? 'border-primary-500 bg-primary-50 text-primary-700 font-medium' : 'border-gray-200 hover:border-primary-300'}`}>
+                        <label key={type} className={`px-3 py-2 border rounded-lg cursor-pointer transition-colors ${
+                          surveyData.skin_type === type
+                            ? 'border-primary-500 bg-primary-50 text-primary-700 font-medium'
+                            : 'border-gray-200 hover:border-primary-300'
+                        }`}>
                           <input
                             type="radio"
                             name="skinType"
-                            checked={profileData.skinType === type}
-                            onChange={() => handleProfileChange('skinType', type)}
+                            checked={surveyData.skin_type === type}
+                            onChange={() => setSurveyData(p => ({ ...p, skin_type: type }))}
                             className="hidden"
                           />
                           <span className="text-sm">{type}</span>
@@ -243,15 +344,12 @@ const MyPage = () => {
                     <label className="block text-sm font-medium text-text-primary mb-2">피부 고민 (다중 선택)</label>
                     <div className="flex flex-wrap gap-2">
                       {SKIN_CONCERNS.map((concern) => {
-                        const isSelected = profileData.skinConcerns.includes(concern);
+                        const isSelected = surveyData.concerns.includes(concern);
                         return (
-                          <label key={concern} className={`px-3 py-2 border rounded-lg cursor-pointer transition-colors ${isSelected ? 'border-primary-500 bg-primary-50 text-primary-700 font-medium' : 'border-gray-200 hover:border-primary-300'}`}>
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => toggleArrayItem('skinConcerns', concern)}
-                              className="hidden"
-                            />
+                          <label key={concern} className={`px-3 py-2 border rounded-lg cursor-pointer transition-colors ${
+                            isSelected ? 'border-primary-500 bg-primary-50 text-primary-700 font-medium' : 'border-gray-200 hover:border-primary-300'
+                          }`}>
+                            <input type="checkbox" checked={isSelected} onChange={() => toggleConcern(concern)} className="hidden" />
                             <span className="text-sm">{concern}</span>
                           </label>
                         );
@@ -259,31 +357,46 @@ const MyPage = () => {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-text-primary mb-2">관심 화장품 (다중 선택)</label>
-                    <div className="flex flex-wrap gap-2">
-                      {COSMETIC_INTERESTS.map((item) => {
-                        const isSelected = profileData.cosmeticInterests.includes(item);
-                        return (
-                          <label key={item} className={`px-3 py-2 border rounded-lg cursor-pointer transition-colors ${isSelected ? 'border-primary-500 bg-primary-50 text-primary-700 font-medium' : 'border-gray-200 hover:border-primary-300'}`}>
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => toggleArrayItem('cosmeticInterests', item)}
-                              className="hidden"
-                            />
-                            <span className="text-sm">{item}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-
                   <div className="pt-4 border-t">
-                    <Button onClick={handleSaveProfile} className="w-full tablet:w-auto">
-                      <Save size={18} className="mr-2" /> 변경사항 저장
+                    <Button onClick={handleSaveSurvey} className="w-full tablet:w-auto">
+                      <Save size={18} className="mr-2" /> 설문 저장
                     </Button>
                   </div>
+                </div>
+              )}
+
+              {/* Wishlist Tab (J.4 찜 목록 조회 및 찜 취소) */}
+              {activeTab === 'wishlist' && (
+                <div className="animate-fadeIn">
+                  <h3 className="text-lg font-bold text-text-primary border-b pb-4 mb-6">내가 찜한 제품</h3>
+
+                  {wishlist.length > 0 ? (
+                    <div className="grid grid-cols-1 tablet:grid-cols-2 gap-4">
+                      {wishlist.map((product) => (
+                        <div key={product.id} className="bg-white border border-gray-100 hover:border-primary-200 rounded-xl p-4 flex gap-3 shadow-sm hover:shadow relative group transition-all">
+                          <div className="w-16 h-16 rounded-lg bg-gray-50 flex items-center justify-center text-xl flex-shrink-0">📦</div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[10px] text-text-secondary">{product.brand}</p>
+                            <p className="text-xs font-bold text-text-primary truncate">{product.name}</p>
+                            <span className="text-[10px] text-primary-600 font-bold mt-1 inline-block">매칭율 {product.compatibility || product.score || 90}%</span>
+                          </div>
+                          
+                          <button
+                            onClick={() => handleCancelWish(product)}
+                            className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-rose-50 text-rose-500 transition-colors"
+                            title="찜 취소"
+                          >
+                            <Heart size={18} className="fill-rose-500 text-rose-500" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-text-secondary">
+                      <Heart size={32} className="mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm">찜한 화장품이 없습니다.</p>
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingBag, Scan, RefreshCw, Sparkles, Leaf } from 'lucide-react';
+import { ShoppingBag, Scan, RefreshCw, Sparkles, Heart } from 'lucide-react';
 import Header from '../components/common/Header';
 import Sidebar from '../components/common/Sidebar';
 import BottomNav from '../components/common/BottomNav';
 import Button from '../components/common/Button';
 import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
+import useAuthStore from '../store/authStore';
 import { getRecommendations } from '../api/products';
 
 const FILTER_CATEGORIES = [
@@ -20,6 +21,9 @@ const FILTER_CATEGORIES = [
 
 // 카드
 const ProductCard = ({ product, onClick }) => {
+  const { wishlist, toggleWish } = useAuthStore();
+  const isWished = wishlist.some((p) => p.id === product.id);
+
   const catTags = (product.category || []).map((c) => (
     <span key={c} className="text-[10px] bg-primary-50 text-primary-600 px-2 py-0.5 rounded-full font-semibold">{c}</span>
   ));
@@ -60,12 +64,24 @@ const ProductCard = ({ product, onClick }) => {
           {product.reason || '범용 케어'}
         </p>
 
-        {product.main_ingredients?.length > 0 && (
-          <p className="text-[11px] text-text-secondary mt-1">
-            <span className="font-medium">주성분: </span>
-            {product.main_ingredients.slice(0, 3).join(', ')}
-          </p>
-        )}
+        <div className="flex justify-between items-center mt-2 border-t border-gray-50 pt-2">
+          {product.main_ingredients?.length > 0 ? (
+            <p className="text-[10px] text-text-secondary truncate">
+              <span className="font-medium">주성분: </span>
+              {product.main_ingredients.slice(0, 3).join(', ')}
+            </p>
+          ) : <div />}
+          
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleWish(product);
+            }}
+            className="p-1.5 rounded-full hover:bg-gray-50 transition-colors flex-shrink-0"
+          >
+            <Heart size={16} className={isWished ? 'fill-rose-500 text-rose-500' : 'text-gray-400'} />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -73,7 +89,10 @@ const ProductCard = ({ product, onClick }) => {
 
 // 제품 상세 모달
 const ProductModal = ({ product, onClose }) => {
+  const { wishlist, toggleWish } = useAuthStore();
   if (!product) return null;
+
+  const isWished = wishlist.some((p) => p.id === product.id);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -92,8 +111,18 @@ const ProductModal = ({ product, onClose }) => {
 
           {/* 헤더 */}
           <div>
-            <p className="text-xs text-text-secondary uppercase tracking-wide font-semibold">{product.brand}</p>
-            <h2 className="text-lg font-bold text-text-primary mt-1">{product.name}</h2>
+            <div className="flex justify-between items-start gap-3">
+              <div>
+                <p className="text-xs text-text-secondary uppercase tracking-wide font-semibold">{product.brand}</p>
+                <h2 className="text-lg font-bold text-text-primary mt-1">{product.name}</h2>
+              </div>
+              <button
+                onClick={() => toggleWish(product)}
+                className="p-2 rounded-full border border-gray-100 hover:bg-gray-50 transition-colors flex-shrink-0"
+              >
+                <Heart size={20} className={isWished ? 'fill-rose-500 text-rose-500' : 'text-gray-400'} />
+              </button>
+            </div>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <span className="text-sm font-bold bg-gradient-to-br from-primary-500 to-purple-500 text-white px-3 py-1 rounded-full">
                 {product.score?.toFixed(1) ?? '0'}점
