@@ -22,7 +22,7 @@ const FILTER_CATEGORIES = [
 // 카드
 const ProductCard = ({ product, onClick }) => {
   const { wishlist, toggleWish } = useAuthStore();
-  const isWished = wishlist.some((p) => p.id === product.id);
+  const isWished = (wishlist || []).some((p) => p.id === product.id);
 
   const catTags = (product.category || []).map((c) => (
     <span key={c} className="text-[10px] bg-primary-50 text-primary-600 px-2 py-0.5 rounded-full font-semibold">{c}</span>
@@ -92,7 +92,7 @@ const ProductModal = ({ product, onClose }) => {
   const { wishlist, toggleWish } = useAuthStore();
   if (!product) return null;
 
-  const isWished = wishlist.some((p) => p.id === product.id);
+  const isWished = (wishlist || []).some((p) => p.id === product.id);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -192,7 +192,7 @@ const ProductModal = ({ product, onClose }) => {
 
 const ProductsPage = () => {
   useAuth(true);
-  const { currentScan } = useScanStore();
+  const { currentScan, initializeIfNeeded } = useScanStore();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -229,6 +229,10 @@ const ProductsPage = () => {
       setLoading(false);
     }
   }, [currentScan, userInputs]);
+
+  useEffect(() => {
+    initializeIfNeeded();
+  }, [initializeIfNeeded]);
 
   useEffect(() => {
     if (hasScanData) fetchProducts();
