@@ -45,7 +45,7 @@ const SignupPage = () => {
     await new Promise((r) => setTimeout(r, 800));
 
     const { confirmPassword, ...userData } = data;
-    const result = signup(userData);
+    const result = await signup(userData);
 
     if (result.success) {
       setToast(true);
