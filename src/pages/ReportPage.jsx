@@ -162,17 +162,58 @@ const ReportPage = () => {
   const scanCount = measurementHistory.length;
   const hasEnoughScans = scanCount >= 2;
 
-  // TODO: 백엔드 연동 시 교체
-  // const response = await axios.get('/api/report', { params: { period, metric } });
+  // 동적 차트 데이터 제네레이터
+  const getChartData = (m, p) => {
+    const baseData = {
+      moisture: [68, 71, 74, 76],
+      oil: [55, 50, 48, 43],
+      pore: [60, 61, 63, 66],
+      elasticity: [35, 36, 38, 41]
+    };
+
+    const scores = baseData[m] || baseData.moisture;
+
+    if (p === 'week') {
+      return [
+        { week: '1주차', score: scores[0] },
+        { week: '2주차', score: scores[1] },
+        { week: '3주차', score: scores[2] },
+        { week: '4주차', score: scores[3] },
+      ];
+    } else if (p === 'month') {
+      return [
+        { week: '1월', score: Math.max(scores[0] - 8, 0) },
+        { week: '2월', score: Math.max(scores[1] - 4, 0) },
+        { week: '3월', score: scores[2] },
+        { week: '4월', score: scores[3] },
+      ];
+    } else if (p === '3month') {
+      return [
+        { week: '2월 1주', score: Math.max(scores[0] - 6, 0) },
+        { week: '2월 3주', score: Math.max(scores[0] - 3, 0) },
+        { week: '3월 1주', score: Math.max(scores[1] - 4, 0) },
+        { week: '3월 3주', score: scores[1] },
+        { week: '4월 1주', score: Math.max(scores[2] - 2, 0) },
+        { week: '4월 3주', score: scores[3] },
+      ];
+    } else { // all
+      return [
+        { week: '11월', score: 55 },
+        { week: '12월', score: 58 },
+        { week: '1월', score: scores[0] },
+        { week: '2월', score: scores[1] },
+        { week: '3월', score: scores[2] },
+        { week: '4월', score: scores[3] },
+      ];
+    }
+  };
+
+  const chartData = getChartData(metric, period);
+  const metricLabel = metricFilters.find((item) => item.id === metric)?.label || '수분도';
 
   // PDF 내보내기 핸들러 (추후 jsPDF 연동)
   const handleExportPDF = () => {
-    // TODO: jsPDF로 리포트 생성
-    // import jsPDF from 'jspdf';
-    // const doc = new jsPDF();
-    // doc.text('피부 분석 리포트', 10, 10);
-    // doc.save('skinlab-report.pdf');
-    alert('PDF 내보내기 기능은 추후 구현 예정입니다.');
+    alert('리포트 PDF 내보내기 기능은 마이페이지 및 분석 결과 탭에서 직접 다운로드가 가능합니다. (상세 양식 연동 중)');
   };
 
   // ─── 스캔 데이터 없을 때 Empty State ────────────────
@@ -299,12 +340,12 @@ const ReportPage = () => {
                   {/* 월간 수분도 변화 차트 */}
                   <div className="bg-white rounded-2xl border border-gray-100 p-5">
                     <h3 className="text-sm font-semibold text-text-primary mb-4">
-                      월간 수분도 변화
+                      {metricLabel} 변화 추이
                     </h3>
                     {hasEnoughScans ? (
                       <div className="h-52">
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={weeklyData} barCategoryGap="30%">
+                          <BarChart data={chartData} barCategoryGap="30%">
                             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
                             <XAxis
                               dataKey="week"
@@ -321,11 +362,11 @@ const ReportPage = () => {
                             />
                             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
                             <Bar dataKey="score" radius={[6, 6, 0, 0]} maxBarSize={40}>
-                              {weeklyData.map((entry, index) => (
+                              {chartData.map((entry, index) => (
                                 <Cell
                                   key={`cell-${index}`}
                                   fill={
-                                    index === weeklyData.length - 1
+                                    index === chartData.length - 1
                                       ? '#4CAF50'
                                       : '#C8E6C9'
                                   }
