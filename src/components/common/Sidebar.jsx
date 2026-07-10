@@ -43,7 +43,6 @@ const Sidebar = () => {
       items: [
         { path: '/care-guide', label: '케어 가이드', icon: 'BookOpen' },
         { path: '/mypage', label: '마이페이지', icon: 'User' },
-        { path: '#', label: '설정', icon: 'Settings' },
       ],
     },
   ];
