@@ -63,7 +63,7 @@ yarn dev
 # npm 사용 시
 npm run dev
 ```
-기본 접속 주소: `http://localhost:5173`
+기본 접속 주소: `http://localhost:3000`
 
 ### 배포용 빌드 컴파일
 최적화 및 Minify 과정을 포함한 프로덕션 빌드 번들을 컴파일한다.
