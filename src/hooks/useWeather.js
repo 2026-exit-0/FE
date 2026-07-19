@@ -17,27 +17,45 @@ const useWeather = () => {
   useEffect(() => {
     const fetchWeatherData = async (lat, lon) => {
       try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m&daily=uv_index_max&timezone=Asia%2FSeoul&forecast_days=1`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error('Weather API request failed');
-        const data = await res.json();
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m&daily=uv_index_max&timezone=Asia%2FSeoul&forecast_days=1`;
+        const airQualityUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=pm10,pm2_5&timezone=Asia%2FSeoul`;
 
-        const currentTemp = Math.round(data.current?.temperature_2m ?? 22);
-        const currentHumidity = Math.round(data.current?.relative_humidity_2m ?? 50);
-        const uvValue = data.daily?.uv_index_max?.[0] ?? 4;
+        const [weatherRes, airRes] = await Promise.all([
+          fetch(weatherUrl).catch(() => null),
+          fetch(airQualityUrl).catch(() => null),
+        ]);
 
-        // UV Index 지수 매핑
+        let currentTemp = 22;
+        let currentHumidity = 50;
         let mappedUv = 'moderate';
-        if (uvValue < 3) mappedUv = 'low';
-        else if (uvValue < 6) mappedUv = 'moderate';
-        else if (uvValue < 8) mappedUv = 'high';
-        else mappedUv = 'very-high';
+        let mappedDust = 'good';
+
+        if (weatherRes && weatherRes.ok) {
+          const data = await weatherRes.json();
+          currentTemp = Math.round(data.current?.temperature_2m ?? 22);
+          currentHumidity = Math.round(data.current?.relative_humidity_2m ?? 50);
+          const uvValue = data.daily?.uv_index_max?.[0] ?? 4;
+
+          if (uvValue < 3) mappedUv = 'low';
+          else if (uvValue < 6) mappedUv = 'moderate';
+          else if (uvValue < 8) mappedUv = 'high';
+          else mappedUv = 'very-high';
+        }
+
+        if (airRes && airRes.ok) {
+          const airData = await airRes.json();
+          const pm10 = airData.current?.pm10 ?? 25;
+          if (pm10 <= 30) mappedDust = 'good';
+          else if (pm10 <= 80) mappedDust = 'moderate';
+          else if (pm10 <= 150) mappedDust = 'bad';
+          else mappedDust = 'veryBad';
+        }
 
         setWeather({
           temp: currentTemp,
           humidity: currentHumidity,
           uv: mappedUv,
-          dust: 'moderate', // 오픈 API에서 실시간 미세먼지는 지원하지 않으므로 기본값 유지
+          dust: mappedDust,
         });
       } catch (err) {
         console.error('Weather fetch error:', err);
