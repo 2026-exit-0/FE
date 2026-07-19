@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Scan as ScanIcon, CheckCircle, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
 import Header from '../components/common/Header';
@@ -35,6 +35,8 @@ const ScanPage = () => {
     MEASUREMENT_ITEMS.reduce((acc, item) => ({ ...acc, [item.id]: item.default }), {})
   );
 
+  const isSubmittingRef = useRef(false);
+
   useEffect(() => { initializeIfNeeded(); }, [initializeIfNeeded]);
 
   // 스캐너 상태 확인
@@ -60,6 +62,19 @@ const ScanPage = () => {
 
   const toggleMeasurement = (id) => setMeasurements((prev) => ({ ...prev, [id]: !prev[id] }));
 
+  // 스캔 진행 중 브라우저 탭 닫기/새로고침 이탈 방어
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (scanStatus === 'scanning' || scanStatus === 'countdown') {
+        e.preventDefault();
+        e.returnValue = '측정이 진행 중입니다. 페이지를 벗어나시겠습니까?';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [scanStatus]);
+
   // 카운트다운
   useEffect(() => {
     if (scanStatus !== 'countdown') return;
@@ -80,7 +95,10 @@ const ScanPage = () => {
       return () => clearTimeout(t);
     }
 
-    // 진행바 완료 → 실제 API 호출
+    // 진행바 완료 → 실제 API 호출 (중복 호출 방지)
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+
     const run = async () => {
       try {
         const fd = new FormData();
@@ -102,16 +120,20 @@ const ScanPage = () => {
           : (err.response?.data?.detail || '네트워크 연결이 불안정하거나 측정에 실패했습니다.');
         setScanErrorMsg(errorMsg);
         setScanStatus('error');
+      } finally {
+        isSubmittingRef.current = false;
       }
     };
     run();
   }, [scanStatus, scanProgress, navigate, selectedArea, addScan, userInputs]);
 
   const startScan = useCallback(() => {
+    if (scanStatus === 'scanning' || scanStatus === 'countdown' || isSubmittingRef.current) return;
+    isSubmittingRef.current = false;
     setScanStatus('countdown');
     setCountdown(3);
     setScanProgress(0);
-  }, []);
+  }, [scanStatus]);
 
   const checklist = [
     { icon: CheckCircle, text: '밝은 환경에서 측정하세요', type: 'ok' },
