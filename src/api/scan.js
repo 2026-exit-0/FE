@@ -2,13 +2,25 @@ import client, { isMock } from './client';
 import { mockAnalysis, mockScanHistory } from '../utils/mockData';
 
 // ── 새 BE 스캔 세션 생성 (POST /scans) ──────────────────────
-export async function createScanSession() {
+export async function createScanSession(data = {}) {
   if (isMock) {
     await delay(300);
     return { session_id: 'mock_session_' + Date.now() };
   }
 
-  const res = await client.post('/scans');
+  const payload = {
+    scan_area: data.scan_area || data.area || '얼굴 전체',
+    uv_mode: data.uv_mode ?? false,
+    moisture_on: data.moisture_on ?? true,
+    pore_on: data.pore_on ?? true,
+    melanin_on: data.melanin_on ?? true,
+    elasticity_on: data.elasticity_on ?? true,
+    temperature: data.temperature ?? null,
+    humidity: data.humidity ?? null,
+    uv_index: data.uv_index ?? null,
+  };
+
+  const res = await client.post('/scans', payload);
   return res.data; // { session_id }
 }
 
