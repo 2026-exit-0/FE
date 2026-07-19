@@ -25,6 +25,7 @@ const ScanPage = () => {
   const { addScan, initializeIfNeeded, userInputs } = useScanStore();
 
   const [scanStatus, setScanStatus] = useState('ready');
+  const [scanErrorMsg, setScanErrorMsg] = useState('');
   const [countdown, setCountdown] = useState(3);
   const [scanProgress, setScanProgress] = useState(0);
   const [selectedArea, setSelectedArea] = useState('얼굴 전체');
@@ -96,12 +97,15 @@ const ScanPage = () => {
         setTimeout(() => navigate('/analysis'), 1200);
       } catch (err) {
         console.error('측정 실패:', err);
-        setScanStatus('ready');
-        alert('측정에 실패했습니다. 다시 시도해주세요.');
+        const errorMsg = err.code === 'ECONNABORTED' || err.message?.includes('timeout')
+          ? '측정 응답 시간이 초과되었습니다 (30초 제한). ESP32 스캐너 수신 상태를 확인해 주세요.'
+          : (err.response?.data?.detail || '네트워크 연결이 불안정하거나 측정에 실패했습니다.');
+        setScanErrorMsg(errorMsg);
+        setScanStatus('error');
       }
     };
     run();
-  }, [scanStatus, scanProgress, navigate, selectedArea, addScan]);
+  }, [scanStatus, scanProgress, navigate, selectedArea, addScan, userInputs]);
 
   const startScan = useCallback(() => {
     setScanStatus('countdown');
@@ -181,6 +185,21 @@ const ScanPage = () => {
                       </div>
                     </div>
                   )}
+                  {scanStatus === 'error' && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-6 text-center z-10">
+                      <div>
+                        <AlertTriangle size={44} className="text-orange-400 mx-auto mb-3 animate-pulse" />
+                        <p className="text-white text-base font-semibold mb-1">측정에 실패했습니다</p>
+                        <p className="text-gray-300 text-xs mb-4 leading-relaxed max-w-xs">{scanErrorMsg}</p>
+                        <button
+                          onClick={startScan}
+                          className="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold rounded-lg transition-colors shadow"
+                        >
+                          다시 시도하기
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {scanStatus === 'ready' && (
                     <div className="absolute bottom-6 left-0 right-0 text-center">
                       <p className="text-green-400/80 text-sm">스캔 부위를 중앙에 맞춰주세요</p>
@@ -207,6 +226,7 @@ const ScanPage = () => {
                     {scanStatus === 'countdown' && '카운트다운...'}
                     {scanStatus === 'scanning' && '스캔 중 움직이지 마세요'}
                     {scanStatus === 'complete' && '스캔 완료!'}
+                    {scanStatus === 'error' && '측정 실패'}
                   </span>
                 </div>
 
@@ -218,6 +238,7 @@ const ScanPage = () => {
                 >
                   <ScanIcon size={20} />
                   {scanStatus === 'ready' ? '스캔 시작하기' :
+                   scanStatus === 'error' ? '다시 시도하기' :
                    scanStatus === 'complete' ? '다시 스캔하기' : '스캔 중...'}
                 </Button>
               </div>
