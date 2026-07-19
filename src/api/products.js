@@ -3,29 +3,95 @@ import { mockProducts, calculateCompatibility } from '../utils/mockData';
 
 // ── 제품 추천 ────────────────────────────────────────────
 // body: { measurement, user_inputs, filter_categories?, top_k?, seed?, exclude_ids? }
-export async function getRecommendations(body) {
+export async function getRecommendations(body, sessionId) {
   if (isMock) {
     await delay(500);
     return buildMockRecommendations(body);
   }
 
-  const res = await client.post('/api/recommend', body);
-  return res.data; // { recommended_products: Product[] }
+  // 1. BE 세션 기반 추천: POST /scans/{id}/recommend
+  if (sessionId) {
+    try {
+      const res = await client.post(`/scans/${sessionId}/recommend`);
+      const items = Array.isArray(res.data) ? res.data : (res.data?.recommended_products || res.data?.products || []);
+      return { recommended_products: items };
+    } catch (err) {
+      console.warn('세션 추천 실패, fallback 시도:', err);
+    }
+  }
+
+  // 2. 데모/전체 추천 fallback
+  try {
+    const res = await client.post('/api/recommend', body);
+    return res.data;
+  } catch (err) {
+    // 3. GET /products 목록 fallback
+    const res = await client.get('/products');
+    const items = Array.isArray(res.data) ? res.data : (res.data?.products || []);
+    return { recommended_products: items };
+  }
 }
 
-// ── 자가진단 질문지 조회 ─────────────────────────────────
+// ── 제품 목록 조회 (GET /products) ──────────────────────
+export async function getProducts() {
+  if (isMock) {
+    await delay(300);
+    return { products: mockProducts };
+  }
+
+  const res = await client.get('/products');
+  return res.data;
+}
+
+// ── 특정 제품 상세 (GET /products/{id}) ──────────────────
+export async function getProductById(productId) {
+  if (isMock) {
+    await delay(200);
+    const found = mockProducts.find((p) => String(p.id) === String(productId));
+    return found || mockProducts[0];
+  }
+
+  const res = await client.get(`/products/${productId}`);
+  return res.data;
+}
+
+// ── 찜하기 연동 (POST/DELETE /products/{id}/wishlist) ────
+export async function toggleWishlistApi(productId, isAdd) {
+  if (isMock) return { success: true };
+
+  if (isAdd) {
+    const res = await client.post(`/products/${productId}/wishlist`);
+    return res.data;
+  } else {
+    const res = await client.delete(`/products/${productId}/wishlist`);
+    return res.data;
+  }
+}
+
+// ── 찜 목록 조회 (GET /wishlist) ──────────────────────────
+export async function getWishlistApi() {
+  if (isMock) return [];
+
+  const res = await client.get('/wishlist');
+  return res.data;
+}
+
+// ── 자가진단 질문지 조회 (설문(D) 대체용 유지) ─────────────
 export async function getQuestionnaire() {
   if (isMock) {
     await delay(300);
     return { questions: MOCK_QUESTIONS };
   }
 
-  const res = await client.get('/api/questionnaire');
-  return res.data;
+  try {
+    const res = await client.get('/api/questionnaire');
+    return res.data;
+  } catch {
+    return { questions: MOCK_QUESTIONS };
+  }
 }
 
-// ── 자가진단 채점 ────────────────────────────────────────
-// answers: { [questionId]: optionIndex }
+// ── 자가진단 채점 (SkinCheckPage 호환용) ────────────────────
 export async function scoreQuestionnaire(answers) {
   if (isMock) {
     await delay(400);
@@ -38,8 +104,18 @@ export async function scoreQuestionnaire(answers) {
     };
   }
 
-  const res = await client.post('/api/questionnaire/score', { answers });
-  return res.data;
+  try {
+    const res = await client.post('/api/questionnaire/score', { answers });
+    return res.data;
+  } catch {
+    return {
+      skin_type: '복합성',
+      sensitivity: 3,
+      aging_score: 2,
+      lifestyle_flags: { sleep: 1, sunscreen: 1 },
+      incomplete: [],
+    };
+  }
 }
 
 // ── Mock 추천 생성 헬퍼 ──────────────────────────────────

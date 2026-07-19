@@ -13,7 +13,7 @@ export const ROUTES = {
 
 export const SKIN_TYPES = ['건성', '지성', '복합성', '민감성', '모름'];
 
-export const SKIN_CONCERNS = ['여드름', '모공', '주름', '색소', '건조', '홍조'];
+export const SKIN_CONCERNS = ['여드름', '모공', '주름', '색소침착', '탄력', '건조'];
 
 export const COSMETIC_INTERESTS = ['클렌저', '토너', '세럼/앰플', '크림', '선크림'];
 

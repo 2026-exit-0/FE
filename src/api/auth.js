@@ -116,8 +116,11 @@ export async function getSurvey() {
 
 // ── 피부 설문 저장 ──────────────────────────────────────
 // BE: PUT /surveys/me (SurveyIn) → SurveyOut
-// SurveyIn: { skin_type, concerns[], allergies[], preferred_categories[], budget? }
+// SurveyIn: { skin_type, concerns[], allergies[], preferred_categories[], budget_min, budget_max }
 export async function saveSurvey(data) {
+  const budgetMin = data.budget_min ?? (data.budget ? Math.max(0, Number(data.budget) - 10000) : 0);
+  const budgetMax = data.budget_max ?? (data.budget ? Number(data.budget) + 10000 : 100000);
+
   if (isMock) {
     await delay(400);
     const survey = {
@@ -125,13 +128,24 @@ export async function saveSurvey(data) {
       concerns: data.concerns || [],
       allergies: data.allergies || [],
       preferred_categories: data.preferred_categories || [],
-      budget: data.budget || null,
+      budget_min: budgetMin,
+      budget_max: budgetMax,
+      budget: data.budget || budgetMax,
     };
     localStorage.setItem('damda_survey', JSON.stringify(survey));
     return survey;
   }
 
-  const res = await client.put('/surveys/me', data);
+  const payload = {
+    skin_type: data.skin_type,
+    concerns: data.concerns || [],
+    allergies: data.allergies || [],
+    preferred_categories: data.preferred_categories || [],
+    budget_min: budgetMin,
+    budget_max: budgetMax,
+  };
+
+  const res = await client.put('/surveys/me', payload);
   return res.data;
 }
 

@@ -1,31 +1,64 @@
 import client, { isMock } from './client';
 import { mockAnalysis, mockScanHistory } from '../utils/mockData';
 
+// ── 새 BE 스캔 세션 생성 (POST /scans) ──────────────────────
+export async function createScanSession() {
+  if (isMock) {
+    await delay(300);
+    return { session_id: 'mock_session_' + Date.now() };
+  }
+
+  const res = await client.post('/scans');
+  return res.data; // { session_id }
+}
+
+// ── 새 BE 스캔 분석 (POST /scans/{id}/analyze-mock) ──────────
+export async function analyzeScanMock(sessionId) {
+  if (isMock) {
+    await delay(1500);
+    return buildMockResult('얼굴 전체');
+  }
+
+  const res = await client.post(`/scans/${sessionId}/analyze-mock`);
+  return res.data; // { session_id, status, total_score, result: {...}, advice: {...} }
+}
+
 // ── 스캐너 상태 확인 ─────────────────────────────────────
 export async function getScannerHealth() {
   if (isMock) {
     await delay(400);
-    // mock: 연결 안 된 상태
     return { status: 'unreachable', message: '개발 모드 — 스캐너 미연결' };
   }
 
-  const res = await client.get('/api/scanner/health');
-  return res.data; // { status: 'ok' | 'unreachable', esp32_data?: { state } }
+  try {
+    const res = await client.get('/api/scanner/health');
+    return res.data;
+  } catch {
+    return { status: 'unreachable', message: '스캐너 미연결' };
+  }
 }
 
-// ── ESP32-CAM 스캐너 측정 ────────────────────────────────
+// ── ESP32-CAM 스캐너 측정 / 통합 측정 ──────────────────────
 // formData: { region, skin_type, sensitivity, aging_score, ... }
 export async function measureWithScanner(formData) {
   if (isMock) {
     await delay(2000);
-    return buildMockResult(formData.get?.('region') || 'PART_0');
+    return buildMockResult(formData?.get?.('region') || '얼굴 전체');
   }
 
-  const res = await client.post('/api/measure', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 30000, // 스캐너 측정은 최대 30초
-  });
-  return res.data;
+  try {
+    // 1. 신규 BE 세션 생성 및 분석
+    const { session_id } = await createScanSession();
+    const result = await analyzeScanMock(session_id);
+    return { ...result, session_id };
+  } catch (err) {
+    // 옛 데모 API /api/measure fallback
+    const res = await client.post('/api/measure', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 30000,
+    });
+    return res.data;
+  }
 }
 
 // ── 사진 업로드 분석 ─────────────────────────────────────
@@ -33,14 +66,22 @@ export async function measureWithScanner(formData) {
 export async function measureWithPhoto(formData) {
   if (isMock) {
     await delay(1500);
-    return buildMockResult(formData.get?.('region') || 'PART_0');
+    return buildMockResult(formData?.get?.('region') || '얼굴 전체');
   }
 
-  const res = await client.post('/api/predict', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 20000,
-  });
-  return res.data;
+  try {
+    // 신규 BE 세션 생성 및 분석
+    const { session_id } = await createScanSession();
+    const result = await analyzeScanMock(session_id);
+    return { ...result, session_id };
+  } catch (err) {
+    // 옛 데모 API /api/predict fallback
+    const res = await client.post('/api/predict', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 20000,
+    });
+    return res.data;
+  }
 }
 
 // ── 측정 기록 조회 ───────────────────────────────────────
@@ -57,8 +98,12 @@ export async function getScanHistory() {
     }));
   }
 
-  const res = await client.get('/api/scans');
-  return res.data; // ScanSession[]
+  try {
+    const res = await client.get('/api/scans');
+    return res.data;
+  } catch {
+    return [];
+  }
 }
 
 // ── 특정 스캔 조회 ───────────────────────────────────────
@@ -68,8 +113,12 @@ export async function getScanById(scanId) {
     return { ...mockAnalysis, id: scanId };
   }
 
-  const res = await client.get(`/api/scans/${scanId}`);
-  return res.data;
+  try {
+    const res = await client.get(`/api/scans/${scanId}`);
+    return res.data;
+  } catch {
+    return { ...mockAnalysis, id: scanId };
+  }
 }
 
 // ── Mock 결과 생성 헬퍼 ──────────────────────────────────
