@@ -13,6 +13,7 @@ import BottomNav from '../components/common/BottomNav';
 import Button from '../components/common/Button';
 import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
+import { downloadReportPdf } from '../api/scan';
 
 // ─── 지표 색상 매핑 ───
 const statusColorMap = {
@@ -133,8 +134,28 @@ const AnalysisPage = () => {
     previous: Math.max(m.value - (i % 2 === 0 ? 8 : -5), 25),
   }));
 
-  // PDF 출력 빌더
-  const handleExportPDF = () => {
+  // PDF 출력 핸들러 (백엔드 PDF API 연동 + FE Fallback)
+  const handleExportPDF = async () => {
+    const sessionId = currentScan?.sessionId;
+
+    if (sessionId) {
+      try {
+        const blob = await downloadReportPdf(sessionId);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `damda_report_${sessionId}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        return;
+      } catch (err) {
+        console.warn('BE PDF download failed or mock mode, fallback to FE renderer:', err);
+      }
+    }
+
+    // Fallback: FE HTML 인쇄/PDF 양식
     const reportHtml = `
       <html>
       <head>

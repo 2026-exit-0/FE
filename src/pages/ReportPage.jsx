@@ -13,6 +13,7 @@ import BottomNav from '../components/common/BottomNav';
 import Button from '../components/common/Button';
 import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
+import { downloadReportPdf } from '../api/scan';
 import { weeklyData, measurementHistory } from '../utils/mockData';
 
 // ─── 기간 필터 ──────────────────────────────────────────
@@ -211,9 +212,28 @@ const ReportPage = () => {
   const chartData = getChartData(metric, period);
   const metricLabel = metricFilters.find((item) => item.id === metric)?.label || '수분도';
 
-  // PDF 내보내기 핸들러 (추후 jsPDF 연동)
-  const handleExportPDF = () => {
-    alert('리포트 PDF 내보내기 기능은 마이페이지 및 분석 결과 탭에서 직접 다운로드가 가능합니다. (상세 양식 연동 중)');
+  // PDF 내보내기 핸들러 (백엔드 PDF API 연동)
+  const handleExportPDF = async () => {
+    const sessionId = currentScan?.sessionId;
+
+    if (sessionId) {
+      try {
+        const blob = await downloadReportPdf(sessionId);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `damda_report_${sessionId}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        return;
+      } catch (err) {
+        console.warn('BE PDF download failed:', err);
+      }
+    }
+
+    alert('리포트 PDF 내보내기는 스캔 분석 결과 화면에서 다운로드가 가능합니다.');
   };
 
   // ─── 스캔 데이터 없을 때 Empty State ────────────────

@@ -69,6 +69,18 @@ export async function measureWithPhoto(formData) {
   return { ...result, session_id };
 }
 
+// ── 분석 리포트 PDF 다운로드 (GET /report/{session_id}/pdf) ───
+export async function downloadReportPdf(sessionId) {
+  if (isMock || !sessionId) {
+    throw new Error('MOCK_MODE');
+  }
+
+  const res = await client.get(`/report/${sessionId}/pdf`, {
+    responseType: 'blob',
+  });
+  return res.data;
+}
+
 // ── 측정 기록 조회 ───────────────────────────────────────
 export async function getScanHistory() {
   if (isMock) {
