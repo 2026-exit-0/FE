@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import client, { isMock } from '../api/client';
 
 // 서울 기준 기본 위치 좌표
 const DEFAULT_LAT = 37.5665;
@@ -9,7 +10,9 @@ const useWeather = () => {
     temp: 22,
     humidity: 50,
     uv: 'moderate',
-    dust: 'moderate',
+    dust: 'good',
+    region: '서울',
+    advice: '',
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -17,18 +20,48 @@ const useWeather = () => {
   useEffect(() => {
     const fetchWeatherData = async (lat, lon) => {
       try {
-        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m&daily=uv_index_max&timezone=Asia%2FSeoul&forecast_days=1`;
-        const airQualityUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=pm10,pm2_5&timezone=Asia%2FSeoul`;
+        setLoading(true);
 
-        const [weatherRes, airRes] = await Promise.all([
-          fetch(weatherUrl).catch(() => null),
-          fetch(airQualityUrl).catch(() => null),
-        ]);
+        // 1. BE 연동 모드일 때 (GET /weather?lat=...&lon=...)
+        if (!isMock) {
+          try {
+            const params = {};
+            if (lat != null && lon != null) {
+              params.lat = lat;
+              params.lon = lon;
+            }
+            const res = await client.get('/weather', { params });
+            const data = res.data; // WeatherOut: { region, temperature, humidity, uv_index, advice, ... }
+
+            // uv_index 한글 라벨 매핑 ("낮음" -> "low", "보통" -> "moderate", "높음" -> "high", "매우높음" -> "very-high")
+            let mappedUv = 'moderate';
+            if (data.uv_index === '낮음') mappedUv = 'low';
+            else if (data.uv_index === '높음') mappedUv = 'high';
+            else if (data.uv_index === '매우높음') mappedUv = 'very-high';
+
+            setWeather({
+              temp: Math.round(data.temperature ?? 22),
+              humidity: Math.round(data.humidity ?? 50),
+              uv: mappedUv,
+              dust: 'good',
+              region: data.region || '현재 위치',
+              advice: data.advice || '',
+              raw: data,
+            });
+            setError(null);
+            return;
+          } catch (beErr) {
+            console.warn('BE weather endpoint failed, fallback to direct Open-Meteo:', beErr);
+          }
+        }
+
+        // 2. Mock 모드이거나 BE 연동 실패 시 Direct Open-Meteo Fallback
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m&daily=uv_index_max&timezone=Asia%2FSeoul&forecast_days=1`;
+        const weatherRes = await fetch(weatherUrl).catch(() => null);
 
         let currentTemp = 22;
         let currentHumidity = 50;
         let mappedUv = 'moderate';
-        let mappedDust = 'good';
 
         if (weatherRes && weatherRes.ok) {
           const data = await weatherRes.json();
@@ -42,21 +75,15 @@ const useWeather = () => {
           else mappedUv = 'very-high';
         }
 
-        if (airRes && airRes.ok) {
-          const airData = await airRes.json();
-          const pm10 = airData.current?.pm10 ?? 25;
-          if (pm10 <= 30) mappedDust = 'good';
-          else if (pm10 <= 80) mappedDust = 'moderate';
-          else if (pm10 <= 150) mappedDust = 'bad';
-          else mappedDust = 'veryBad';
-        }
-
         setWeather({
           temp: currentTemp,
           humidity: currentHumidity,
           uv: mappedUv,
-          dust: mappedDust,
+          dust: 'good',
+          region: '현재 위치',
+          advice: '',
         });
+        setError(null);
       } catch (err) {
         console.error('Weather fetch error:', err);
         setError('날씨 정보를 불러올 수 없습니다.');
@@ -73,13 +100,12 @@ const useWeather = () => {
           fetchWeatherData(latitude, longitude);
         },
         () => {
-          // 위치 권한 거부 시 서울 기준 날씨 조회
+          // 위치 권한 거부/에러 시 기본 좌표로 조회
           fetchWeatherData(DEFAULT_LAT, DEFAULT_LON);
         },
         { timeout: 5000 }
       );
     } else {
-      // Geolocation 미지원 시 서울 기준 날씨 조회
       fetchWeatherData(DEFAULT_LAT, DEFAULT_LON);
     }
   }, []);
