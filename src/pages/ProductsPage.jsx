@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, Scan, RefreshCw, Sparkles, Heart } from 'lucide-react';
 import Header from '../components/common/Header';
@@ -201,9 +201,11 @@ const ProductsPage = () => {
   const shownIds = useRef(new Set());
 
   const hasScanData = !!currentScan;
-  const userInputs = currentScan
-    ? { skin_type: currentScan.skinType, sensitivity: 3 }
-    : {};
+  const userInputs = useMemo(() => (
+    currentScan
+      ? { skin_type: currentScan.skinType, sensitivity: 3 }
+      : {}
+  ), [currentScan]);
 
   const fetchProducts = useCallback(async ({ filters = [], seed = null, excludeIds = [] } = {}) => {
     setLoading(true);
