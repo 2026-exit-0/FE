@@ -51,41 +51,49 @@ const LandingPage = () => {
             {/* Right - Weather Card */}
             <div className="flex-1 w-full max-w-md animate-slideUp" style={{ animationDelay: '0.2s' }}>
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
-                <h3 className="text-lg font-semibold text-text-primary mb-6 text-center">
-                  오늘의 날씨
-                </h3>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-text-primary">
+                    오늘의 실시간 날씨
+                  </h3>
+                  <span className="text-xs font-semibold text-primary-600 bg-primary-50 px-3 py-1 rounded-full">
+                    {weather?.region || '현재 위치'}
+                  </span>
+                </div>
                 
-                <div className="flex justify-center gap-6 mb-6">
-                  {/* Moisture */}
-                  <div className="text-center">
-                    <div className="w-20 h-20 rounded-2xl bg-primary-50 flex items-center justify-center mb-2">
-                      <span className="text-2xl font-bold text-primary-600">72</span>
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  {/* Temperature */}
+                  <div className="text-center p-3 rounded-2xl bg-blue-50/70 border border-blue-100">
+                    <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center mx-auto mb-2">
+                      <Droplets size={20} />
                     </div>
-                    <span className="text-xs text-text-secondary">수분</span>
+                    <p className="text-xl font-extrabold text-blue-700">{weather?.temp ?? 22}°C</p>
+                    <span className="text-[11px] text-text-secondary font-medium">기온</span>
                   </div>
                   
-                  {/* Oil */}
-                  <div className="text-center">
-                    <div className="w-20 h-20 rounded-2xl bg-green-50 flex items-center justify-center mb-2">
-                      <span className="text-2xl font-bold text-green-600">45</span>
+                  {/* Humidity */}
+                  <div className="text-center p-3 rounded-2xl bg-emerald-50/70 border border-emerald-100">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-2">
+                      <Droplets size={20} />
                     </div>
-                    <span className="text-xs text-text-secondary">건조</span>
+                    <p className="text-xl font-extrabold text-emerald-700">{weather?.humidity ?? 55}%</p>
+                    <span className="text-[11px] text-text-secondary font-medium">습도</span>
                   </div>
                   
-                  {/* Sensitivity */}
-                  <div className="text-center">
-                    <div className="w-20 h-20 rounded-2xl bg-orange-50 flex items-center justify-center mb-2">
-                      <span className="text-2xl font-bold text-orange-500">38</span>
+                  {/* UV Index */}
+                  <div className="text-center p-3 rounded-2xl bg-amber-50/70 border border-amber-100">
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-2">
+                      <Sun size={20} />
                     </div>
-                    <span className="text-xs text-text-secondary">미세먼지</span>
+                    <p className="text-base font-extrabold text-amber-700 mt-1">
+                      {weather?.uv === 'high' ? '높음' : weather?.uv === 'very-high' ? '매우높음' : '보통'}
+                    </p>
+                    <span className="text-[11px] text-text-secondary font-medium">자외선</span>
                   </div>
                 </div>
 
-                <div className="bg-primary-50 rounded-xl p-4">
-                  <p className="text-sm text-primary-700 leading-relaxed">
-                    <span className="font-medium">•</span> 오늘은 BHA 토너와
-                    <br />
-                    <span className="ml-3">수분 세럼을 추천해요</span>
+                <div className="bg-gradient-to-r from-primary-50 to-emerald-50 rounded-xl p-4 border border-primary-100/60">
+                  <p className="text-xs text-primary-800 leading-relaxed font-medium">
+                    ✨ {weather?.advice || '오늘 날씨에 알맞은 피부 보습 케어를 잊지 마세요!'}
                   </p>
                 </div>
               </div>
