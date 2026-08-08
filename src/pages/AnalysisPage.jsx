@@ -155,65 +155,251 @@ const AnalysisPage = () => {
       }
     }
 
-    // Fallback: FE HTML 인쇄/PDF 양식
+    // Fallback: 고급 헬스케어 리포트 PDF 양식
     const reportHtml = `
+      <!DOCTYPE html>
       <html>
       <head>
+        <meta charset="utf-8">
         <title>담다 피부 분석 리포트 - ${analysis.date || new Date().toLocaleDateString()}</title>
         <style>
-          body { font-family: 'Apple SD Gothic Neo', sans-serif; padding: 40px; color: #333; line-height: 1.6; }
-          .header { border-bottom: 3px solid #4CAF50; padding-bottom: 15px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
-          .logo { font-size: 24px; font-weight: bold; color: #4CAF50; }
-          .title { font-size: 28px; font-weight: bold; margin: 0; }
-          .meta-info { background: #f9f9f9; padding: 15px; border-radius: 12px; margin-bottom: 30px; font-size: 14px; }
-          .score-box { display: inline-block; font-size: 32px; font-weight: bold; color: #4CAF50; border: 2px solid #4CAF50; padding: 5px 15px; border-radius: 8px; margin-top: 10px; }
-          table { width: 100%; border-collapse: collapse; margin: 25px 0; }
-          th, td { border: 1px solid #e0e0e0; padding: 12px 15px; text-align: left; }
-          th { background-color: #f5f5f5; font-weight: bold; }
-          .tip-box { background-color: #e8f5e9; border-left: 5px solid #4CAF50; padding: 20px; border-radius: 8px; margin-top: 30px; }
-          .tip-box h3 { margin-top: 0; color: #2e7d32; }
-          .btn-print { margin-bottom: 20px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-          @media print { .btn-print { display: none; } }
+          @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;800&display=swap');
+          * { box-sizing: border-box; }
+          body {
+            font-family: 'Pretendard', -apple-system, sans-serif;
+            padding: 40px;
+            color: #1f2937;
+            background-color: #f9fafb;
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+          }
+          .paper {
+            background: #ffffff;
+            padding: 48px;
+            border-radius: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+            border: 1px solid #f3f4f6;
+          }
+          .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #10b981;
+            padding-bottom: 20px;
+            margin-bottom: 32px;
+          }
+          .brand-logo {
+            font-size: 22px;
+            font-weight: 800;
+            color: #10b981;
+            letter-spacing: -0.5px;
+          }
+          .doc-type {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: #ecfdf5;
+            padding: 4px 12px;
+            border-radius: 20px;
+          }
+          .report-title {
+            font-size: 28px;
+            font-weight: 800;
+            color: #111827;
+            margin: 0 0 24px 0;
+            letter-spacing: -0.8px;
+          }
+          .meta-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 24px;
+            border-radius: 18px;
+            margin-bottom: 36px;
+          }
+          .meta-item { margin-bottom: 8px; }
+          .meta-item:last-child { margin-bottom: 0; }
+          .meta-label { font-size: 13px; color: #64748b; font-weight: 600; }
+          .meta-value { font-size: 15px; color: #0f172a; font-weight: 700; }
+          .score-badge {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #ffffff;
+            padding: 16px 24px;
+            border-radius: 16px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+          }
+          .score-num { font-size: 32px; font-weight: 800; line-height: 1; margin-top: 4px; }
+          .score-title { font-size: 12px; font-weight: 600; opacity: 0.9; }
+
+          .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0 0 16px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+          .section-title::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 18px;
+            background: #10b981;
+            border-radius: 2px;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-bottom: 40px;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            overflow: hidden;
+          }
+          th {
+            background-color: #f9fafb;
+            color: #4b5563;
+            font-weight: 700;
+            font-size: 13px;
+            padding: 14px 18px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+          }
+          td {
+            padding: 14px 18px;
+            font-size: 14px;
+            color: #1f2937;
+            border-bottom: 1px solid #f3f4f6;
+          }
+          tr:last-child td { border-bottom: none; }
+          .status-tag {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+          }
+          .tag-good { background: #d1fae5; color: #047857; }
+          .tag-fair { background: #fef3c7; color: #b45309; }
+          .tag-poor { background: #fee2e2; color: #b91c1c; }
+
+          .care-box {
+            background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+            border: 1px solid #a7f3d0;
+            padding: 28px;
+            border-radius: 18px;
+            margin-top: 32px;
+          }
+          .care-box h3 {
+            margin: 0 0 12px 0;
+            color: #047857;
+            font-size: 16px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+          .care-box p { font-size: 14px; color: #065f46; font-weight: 600; margin-bottom: 14px; }
+          .care-box ul { margin: 0; padding-left: 20px; color: #047857; font-size: 13.5px; }
+          .care-box li { margin-bottom: 6px; }
+
+          .btn-print {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            padding: 12px 24px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 14px;
+            box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.4);
+            transition: all 0.2s;
+            z-index: 1000;
+          }
+          .btn-print:hover { background: #059669; transform: translateY(-2px); }
+          @media print {
+            body { background: white; padding: 0; }
+            .paper { box-shadow: none; border: none; padding: 0; }
+            .btn-print { display: none; }
+          }
         </style>
       </head>
       <body>
-        <button class="btn-print" onclick="window.print()">프린트 및 PDF 저장</button>
-        <div class="header">
-          <h1 class="title">피부 종합 리포트</h1>
-          <span class="logo">담다</span>
-        </div>
-        <div class="meta-info">
-          <p><strong>분석 일시:</strong> ${analysis.date || new Date().toLocaleDateString()}</p>
-          <p><strong>진단 피부 타입:</strong> ${analysis.skinType || '복합성 피부'}</p>
-          <div class="score-box">종합 점수: ${overallScore}점</div>
-        </div>
-        <h2>5가지 핵심 피부 지표</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>지표명</th>
-              <th>점수 / 수치</th>
-              <th>평가 상태</th>
-              <th>세부 진단</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${metrics.map(m => `
+        <button class="btn-print" onclick="window.print()">🖨️ 프린트 및 PDF 저장</button>
+        <div class="paper">
+          <div class="top-bar">
+            <div class="brand-logo">DAMDA SKIN LAB</div>
+            <div class="doc-type">Official Report</div>
+          </div>
+
+          <h1 class="report-title">피부 정밀 종합 리포트</h1>
+
+          <div class="meta-grid">
+            <div>
+              <div class="meta-item">
+                <span class="meta-label">분석 일시: </span>
+                <span class="meta-value">${analysis.date || new Date().toLocaleDateString()}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">진단 피부 타입: </span>
+                <span class="meta-value">${analysis.skinType || '복합성 피부'}</span>
+              </div>
+            </div>
+            <div class="score-badge">
+              <span class="score-title">종합 피부 점수</span>
+              <span class="score-num">${overallScore}점</span>
+            </div>
+          </div>
+
+          <h2 class="section-title">5가지 핵심 피부 지표 분석</h2>
+          <table>
+            <thead>
               <tr>
-                <td><strong>${m.label}</strong></td>
-                <td>${m.value}%</td>
-                <td>${m.status}</td>
-                <td>${m.description}</td>
+                <th>지표명</th>
+                <th>측정 수치</th>
+                <th>평가 상태</th>
+                <th>세부 진단 소견</th>
               </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        <div class="tip-box">
-          <h3>AI 종합 분석 & 케어 조언</h3>
-          <p>${summary}</p>
-          <ul>
-            ${tips.map(t => `<li>${t}</li>`).join('')}
-          </ul>
+            </thead>
+            <tbody>
+              ${metrics.map(m => {
+                let tagClass = 'tag-good';
+                if (m.status === '주의' || m.status === '관리 권장') tagClass = 'tag-fair';
+                if (m.status === '경고' || m.status === '매우 건조') tagClass = 'tag-poor';
+                return `
+                  <tr>
+                    <td><strong>${m.label}</strong></td>
+                    <td><strong>${m.value}%</strong></td>
+                    <td><span class="status-tag ${tagClass}">${m.status}</span></td>
+                    <td style="color: #4b5563;">${m.description}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+
+          <div class="care-box">
+            <h3>✨ AI 종합 분석 & 솔루션</h3>
+            <p>${summary}</p>
+            <ul>
+              ${tips.map(t => `<li>${t}</li>`).join('')}
+            </ul>
+          </div>
         </div>
       </body>
       </html>
