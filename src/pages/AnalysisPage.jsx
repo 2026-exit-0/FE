@@ -546,10 +546,13 @@ const AnalysisPage = () => {
                       </div>
                     ) : (
                       <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-text-secondary">
-                        <ShoppingBag className="mx-auto mb-2 text-gray-300" size={32} />
-                        <p className="text-sm mb-4">현재 분석 결과에 대한 제품 매칭을 생성하고 있습니다.</p>
+                        <ShoppingBag className="mx-auto mb-3 text-primary-400/60" size={36} />
+                        <p className="text-sm font-medium text-text-primary mb-1">맞춤 추천 화장품 탐색</p>
+                        <p className="text-xs text-text-secondary mb-5">분석 결과에 적합한 스킨케어 상품들을 바로 확인해 보세요.</p>
                         <Link to="/products">
-                          <Button size="small">화장품 추천 페이지로 이동</Button>
+                          <Button size="sm" icon={ArrowRight} className="rounded-full px-5 py-2.5 font-semibold text-xs shadow-sm hover:shadow transition-all">
+                            화장품 추천 페이지로 이동
+                          </Button>
                         </Link>
                       </div>
                     )}
