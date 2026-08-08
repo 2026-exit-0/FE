@@ -261,7 +261,7 @@ const SignupPage = () => {
 
                 {/* Gender */}
                 <div>
-                  <label className="block text-sm font-medium text-text-primary mb-2">성별</label>
+                  <label className="block text-sm font-medium text-text-primary mb-2">성별 *</label>
                   <div className="flex gap-3">
                     {['남', '여', '선택 안 함'].map((g) => (
                       <label key={g} className="flex items-center gap-2 cursor-pointer">
@@ -269,31 +269,33 @@ const SignupPage = () => {
                           type="radio"
                           value={g}
                           className="w-4 h-4 text-primary-500 focus:ring-primary-500"
-                          {...register('gender')}
+                          {...register('gender', { required: '성별을 선택해주세요.' })}
                         />
                         <span className="text-sm text-text-secondary">{g}</span>
                       </label>
                     ))}
                   </div>
+                  {errors.gender && <p className="text-xs text-red-500 mt-1">{errors.gender.message}</p>}
                 </div>
 
                 {/* Age Group */}
                 <div>
-                  <label className="block text-sm font-medium text-text-primary mb-2">연령대</label>
+                  <label className="block text-sm font-medium text-text-primary mb-2">연령대 *</label>
                   <select
-                    className="input-field text-sm"
-                    {...register('ageGroup')}
+                    className={`input-field text-sm ${errors.ageGroup ? 'border-red-300' : ''}`}
+                    {...register('ageGroup', { required: '연령대를 선택해주세요.' })}
                   >
                     <option value="">선택해주세요</option>
                     {AGE_GROUPS.map((age) => (
                       <option key={age} value={age}>{age}</option>
                     ))}
                   </select>
+                  {errors.ageGroup && <p className="text-xs text-red-500 mt-1">{errors.ageGroup.message}</p>}
                 </div>
 
                 {/* Skin Type */}
                 <div>
-                  <label className="block text-sm font-medium text-text-primary mb-2">피부 타입</label>
+                  <label className="block text-sm font-medium text-text-primary mb-2">피부 타입 *</label>
                   <div className="flex flex-wrap gap-2">
                     {SKIN_TYPES.map((type) => (
                       <label key={type} className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer hover:border-primary-300 hover:bg-primary-50 transition-colors has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50">
@@ -301,12 +303,13 @@ const SignupPage = () => {
                           type="checkbox"
                           value={type}
                           className="w-4 h-4 rounded text-primary-500 focus:ring-primary-500"
-                          {...register('skinType')}
+                          {...register('skinType', { required: '최소 1개 이상의 피부 타입을 선택해주세요.' })}
                         />
                         <span className="text-sm">{type}</span>
                       </label>
                     ))}
                   </div>
+                  {errors.skinType && <p className="text-xs text-red-500 mt-1">{errors.skinType.message}</p>}
                 </div>
 
                 {/* Skin Concerns */}
