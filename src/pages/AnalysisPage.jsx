@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Scan, BarChart3, Sparkles, ShoppingBag, Download, Check, AlertCircle, FileText
+  Scan, BarChart3, Sparkles, ShoppingBag, Download, Check, AlertCircle, FileText, ArrowRight
 } from 'lucide-react';
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
