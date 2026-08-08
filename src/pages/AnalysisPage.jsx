@@ -468,8 +468,14 @@ const AnalysisPage = () => {
       ctx.fillStyle = '#F3F4F6';
       ctx.fillRect(140, y - 12, 300, 12);
 
+      // 상태별 직관적 전용 색상 매핑
+      let barColor = '#10B981'; // 기본 그린 (정상/양호)
+      if (m.status === '주의') barColor = '#F59E0B'; // 주황/노랑
+      else if (m.status === '관리 권장' || m.status === '보통') barColor = '#3B82F6'; // 파랑
+      else if (m.status === '경고' || m.status === '매우 건조') barColor = '#EF4444'; // 빨강
+
       // 바 강도 색상
-      ctx.fillStyle = m.statusColor === 'green' ? '#4CAF50' : m.statusColor === 'yellow' ? '#EAB308' : '#F97316';
+      ctx.fillStyle = barColor;
       ctx.fillRect(140, y - 12, (m.value / 100) * 300, 12);
 
       // 상태 텍스트
