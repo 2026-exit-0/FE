@@ -9,13 +9,16 @@ import Sidebar from '../components/common/Sidebar';
 import BottomNav from '../components/common/BottomNav';
 import useAuth from '../hooks/useAuth';
 import useWeather from '../hooks/useWeather';
+import useScanStore from '../store/scanStore';
 import { UV_LEVELS } from '../utils/constants';
 
 const DashboardPage = () => {
   const { user } = useAuth(true);
   const { weather } = useWeather();
+  const { scans, currentScan } = useScanStore();
 
-  const hasScanData = user?.scanCount > 0;
+  const hasScanData = (user?.scanCount > 0) || scans.length > 0 || !!currentScan;
+  const scanCount = Math.max(user?.scanCount || 0, scans.length);
   const uvInfo = UV_LEVELS[weather?.uv] || UV_LEVELS.moderate;
 
   const quickAccess = [
@@ -77,9 +80,9 @@ const DashboardPage = () => {
                 </p>
               </div>
               <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 text-center min-w-[120px]">
-                <p className="text-xs text-primary-100 mb-1">첫 스캔까지</p>
-                <p className="text-3xl font-bold">1</p>
-                <p className="text-xs text-primary-100">단계 남았어요</p>
+                <p className="text-xs text-primary-100 mb-1">{hasScanData ? '총 스캔 횟수' : '첫 스캔까지'}</p>
+                <p className="text-3xl font-bold">{hasScanData ? scanCount : 1}</p>
+                <p className="text-xs text-primary-100">{hasScanData ? '회 완료' : '단계 남았어요'}</p>
               </div>
             </div>
           </div>
