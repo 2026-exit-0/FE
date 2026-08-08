@@ -79,7 +79,9 @@ const MyPage = () => {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const result = await updateProfileImage(reader.result);
+        const result = await updateUser({
+          profile_image_url: reader.result,
+        });
         if (result.success) showToast('프로필 사진이 변경되었습니다.');
       };
       reader.readAsDataURL(file);
@@ -188,8 +190,8 @@ const MyPage = () => {
             <div className="card flex flex-col tablet:flex-row items-center gap-6">
               <div className="relative group">
                 <div className="w-24 h-24 rounded-full bg-gray-200 overflow-hidden border-4 border-white shadow-md">
-                  {user?.profileImage ? (
-                    <img src={user.profileImage} alt="Profile" className="w-full h-full object-cover" />
+                  {(user?.profile_image_url || user?.profileImage) ? (
+                    <img src={user.profile_image_url || user.profileImage} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-primary-100 text-primary-500">
                       <User size={40} />
