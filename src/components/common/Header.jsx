@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 
@@ -7,11 +7,23 @@ const Header = ({ variant = 'landing' }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isLoggedIn, user, logout } = useAuthStore();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleAnchorClick = (anchor) => {
+    if (location.pathname === '/') {
+      document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      navigate('/');
+      setTimeout(() => {
+        document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth' });
+      }, 300);
+    }
+  };
 
   const landingLinks = [
-    { label: '서비스 소개', href: '#service' },
-    { label: '기능', href: '#features' },
-    { label: '사용 방법', href: '#howto' },
+    { label: '서비스 소개', anchor: 'service' },
+    { label: '기능', anchor: 'features' },
+    { label: '사용 방법', path: '/guide' },
   ];
 
   const dashboardLinks = [
@@ -50,13 +62,14 @@ const Header = ({ variant = 'landing' }) => {
                   {link.label}
                 </Link>
               ) : (
-                <a
+                <button
                   key={link.label}
-                  href={link.href}
-                  className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-200"
+                  type="button"
+                  onClick={() => handleAnchorClick(link.anchor)}
+                  className="text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-200 cursor-pointer"
                 >
                   {link.label}
-                </a>
+                </button>
               )
             ))}
           </nav>
@@ -121,14 +134,14 @@ const Header = ({ variant = 'landing' }) => {
                     {link.label}
                   </Link>
                 ) : (
-                  <a
+                  <button
                     key={link.label}
-                    href={link.href}
-                    className="px-4 py-3 rounded-lg text-sm font-medium text-text-secondary hover:bg-gray-50 transition-colors"
-                    onClick={() => setMobileMenuOpen(false)}
+                    type="button"
+                    className="px-4 py-3 rounded-lg text-sm font-medium text-text-secondary hover:bg-gray-50 transition-colors text-left cursor-pointer"
+                    onClick={() => { handleAnchorClick(link.anchor); setMobileMenuOpen(false); }}
                   >
                     {link.label}
-                  </a>
+                  </button>
                 )
               ))}
               <div className="border-t border-gray-100 pt-3 mt-2 flex flex-col gap-2">

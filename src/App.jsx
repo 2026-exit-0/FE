@@ -12,6 +12,7 @@ import ReportPage from './pages/ReportPage';
 import ProductsPage from './pages/ProductsPage';
 import MyPage from './pages/MyPage';
 import CareGuidePage from './pages/CareGuidePage';
+import GuidePage from './pages/GuidePage';
 
 const ProtectedRoute = ({ children }) => {
   const { isLoggedIn } = useAuthStore();
@@ -36,6 +37,7 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/guide" element={<GuidePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
 
