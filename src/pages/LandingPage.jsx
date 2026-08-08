@@ -28,9 +28,9 @@ const LandingPage = () => {
               <p className="text-text-secondary text-base tablet:text-lg leading-relaxed mb-8 max-w-lg mx-auto desktop:mx-0">
                 IoT 스캐너와 AI 딥러닝 분석으로
                 <br />
-                수분·유분·모공·탄력을 정밀하게 측정하고
+                수분·유분·모공·색소침착을 정밀하게 측정하고
                 <br />
-                나만의 스킨케어 루틴을 제안받으세요~
+                나만의 스킨케어 루틴을 제안받으세요.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center desktop:justify-start">
                 <Link
@@ -40,12 +40,15 @@ const LandingPage = () => {
                   피부 스캔 시작하기
                   <ArrowRight size={18} />
                 </Link>
-                <a
-                  href="#features"
-                  className="btn-outline inline-flex items-center justify-center gap-2 text-base"
+                <button
+                  type="button"
+                  onClick={() => {
+                    document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="btn-outline inline-flex items-center justify-center gap-2 text-base cursor-pointer"
                 >
                   서비스 알아보기
-                </a>
+                </button>
               </div>
             </div>
 
@@ -103,40 +106,49 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Tech Stack Section */}
-      <section id="features" className="border-t border-gray-100 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="grid grid-cols-2 tablet:grid-cols-4 gap-8">
-            <div className="text-center group">
-              <div className="w-14 h-14 bg-primary-50 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-primary-100 transition-colors duration-300">
-                <Cpu size={24} className="text-primary-500" />
+      {/* Tech Stack & Service Features Section */}
+      <section id="features" className="border-t border-gray-100 bg-white py-16 scroll-mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-xl mx-auto mb-12">
+            <h2 className="text-2xl font-bold text-text-primary mb-2">담다(DAMDA) 핵심 기술 & 서비스</h2>
+            <p className="text-xs text-text-secondary">하드웨어 정밀 센서부터 AI 맞춤 솔루션까지 한 번에 경험해보세요.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 tablet:grid-cols-4 gap-6">
+            <div className="bg-gradient-to-b from-primary-50/40 to-white rounded-2xl border border-primary-100 p-6 text-center hover:-translate-y-1 transition-all duration-300 shadow-sm hover:shadow-md">
+              <div className="w-14 h-14 bg-white rounded-2xl border border-primary-200 shadow-sm flex items-center justify-center mx-auto mb-4 text-primary-500">
+                <Cpu size={26} />
               </div>
-              <h3 className="text-lg font-bold text-primary-600 mb-2">ESP32 IoT</h3>
-              <p className="text-xs text-text-secondary">정밀 피부 스캐너</p>
+              <h3 className="text-lg font-bold text-primary-600 mb-1">ESP32 IoT</h3>
+              <p className="text-xs font-semibold text-text-primary mb-1">정밀 피부 스캐너</p>
+              <p className="text-[11px] text-text-secondary">FDC2112 & VEML7700 하드웨어 센서 연동</p>
             </div>
             
-            <div className="text-center group">
-              <div className="w-14 h-14 bg-primary-50 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-primary-100 transition-colors duration-300">
-                <Brain size={24} className="text-primary-500" />
+            <div className="bg-gradient-to-b from-primary-50/40 to-white rounded-2xl border border-primary-100 p-6 text-center hover:-translate-y-1 transition-all duration-300 shadow-sm hover:shadow-md">
+              <div className="w-14 h-14 bg-white rounded-2xl border border-primary-200 shadow-sm flex items-center justify-center mx-auto mb-4 text-primary-500">
+                <Brain size={26} />
               </div>
-              <h3 className="text-lg font-bold text-primary-600 mb-2">EfficientNet</h3>
-              <p className="text-xs text-text-secondary">딥러닝 분석 엔진</p>
+              <h3 className="text-lg font-bold text-primary-600 mb-1">EfficientNet</h3>
+              <p className="text-xs font-semibold text-text-primary mb-1">딥러닝 분석 엔진</p>
+              <p className="text-[11px] text-text-secondary">고도화된 파이토치 모델 기반 정밀 추론</p>
             </div>
             
-            <div className="text-center group">
-              <div className="w-14 h-14 bg-primary-50 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-primary-100 transition-colors duration-300">
-                <BarChart3 size={24} className="text-primary-500" />
+            <div className="bg-gradient-to-b from-primary-50/40 to-white rounded-2xl border border-primary-100 p-6 text-center hover:-translate-y-1 transition-all duration-300 shadow-sm hover:shadow-md">
+              <div className="w-14 h-14 bg-white rounded-2xl border border-primary-200 shadow-sm flex items-center justify-center mx-auto mb-4 text-primary-500">
+                <BarChart3 size={26} />
               </div>
-              <h3 className="text-lg font-bold text-primary-600 mb-2">5가지</h3>
-              <p className="text-xs text-text-secondary">피부 지표 측정</p>
+              <h3 className="text-lg font-bold text-primary-600 mb-1">5가지</h3>
+              <p className="text-xs font-semibold text-text-primary mb-1">피부 지표 측정</p>
+              <p className="text-[11px] text-text-secondary">수분·유분·탄력·모공·색소침착 종합 분석</p>
             </div>
             
-            <div className="text-center group">
-              <div className="w-14 h-14 bg-primary-50 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-primary-100 transition-colors duration-300">
-                <Clock size={24} className="text-primary-500" />
+            <div className="bg-gradient-to-b from-primary-50/40 to-white rounded-2xl border border-primary-100 p-6 text-center hover:-translate-y-1 transition-all duration-300 shadow-sm hover:shadow-md">
+              <div className="w-14 h-14 bg-white rounded-2xl border border-primary-200 shadow-sm flex items-center justify-center mx-auto mb-4 text-primary-500">
+                <Clock size={26} />
               </div>
-              <h3 className="text-lg font-bold text-primary-600 mb-2">실시간</h3>
-              <p className="text-xs text-text-secondary">맞춤 루틴 제안</p>
+              <h3 className="text-lg font-bold text-primary-600 mb-1">실시간</h3>
+              <p className="text-xs font-semibold text-text-primary mb-1">맞춤 루틴 제안</p>
+              <p className="text-[11px] text-text-secondary">위치 날씨 기반 스킨케어 가이드 자동 생성</p>
             </div>
           </div>
         </div>
