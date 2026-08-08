@@ -7,10 +7,11 @@ const LandingPage = () => {
   const { weather, loading } = useWeather();
 
   return (
-    <div className="min-h-screen bg-white">
-      <Header variant="landing" />
+    <div className="min-h-screen flex flex-col justify-between bg-white">
+      <div>
+        <Header variant="landing" />
 
-      {/* Hero Section */}
+        {/* Hero Section */}
       <section className="bg-gradient-to-br from-primary-50 via-green-50 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 tablet:py-24">
           <div className="flex flex-col desktop:flex-row items-center gap-12 desktop:gap-16">
@@ -140,6 +141,7 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
+      </div>
 
       {/* Footer */}
       <footer className="bg-gray-50 border-t border-gray-100 py-8">
