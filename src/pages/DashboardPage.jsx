@@ -88,25 +88,25 @@ const DashboardPage = () => {
           </div>
 
           <div className="grid grid-cols-1 tablet:grid-cols-2 gap-6 mb-6">
-            {/* First Scan Card */}
-            {!hasScanData && (
-              <div className="card flex flex-col items-center text-center">
-                <div className="w-20 h-20 bg-primary-50 rounded-full flex items-center justify-center mb-4">
-                  <Scan size={32} className="text-primary-500" />
-                </div>
-                <h2 className="text-xl font-bold text-text-primary mb-2">첫 피부 스캔하기</h2>
-                <p className="text-sm text-text-secondary mb-6">
-                  스캐너를 연결하고 피부를 측정하세요
-                </p>
-                <Link
-                  to="/skin-check"
-                  className="btn-primary inline-flex items-center gap-2"
-                >
-                  스캔 시작하기
-                  <ArrowRight size={16} />
-                </Link>
+            {/* Scan Card (Always Visible) */}
+            <div className="card flex flex-col items-center justify-center text-center p-6 border border-primary-100/80 bg-gradient-to-b from-white to-primary-50/20">
+              <div className="w-16 h-16 bg-primary-100/80 rounded-2xl flex items-center justify-center mb-4 text-primary-600 shadow-sm">
+                <Scan size={32} />
               </div>
-            )}
+              <h2 className="text-lg font-bold text-text-primary mb-1">
+                {hasScanData ? '새로운 피부 스캔하기' : '첫 피부 스캔하기'}
+              </h2>
+              <p className="text-xs text-text-secondary mb-5">
+                {hasScanData ? '실시간 수분·유분 스캔으로 피부 상태를 재측정해보세요' : '스캐너를 연결하고 피부를 측정하세요'}
+              </p>
+              <Link
+                to="/skin-check"
+                className="btn-primary inline-flex items-center gap-2 text-sm px-6 py-2.5 rounded-full shadow-sm hover:shadow transition-all"
+              >
+                {hasScanData ? '다시 스캔하기' : '스캔 시작하기'}
+                <ArrowRight size={16} />
+              </Link>
+            </div>
 
             {/* Scanner Status + Environment */}
             <div className="space-y-6">
