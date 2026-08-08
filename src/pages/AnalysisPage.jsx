@@ -219,8 +219,12 @@ const AnalysisPage = () => {
       </html>
     `;
     const win = window.open('', '_blank');
-    win.document.write(reportHtml);
-    win.document.close();
+    if (win) {
+      win.document.write(reportHtml);
+      win.document.close();
+    } else {
+      alert('팝업이 차단되어 있습니다. 브라우저 주소창 우측에서 팝업 차단을 해제해 주세요.');
+    }
   };
 
   // Canvas 기반 요약 이미지 카드 다운로드
