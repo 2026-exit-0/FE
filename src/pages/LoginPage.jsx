@@ -143,8 +143,11 @@ const LoginPage = () => {
 
             <div className="mt-6 space-y-3">
               <button
-                disabled
-                className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-lg text-sm text-text-secondary hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
+                onClick={() => {
+                  alert('구글 로그인 연동 중: 백엔드 env(GOOGLE_CLIENT_ID) 설정 후 인가 코드를 GET /auth/google로 전달합니다.');
+                }}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-lg text-sm font-medium text-text-primary hover:bg-gray-50 transition-colors shadow-sm"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
@@ -152,16 +155,19 @@ const LoginPage = () => {
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
-                Google로 계속하기 (준비 중)
+                Google로 계속하기
               </button>
               <button
-                disabled
-                className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-lg text-sm text-text-secondary hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
+                onClick={() => {
+                  alert('카카오 로그인 연동 중: 백엔드 env(KAKAO_CLIENT_ID) 설정 후 인가 코드를 GET /auth/kakao로 전달합니다.');
+                }}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-yellow-200 bg-[#FEE500] rounded-lg text-sm font-medium text-[#191919] hover:bg-[#FDD835] transition-colors shadow-sm"
               >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="#FEE500">
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="#000000">
                   <path d="M12 3C6.48 3 2 6.69 2 11.2c0 2.89 1.92 5.42 4.8 6.86-.21.79-.77 2.87-.89 3.31-.14.55.2.54.42.39.18-.12 2.82-1.92 3.96-2.7.55.08 1.12.14 1.71.14 5.52 0 10-3.69 10-8.2S17.52 3 12 3z"/>
                 </svg>
-                카카오로 계속하기 (준비 중)
+                카카오로 계속하기
               </button>
             </div>
           </div>
