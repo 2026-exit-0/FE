@@ -421,42 +421,69 @@ const AnalysisPage = () => {
                 {/* 2. 항목 히트맵 (H.5.2) */}
                 {activeMenu === 'heatmap' && (
                   <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm animate-fadeIn">
-                    <h3 className="text-sm font-bold text-text-primary mb-2">얼굴 부위별 수분/유분 분포 히트맵</h3>
-                    <p className="text-xs text-text-secondary mb-6">스캔한 영역별 실시간 수분/유분 검지 히트맵 분포도입니다.</p>
+                    <h3 className="text-sm font-bold text-text-primary mb-1">얼굴 부위별 수분/유분 분포 히트맵</h3>
+                    <p className="text-xs text-text-secondary mb-8">스캔한 영역별 실시간 수분/유분 검지 히트맵 분포도입니다.</p>
 
-                    <div className="flex flex-col tablet:flex-row items-center justify-center gap-12">
-                      {/* 얼굴 형태 가상 히트맵 */}
-                      <div className="relative w-64 h-64 border-2 border-dashed border-gray-100 rounded-full bg-gradient-to-b from-gray-50 to-white flex items-center justify-center">
-                        <div className="absolute top-8 w-20 h-8 rounded-full bg-primary-100/50 border border-primary-200 flex items-center justify-center text-xs text-primary-700 font-bold">
-                          이마: {metrics[0].value}%
+                    <div className="flex flex-col tablet:flex-row items-center justify-center gap-10 desktop:gap-16">
+                      {/* 세련된 얼굴 실루엣 히트맵 카드 */}
+                      <div className="relative w-72 h-80 bg-gradient-to-b from-primary-50/40 via-white to-gray-50/50 rounded-3xl border border-primary-100/60 p-4 flex flex-col items-center justify-between shadow-inner">
+                        {/* 은은한 얼굴 실루엣 SVG 백그라운드 */}
+                        <svg className="absolute inset-0 w-full h-full text-primary-200/40 pointer-events-none p-4" viewBox="0 0 100 120" fill="none" stroke="currentColor" strokeWidth="0.8" strokeDasharray="2 2">
+                          <ellipse cx="50" cy="55" rx="36" ry="46" />
+                          {/* 눈썹/코 라인 가이드 */}
+                          <path d="M 32 40 Q 40 37 45 40" strokeWidth="0.5" />
+                          <path d="M 68 40 Q 60 37 55 40" strokeWidth="0.5" />
+                          <path d="M 50 42 L 50 64 L 54 66" strokeWidth="0.5" strokeDasharray="none" />
+                          <path d="M 40 82 Q 50 86 60 82" strokeWidth="0.5" />
+                        </svg>
+
+                        {/* 이마 */}
+                        <div className="z-10 mt-3 bg-white/90 backdrop-blur-sm border border-emerald-200 text-emerald-700 px-3.5 py-1.5 rounded-full text-xs font-bold shadow-sm flex items-center gap-1.5 animate-pulse">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                          이마: <span className="font-extrabold">{metrics[0]?.value ?? 64}%</span>
                         </div>
-                        <div className="absolute left-4 w-16 h-12 rounded-xl bg-orange-50 border border-orange-200 flex flex-col items-center justify-center text-[10px] text-orange-700 font-bold">
-                          <span>왼볼</span>
-                          <span>{metrics[2].value}%</span>
+
+                        {/* 코 & 양 볼 (중앙 핑거 영역) */}
+                        <div className="z-10 w-full flex items-center justify-between px-2">
+                          {/* 왼볼 */}
+                          <div className="bg-white/90 backdrop-blur-sm border border-orange-200 text-orange-700 px-3 py-1.5 rounded-2xl text-[11px] font-bold shadow-sm flex flex-col items-center">
+                            <span className="text-[9px] text-orange-500 font-semibold">왼쪽 볼</span>
+                            <span>{metrics[2]?.value ?? 68}%</span>
+                          </div>
+
+                          {/* 코 */}
+                          <div className="bg-white/90 backdrop-blur-sm border border-amber-300 text-amber-800 px-3 py-2 rounded-2xl text-[11px] font-bold shadow-md flex flex-col items-center border-t-2 border-t-amber-400">
+                            <span className="text-[9px] text-amber-600 font-semibold">코 (T존)</span>
+                            <span className="text-xs font-extrabold">{metrics[3]?.value ?? 86}%</span>
+                          </div>
+
+                          {/* 오른볼 */}
+                          <div className="bg-white/90 backdrop-blur-sm border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded-2xl text-[11px] font-bold shadow-sm flex flex-col items-center">
+                            <span className="text-[9px] text-emerald-600 font-semibold">오른쪽 볼</span>
+                            <span>{Math.max((metrics[0]?.value ?? 64) - 5, 40)}%</span>
+                          </div>
                         </div>
-                        <div className="absolute right-4 w-16 h-12 rounded-xl bg-primary-50 border border-primary-200 flex flex-col items-center justify-center text-[10px] text-primary-700 font-bold">
-                          <span>오른볼</span>
-                          <span>{metrics[0].value - 5}%</span>
-                        </div>
-                        <div className="absolute bottom-8 w-16 h-8 rounded-full bg-yellow-50 border border-yellow-200 flex items-center justify-center text-xs text-yellow-700 font-bold">
-                          턱: {metrics[1].value}%
-                        </div>
-                        <div className="w-12 h-16 rounded-full bg-orange-100/60 border border-orange-200 flex items-center justify-center text-[10px] text-orange-700 font-bold">
-                          코: {metrics[3].value}%
+
+                        {/* 턱 */}
+                        <div className="z-10 mb-3 bg-white/90 backdrop-blur-sm border border-amber-200 text-amber-700 px-3.5 py-1.5 rounded-full text-xs font-bold shadow-sm flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-amber-400" />
+                          턱: <span className="font-extrabold">{metrics[1]?.value ?? 58}%</span>
                         </div>
                       </div>
 
                       {/* 범례 및 분석 결과 */}
                       <div className="space-y-4 max-w-sm">
-                        <h4 className="text-sm font-bold text-text-primary">부위별 상세 매핑 결과</h4>
-                        <div className="space-y-3 text-xs text-text-secondary leading-relaxed">
-                          <div className="flex items-start gap-2">
-                            <span className="w-2.5 h-2.5 bg-primary-400 rounded-full mt-1 flex-shrink-0" />
-                            <p><strong>T존 (이마/코)</strong>: 유분기가 높고 모공 집중 관리가 요구됩니다. 가벼운 수분 제형 토너를 권장합니다.</p>
+                        <h4 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-primary-500" /> 부위별 상세 매핑 결과
+                        </h4>
+                        <div className="space-y-3 text-xs text-text-secondary leading-relaxed bg-gray-50/70 p-4 rounded-2xl border border-gray-100">
+                          <div className="flex items-start gap-2.5">
+                            <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full mt-1 flex-shrink-0" />
+                            <p><strong className="text-text-primary">T존 (이마/코)</strong>: 유분기가 높고 모공 집중 관리가 요구됩니다. 가벼운 수분 제형 토너를 권장합니다.</p>
                           </div>
-                          <div className="flex items-start gap-2">
-                            <span className="w-2.5 h-2.5 bg-orange-400 rounded-full mt-1 flex-shrink-0" />
-                            <p><strong>U존 (양 볼/턱)</strong>: 건조와 당김이 감지되어 고보습 크림 마스크 밀착 관리가 필요합니다.</p>
+                          <div className="flex items-start gap-2.5 border-t border-gray-200/60 pt-3">
+                            <span className="w-2.5 h-2.5 bg-amber-500 rounded-full mt-1 flex-shrink-0" />
+                            <p><strong className="text-text-primary">U존 (양 볼/턱)</strong>: 건조와 당김이 감지되어 고보습 크림 마스크 밀착 관리가 필요합니다.</p>
                           </div>
                         </div>
                       </div>
