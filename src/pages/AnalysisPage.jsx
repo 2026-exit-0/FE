@@ -426,9 +426,9 @@ const AnalysisPage = () => {
 
                     <div className="flex flex-col tablet:flex-row items-center justify-center gap-10 desktop:gap-16">
                       {/* 세련된 얼굴 실루엣 히트맵 카드 */}
-                      <div className="relative w-72 h-80 bg-gradient-to-b from-primary-50/40 via-white to-gray-50/50 rounded-3xl border border-primary-100/60 p-4 flex flex-col items-center justify-between shadow-inner">
+                      <div className="relative w-64 h-64 bg-gradient-to-b from-primary-50/30 via-white to-gray-50/40 rounded-3xl border border-primary-100/60 p-3.5 flex flex-col items-center justify-around shadow-sm">
                         {/* 은은한 얼굴 실루엣 SVG 백그라운드 */}
-                        <svg className="absolute inset-0 w-full h-full text-primary-200/40 pointer-events-none p-4" viewBox="0 0 100 120" fill="none" stroke="currentColor" strokeWidth="0.8" strokeDasharray="2 2">
+                        <svg className="absolute inset-0 w-full h-full text-primary-200/40 pointer-events-none p-3" viewBox="0 0 100 120" fill="none" stroke="currentColor" strokeWidth="0.8" strokeDasharray="2 2">
                           <ellipse cx="50" cy="55" rx="36" ry="46" />
                           {/* 눈썹/코 라인 가이드 */}
                           <path d="M 32 40 Q 40 37 45 40" strokeWidth="0.5" />
@@ -438,34 +438,34 @@ const AnalysisPage = () => {
                         </svg>
 
                         {/* 이마 */}
-                        <div className="z-10 mt-3 bg-white/90 backdrop-blur-sm border border-emerald-200 text-emerald-700 px-3.5 py-1.5 rounded-full text-xs font-bold shadow-sm flex items-center gap-1.5 animate-pulse">
+                        <div className="z-10 bg-white/95 backdrop-blur-sm border border-emerald-200 text-emerald-700 px-3.5 py-1 rounded-full text-xs font-bold shadow-sm flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full bg-emerald-500" />
                           이마: <span className="font-extrabold">{metrics[0]?.value ?? 64}%</span>
                         </div>
 
                         {/* 코 & 양 볼 (중앙 핑거 영역) */}
-                        <div className="z-10 w-full flex items-center justify-between px-2">
+                        <div className="z-10 w-full flex items-center justify-between px-1">
                           {/* 왼볼 */}
-                          <div className="bg-white/90 backdrop-blur-sm border border-orange-200 text-orange-700 px-3 py-1.5 rounded-2xl text-[11px] font-bold shadow-sm flex flex-col items-center">
+                          <div className="bg-white/95 backdrop-blur-sm border border-orange-200 text-orange-700 px-2.5 py-1 rounded-xl text-[11px] font-bold shadow-sm flex flex-col items-center">
                             <span className="text-[9px] text-orange-500 font-semibold">왼쪽 볼</span>
                             <span>{metrics[2]?.value ?? 68}%</span>
                           </div>
 
                           {/* 코 */}
-                          <div className="bg-white/90 backdrop-blur-sm border border-amber-300 text-amber-800 px-3 py-2 rounded-2xl text-[11px] font-bold shadow-md flex flex-col items-center border-t-2 border-t-amber-400">
+                          <div className="bg-white/95 backdrop-blur-sm border border-amber-300 text-amber-800 px-2.5 py-1.5 rounded-xl text-[11px] font-bold shadow-sm flex flex-col items-center border-t-2 border-t-amber-400">
                             <span className="text-[9px] text-amber-600 font-semibold">코 (T존)</span>
                             <span className="text-xs font-extrabold">{metrics[3]?.value ?? 86}%</span>
                           </div>
 
                           {/* 오른볼 */}
-                          <div className="bg-white/90 backdrop-blur-sm border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded-2xl text-[11px] font-bold shadow-sm flex flex-col items-center">
+                          <div className="bg-white/95 backdrop-blur-sm border border-emerald-200 text-emerald-700 px-2.5 py-1 rounded-xl text-[11px] font-bold shadow-sm flex flex-col items-center">
                             <span className="text-[9px] text-emerald-600 font-semibold">오른쪽 볼</span>
                             <span>{Math.max((metrics[0]?.value ?? 64) - 5, 40)}%</span>
                           </div>
                         </div>
 
                         {/* 턱 */}
-                        <div className="z-10 mb-3 bg-white/90 backdrop-blur-sm border border-amber-200 text-amber-700 px-3.5 py-1.5 rounded-full text-xs font-bold shadow-sm flex items-center gap-1.5">
+                        <div className="z-10 bg-white/95 backdrop-blur-sm border border-amber-200 text-amber-700 px-3.5 py-1 rounded-full text-xs font-bold shadow-sm flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full bg-amber-400" />
                           턱: <span className="font-extrabold">{metrics[1]?.value ?? 58}%</span>
                         </div>
