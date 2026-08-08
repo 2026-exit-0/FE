@@ -212,7 +212,7 @@ const ReportPage = () => {
   const chartData = getChartData(metric, period);
   const metricLabel = metricFilters.find((item) => item.id === metric)?.label || '수분도';
 
-  // PDF 내보내기 핸들러 (백엔드 PDF API 연동)
+  // PDF 내보내기 핸들러 (분석 결과 화면 내보내기로 자연스럽게 연결)
   const handleExportPDF = async () => {
     const sessionId = currentScan?.sessionId;
 
@@ -229,11 +229,18 @@ const ReportPage = () => {
         URL.revokeObjectURL(url);
         return;
       } catch (err) {
-        console.warn('BE PDF download failed:', err);
+        console.warn('BE PDF download failed, redirecting to analysis export view:', err);
       }
     }
 
-    alert('리포트 PDF 내보내기는 스캔 분석 결과 화면에서 다운로드가 가능합니다.');
+    // 스캔 데이터가 있으면 분석결과 페이지(내보내기 메뉴)로 바로 이동
+    if (currentScan) {
+      navigate('/analysis');
+    } else {
+      if (confirm('아직 완료된 피부 스캔 결과가 없습니다. 스캔 페이지로 이동하시겠습니까?')) {
+        navigate('/scan');
+      }
+    }
   };
 
   // ─── 스캔 데이터 없을 때 Empty State ────────────────
