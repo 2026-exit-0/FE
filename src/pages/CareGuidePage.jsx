@@ -147,8 +147,8 @@ const CareGuidePage = () => {
             </div>
             
             {/* 피부타입 배지 */}
-            <div className="bg-primary-50 text-primary-700 px-4 py-2 rounded-xl text-xs font-bold border border-primary-100 flex items-center gap-1.5 shadow-sm animate-pulse">
-              <Sparkles size={14} className="text-primary-500" />
+            <div className="bg-gradient-to-r from-primary-50 to-emerald-50 text-primary-700 px-4 py-2 rounded-xl text-xs font-bold border border-primary-100 flex items-center gap-1.5 shadow-sm">
+              <Sparkles size={14} className="text-primary-500 flex-shrink-0" />
               진단 피부 타입: <span className="underline font-extrabold">{userSkinType}</span>
             </div>
           </div>
