@@ -60,7 +60,7 @@ const ProductCard = ({ product, onClick }) => {
         )}
 
         <p className="text-xs text-text-secondary mt-2 line-clamp-1">
-          <span className="font-medium text-primary-600">왜 추천? </span>
+          <span className="font-medium text-primary-600">추천 이유: </span>
           {product.reason || '범용 케어'}
         </p>
 
@@ -143,7 +143,7 @@ const ProductModal = ({ product, onClose }) => {
 
           {/* 추천 이유 */}
           <div>
-            <p className="text-xs text-text-secondary font-semibold uppercase tracking-wide mb-1">왜 추천했나요?</p>
+            <p className="text-xs text-text-secondary font-semibold uppercase tracking-wide mb-1">추천 이유</p>
             <p className="text-sm text-text-primary bg-gray-50 rounded-lg px-3 py-2 border-l-2 border-primary-400">{product.reason || '범용 케어'}</p>
           </div>
 
