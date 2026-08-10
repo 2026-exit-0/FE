@@ -244,19 +244,30 @@ const ProductsPage = () => {
     if (hasScanData) fetchProducts();
   }, [hasScanData]);
 
+  // 클라이언트 사이드 카테고리 필터링
+  const filteredProducts = useMemo(() => {
+    if (activeFilters.length === 0) return products;
+    return products.filter((p) => {
+      const cats = p.category || [];
+      const sub = p.subcategory || '';
+      const tags = p.tags || [];
+      return activeFilters.some((f) =>
+        cats.some((c) => c.includes(f) || f.includes(c)) ||
+        sub.includes(f) ||
+        tags.some((t) => t.includes(f) || f.includes(t))
+      );
+    });
+  }, [products, activeFilters]);
+
   const handleFilterToggle = (filterId) => {
     if (filterId === '') {
       setActiveFilters([]);
-      shownIds.current = new Set();
-      fetchProducts({ filters: [] });
       return;
     }
     const next = activeFilters.includes(filterId)
       ? activeFilters.filter((f) => f !== filterId)
       : [...activeFilters, filterId];
     setActiveFilters(next);
-    shownIds.current = new Set();
-    fetchProducts({ filters: next });
   };
 
   const handleRefresh = () => {
@@ -346,17 +357,17 @@ const ProductsPage = () => {
                   <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 h-28 animate-pulse" />
                 ))}
               </div>
-            ) : products.length === 0 ? (
+            ) : filteredProducts.length === 0 ? (
               <div className="text-center py-16 text-text-secondary">
                 <ShoppingBag size={40} className="mx-auto mb-3 text-gray-300" />
                 <p className="text-sm">해당 조건에 맞는 제품이 없어요.</p>
-                <button onClick={() => { setActiveFilters([]); fetchProducts(); }} className="mt-3 text-primary-500 text-sm font-medium">
+                <button onClick={() => { setActiveFilters([]); }} className="mt-3 text-primary-500 text-sm font-medium">
                   전체 보기
                 </button>
               </div>
             ) : (
               <div className="space-y-3">
-                {products.map((p, idx) => (
+                {filteredProducts.map((p, idx) => (
                   <div key={p.id ?? idx} className="animate-fadeIn" style={{ animationDelay: `${idx * 60}ms` }}>
                     <ProductCard product={p} onClick={() => setSelectedProduct(p)} />
                   </div>
