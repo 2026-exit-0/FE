@@ -222,7 +222,11 @@ const ProductsPage = () => {
       if (excludeIds.length > 0) body.exclude_ids = excludeIds;
 
       const data = await getRecommendations(body);
-      const list = data.recommended_products || [];
+      const list = (data.recommended_products || []).map((p) => ({
+        ...p,
+        id: p.id || p.product_id,
+        name: p.name || p.name_kr,
+      }));
       list.forEach((p) => p.id && shownIds.current.add(p.id));
       setProducts(list);
     } catch (err) {
