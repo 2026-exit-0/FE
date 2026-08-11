@@ -92,9 +92,7 @@ const LoginPage = () => {
             <span className="w-3 h-3 rounded-full bg-primary-500"></span>
             <span className="text-2xl font-bold text-text-primary">담다</span>
           </Link>
-          {isMock && (
-            <p className="text-[11px] text-amber-600 bg-amber-50 px-3 py-1 rounded-full mt-1">개발 모드 — 회원가입 후 로그인 가능</p>
-          )}
+          {/* Subtitle */}
           <p className="text-text-secondary text-sm">AI 기반 피부 분석 서비스</p>
         </div>
 
