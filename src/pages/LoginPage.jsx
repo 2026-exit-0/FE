@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import useAuthStore from '../store/authStore';
@@ -8,10 +8,61 @@ import { isMock } from '../api/client';
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login } = useAuthStore();
+  const [searchParams] = useSearchParams();
+  const { login, kakaoLogin, googleLogin } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // OAuth 콜백 수신 처리 (?code=...&provider=...)
+  useEffect(() => {
+    const code = searchParams.get('code');
+    const state = searchParams.get('state'); // 'kakao' 또는 'google'
+    if (!code) return;
+
+    const redirectUri = `${window.location.origin}/login`;
+    const provider = state || (window.location.hash.includes('google') ? 'google' : 'kakao');
+
+    setLoading(true);
+    const handleOAuth = async () => {
+      let res;
+      if (provider === 'google') {
+        res = await googleLogin(code, redirectUri);
+      } else {
+        res = await kakaoLogin(code, redirectUri);
+      }
+      if (res.success) {
+        navigate('/dashboard');
+      } else {
+        setError(res.message);
+      }
+      setLoading(false);
+    };
+
+    handleOAuth();
+  }, [searchParams]);
+
+  const handleGoogleLogin = () => {
+    const redirectUri = `${window.location.origin}/login`;
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+    if (!clientId) {
+      alert('백엔드/프론트엔드 환경변수에 GOOGLE_CLIENT_ID가 설정되어야 구글 인증창으로 이동합니다.');
+      return;
+    }
+    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=email%20profile&state=google`;
+    window.location.href = googleAuthUrl;
+  };
+
+  const handleKakaoLogin = () => {
+    const redirectUri = `${window.location.origin}/login`;
+    const clientId = import.meta.env.VITE_KAKAO_CLIENT_ID || '';
+    if (!clientId) {
+      alert('백엔드/프론트엔드 환경변수에 KAKAO_CLIENT_ID가 설정되어야 카카오 인증창으로 이동합니다.');
+      return;
+    }
+    const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=kakao`;
+    window.location.href = kakaoAuthUrl;
+  };
 
   const {
     register,
@@ -144,9 +195,7 @@ const LoginPage = () => {
             <div className="mt-6 space-y-3">
               <button
                 type="button"
-                onClick={() => {
-                  alert('구글 로그인 연동 중: 백엔드 env(GOOGLE_CLIENT_ID) 설정 후 인가 코드를 GET /auth/google로 전달합니다.');
-                }}
+                onClick={handleGoogleLogin}
                 className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-lg text-sm font-medium text-text-primary hover:bg-gray-50 transition-colors shadow-sm"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -159,9 +208,7 @@ const LoginPage = () => {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  alert('카카오 로그인 연동 중: 백엔드 env(KAKAO_CLIENT_ID) 설정 후 인가 코드를 GET /auth/kakao로 전달합니다.');
-                }}
+                onClick={handleKakaoLogin}
                 className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-yellow-200 bg-[#FEE500] rounded-lg text-sm font-medium text-[#191919] hover:bg-[#FDD835] transition-colors shadow-sm"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="#000000">

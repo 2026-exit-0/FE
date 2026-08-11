@@ -30,6 +30,18 @@ export async function login(email, password) {
   return res.data; // { access_token, token_type }
 }
 
+// ── 카카오 로그인 ────────────────────────────────────────
+export async function kakaoLogin(code, redirectUri) {
+  const res = await client.post('/auth/kakao', { code, redirect_uri: redirectUri });
+  return res.data;
+}
+
+// ── 구글 로그인 ─────────────────────────────────────────
+export async function googleLogin(code, redirectUri) {
+  const res = await client.post('/auth/google', { code, redirect_uri: redirectUri });
+  return res.data;
+}
+
 // ── 회원가입 ────────────────────────────────────────────
 export async function signup(data) {
   if (isMock) {

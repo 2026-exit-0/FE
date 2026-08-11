@@ -55,6 +55,42 @@ const useAuthStore = create((set, get) => ({
     }
   },
 
+  // ── 카카오 로그인 ──────────────────────────────────────
+  kakaoLogin: async (code, redirectUri) => {
+    set({ loading: true, error: null });
+    try {
+      const { access_token } = await authApi.kakaoLogin(code, redirectUri);
+      localStorage.setItem(TOKEN_KEY, access_token);
+      const user = await authApi.getMe();
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      const localWishlist = JSON.parse(localStorage.getItem('damda_wishlist') || '[]');
+      set({ isLoggedIn: true, user, wishlist: localWishlist, loading: false });
+      return { success: true };
+    } catch (err) {
+      const message = err.response?.data?.detail || err.message || '카카오 로그인에 실패했습니다.';
+      set({ loading: false, error: message });
+      return { success: false, message };
+    }
+  },
+
+  // ── 구글 로그인 ────────────────────────────────────────
+  googleLogin: async (code, redirectUri) => {
+    set({ loading: true, error: null });
+    try {
+      const { access_token } = await authApi.googleLogin(code, redirectUri);
+      localStorage.setItem(TOKEN_KEY, access_token);
+      const user = await authApi.getMe();
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      const localWishlist = JSON.parse(localStorage.getItem('damda_wishlist') || '[]');
+      set({ isLoggedIn: true, user, wishlist: localWishlist, loading: false });
+      return { success: true };
+    } catch (err) {
+      const message = err.response?.data?.detail || err.message || '구글 로그인에 실패했습니다.';
+      set({ loading: false, error: message });
+      return { success: false, message };
+    }
+  },
+
   // ── 회원가입 ──────────────────────────────────────────
   signup: async (data) => {
     set({ loading: true, error: null });
