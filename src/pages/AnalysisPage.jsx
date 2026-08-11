@@ -165,8 +165,12 @@ const AnalysisPage = () => {
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;800&display=swap');
           * { box-sizing: border-box; }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           body {
-            font-family: 'Pretendard', -apple-system, sans-serif;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
             padding: 40px;
             color: #1f2937;
             background-color: #f9fafb;
@@ -401,6 +405,13 @@ const AnalysisPage = () => {
             </ul>
           </div>
         </div>
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 300);
+          };
+        </script>
       </body>
       </html>
     `;
@@ -408,8 +419,15 @@ const AnalysisPage = () => {
     if (win) {
       win.document.write(reportHtml);
       win.document.close();
+      setTimeout(() => {
+        try {
+          win.print();
+        } catch (e) {
+          console.log('Print trigger fallback:', e);
+        }
+      }, 500);
     } else {
-      alert('팝업이 차단되어 있습니다. 브라우저 주소창 우측에서 팝업 차단을 해제해 주세요.');
+      alert('팝업 차단이 설정되어 있습니다. 팝업 차단을 해제한 후 다시 시도해 주세요.');
     }
   };
 
