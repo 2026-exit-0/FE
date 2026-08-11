@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   FileText, Download, Scan, TrendingUp, TrendingDown,
   Droplets, Wind, Zap, BarChart3, Calendar, Minus,
@@ -154,6 +154,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 // ─── ReportPage 메인 ────────────────────────────────────
 const ReportPage = () => {
+  const navigate = useNavigate();
   useAuth(true);
   const { currentScan } = useScanStore();
   const [period, setPeriod] = useState('month');
