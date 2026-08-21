@@ -12,8 +12,8 @@ const LandingPage = () => {
         <Header variant="landing" />
 
         {/* Hero Section (Service Intro) */}
-        <section id="service" className="bg-gradient-to-br from-primary-50 via-green-50 to-white scroll-mt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 tablet:py-24">
+        <section id="service" className="bg-gradient-to-br from-primary-50 via-green-50 to-white scroll-mt-16 min-h-[calc(100vh-4rem)] flex items-center py-12 desktop:py-0">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 tablet:py-16 w-full">
           <div className="flex flex-col desktop:flex-row items-center gap-12 desktop:gap-16">
             {/* Left Content */}
             <div className="flex-1 text-center desktop:text-left animate-fadeIn">
