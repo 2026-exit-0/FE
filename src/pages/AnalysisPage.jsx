@@ -122,9 +122,16 @@ const AnalysisPage = () => {
   }
 
   const metrics = extractMetrics(analysis);
-  const overallScore = analysis.narrative?.overall_score ?? analysis.overallScore ?? 0;
-  const summary = analysis.narrative?.summary ?? '';
-  const tips = analysis.narrative?.tips ?? [];
+  const overallScore = analysis.narrative?.overall_score ?? analysis.overallScore ?? 70;
+  const skinType = analysis.skinType || analysis.narrative?.skin_type || '복합성 피부';
+
+  // 백엔드 원본 summary / advice만 추출 (임의 더미 텍스트 제외)
+  const summary = analysis.narrative?.summary || analysis.advice?.summary || analysis.narrative?.description || analysis.advice?.description || '';
+
+  // 백엔드 원본 tips 만 추출
+  const rawTips = analysis.narrative?.tips || analysis.advice?.tips || [];
+  const tips = Array.isArray(rawTips) ? rawTips : (rawTips ? [rawTips] : []);
+
   const userContextApplied = analysis.narrative?.user_context?.applied ?? false;
   const recommendedProducts = analysis.recommendedProducts || [];
 
@@ -759,28 +766,44 @@ const AnalysisPage = () => {
                 {/* 3. AI 케어 조언 (H.5.3) */}
                 {activeMenu === 'ai-care' && (
                   <div className="space-y-6 animate-fadeIn">
-                    {/* AI 종합 분석 카드 */}
-                    {summary && (
-                      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-                        <h3 className="text-sm font-bold text-text-primary mb-3 flex items-center gap-2">
-                          <Sparkles size={16} className="text-primary-500" /> AI 종합 케어 코멘트
-                        </h3>
-                        <p className="text-sm text-text-secondary leading-relaxed">{summary}</p>
-                      </div>
-                    )}
-
-                    {/* 추천 가이드 */}
-                    {tips.length > 0 && (
-                      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-                        <h3 className="text-sm font-bold text-text-primary mb-4">생활 밀착형 스킨케어 팁</h3>
-                        <div className="grid grid-cols-1 tablet:grid-cols-2 gap-4">
-                          {tips.map((tip, i) => (
-                            <div key={i} className="bg-background-gray rounded-xl p-4 border border-gray-100 flex items-start gap-3">
-                              <span className="w-6 h-6 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center font-bold text-xs flex-shrink-0">{i + 1}</span>
-                              <p className="text-xs text-text-secondary leading-relaxed mt-0.5">{tip}</p>
+                    {summary || tips.length > 0 ? (
+                      <>
+                        {/* AI 종합 분석 카드 */}
+                        {summary && (
+                          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+                            <h3 className="text-sm font-bold text-text-primary mb-3 flex items-center gap-2">
+                              <Sparkles size={18} className="text-primary-500" /> AI 종합 케어 코멘트
+                            </h3>
+                            <div className="bg-primary-50/60 border border-primary-100 rounded-xl p-4">
+                              <p className="text-sm text-text-primary font-medium leading-relaxed">{summary}</p>
                             </div>
-                          ))}
-                        </div>
+                          </div>
+                        )}
+
+                        {/* 추천 가이드 */}
+                        {tips.length > 0 && (
+                          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+                            <h3 className="text-sm font-bold text-text-primary mb-4 flex items-center gap-2">
+                              <FileText size={18} className="text-primary-500" /> 생활 밀착형 스킨케어 팁
+                            </h3>
+                            <div className="grid grid-cols-1 tablet:grid-cols-2 gap-4">
+                              {tips.map((tip, i) => (
+                                <div key={i} className="bg-background-gray rounded-xl p-4 border border-gray-100 flex items-start gap-3 hover:border-primary-200 transition-colors">
+                                  <span className="w-6 h-6 rounded-full bg-primary-500 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-sm">{i + 1}</span>
+                                  <p className="text-xs text-text-secondary leading-relaxed mt-0.5">{tip}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-text-secondary shadow-sm">
+                        <Sparkles className="mx-auto mb-3 text-primary-300" size={40} />
+                        <h4 className="text-base font-bold text-text-primary mb-1">AI 맞춤 케어 코멘트 준비 중</h4>
+                        <p className="text-xs text-text-secondary leading-relaxed max-w-sm mx-auto">
+                          스캔 분석 완료 시 상세한 피부 코멘트와 스킨케어 팁이 이곳에 표시됩니다.
+                        </p>
                       </div>
                     )}
                   </div>
