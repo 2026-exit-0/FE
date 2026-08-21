@@ -56,15 +56,6 @@ function extractMetrics(scan) {
   ];
 }
 
-// ─── 또래 비교 백분위 산출 (모의 계산) ───
-function calcPeerPercentile(score) {
-  // 점수 → 또래 상위 퍼센타일 (간단한 역선형 추정)
-  if (score >= 85) return { percentile: Math.round(100 - score * 0.12), label: '상위', tier: 'excellent' };
-  if (score >= 70) return { percentile: Math.round(100 - score * 0.25), label: '상위', tier: 'good' };
-  if (score >= 55) return { percentile: Math.round(100 - score * 0.35 + 10), label: '상위', tier: 'fair' };
-  return { percentile: Math.round(100 - score * 0.4 + 20), label: '하위', tier: 'poor' };
-}
-
 // 종합 점수 원형 차트
 const ScoreCircle = ({ score }) => {
   const color = score >= 70 ? '#4CAF50' : score >= 50 ? '#EAB308' : '#F97316';
@@ -592,14 +583,6 @@ const AnalysisPage = () => {
               <div className="flex-1 min-w-0">
                 {/* 1. 종합 분석 */}
                 {activeMenu === 'overview' && (() => {
-                  const peer = calcPeerPercentile(overallScore);
-                  const peerTierColors = {
-                    excellent: { bg: 'bg-primary-50', border: 'border-primary-200', text: 'text-primary-700', badge: 'bg-primary-500' },
-                    good: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', badge: 'bg-blue-500' },
-                    fair: { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700', badge: 'bg-yellow-500' },
-                    poor: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700', badge: 'bg-orange-500' },
-                  };
-                  const pc = peerTierColors[peer.tier];
                   // 리포트 내 추천 화장품 (3개 고정 카드, 실제 데이터 우선)
                   const reportProducts = recommendedProducts.length > 0
                     ? recommendedProducts.slice(0, 3)
@@ -662,41 +645,6 @@ const AnalysisPage = () => {
                             );
                           })}
                         </div>
-                      </div>
-                    </div>
-
-                    {/* 또래 대비 피부 비교 카드 */}
-                    <div className={`rounded-2xl border ${pc.border} ${pc.bg} p-5 shadow-sm`}>
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${pc.badge} text-white`}>
-                          <Users size={16} />
-                        </div>
-                        <div>
-                          <h3 className={`text-sm font-bold ${pc.text}`}>또래 대비 내 피부</h3>
-                          <p className="text-[10px] text-text-secondary">동일 성별·연령대 평균과 비교한 결과입니다</p>
-                        </div>
-                        <div className="ml-auto text-right">
-                          <span className={`text-2xl font-black ${pc.text}`}>{peer.label} {peer.percentile}%</span>
-                          <p className="text-[10px] text-text-secondary mt-0.5">20대 여성 기준</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-3">
-                        {metrics.slice(0, 3).map((m) => {
-                          const peerAvg = { '수분도': 68, '유분도': 48, '탄력': 62 }[m.label] ?? 65;
-                          const diff = m.value - peerAvg;
-                          return (
-                            <div key={m.label} className="bg-white/60 backdrop-blur-sm rounded-xl p-3 text-center border border-white/80">
-                              <p className="text-[10px] text-text-secondary mb-1">{m.label}</p>
-                              <p className="text-base font-black text-text-primary">{m.value}%</p>
-                              <p className="text-[9px] text-text-secondary">평균 {peerAvg}%</p>
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full mt-1 inline-block ${
-                                diff >= 0 ? 'bg-primary-100 text-primary-700' : 'bg-orange-100 text-orange-700'
-                              }`}>
-                                {diff >= 0 ? `+${diff}` : diff}%p
-                              </span>
-                            </div>
-                          );
-                        })}
                       </div>
                     </div>
 
