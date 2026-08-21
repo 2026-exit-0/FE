@@ -21,6 +21,16 @@ export function parseApiResult(apiResult) {
     const pigmentationVal = r.pigmentation ?? r.melanin_on ?? 0;
     const overall = apiResult.total_score ?? apiResult.overallScore ?? 70;
 
+    // 날짜 파싱 (1순위: BE created_at, 2순위: BE date, 3순위: 오늘 날짜)
+    let formattedDate = new Date().toISOString().split('T')[0].replace(/-/g, '.');
+    if (apiResult.created_at) {
+      try {
+        formattedDate = new Date(apiResult.created_at).toISOString().split('T')[0].replace(/-/g, '.');
+      } catch { /* ignore parse error */ }
+    } else if (apiResult.date) {
+      formattedDate = apiResult.date;
+    }
+
     return {
       sessionId: apiResult.session_id,
       moisture: moistureVal,
@@ -30,7 +40,7 @@ export function parseApiResult(apiResult) {
       pigmentation: pigmentationVal,
       overallScore: overall,
       skinType: apiResult.skinType || '복합성 피부',
-      date: new Date().toISOString().split('T')[0].replace(/-/g, '.'),
+      date: formattedDate,
       area: apiResult.area || apiResult.region || '얼굴 전체',
       narrative: {
         overall_score: overall,
@@ -60,6 +70,15 @@ export function parseApiResult(apiResult) {
     metrics[key] = parseFloat(m.value) || 0;
   });
 
+  let fallbackDate = new Date().toISOString().split('T')[0].replace(/-/g, '.');
+  if (apiResult.created_at) {
+    try {
+      fallbackDate = new Date(apiResult.created_at).toISOString().split('T')[0].replace(/-/g, '.');
+    } catch { /* ignore */ }
+  } else if (apiResult.date) {
+    fallbackDate = apiResult.date;
+  }
+
   return {
     moisture: metrics.moisture ?? metrics['수분도'] ?? apiResult.moisture ?? 0,
     oil: metrics.oil ?? metrics['유분도'] ?? apiResult.oil ?? 0,
@@ -68,7 +87,7 @@ export function parseApiResult(apiResult) {
     pigmentation: metrics.pigmentation ?? metrics['색소침착'] ?? apiResult.pigmentation ?? 0,
     overallScore: n.overall_score || apiResult.overallScore || 70,
     skinType: apiResult.predictions?.classification?.skin_type || apiResult.skinType || '복합성 피부',
-    date: new Date().toISOString().split('T')[0].replace(/-/g, '.'),
+    date: fallbackDate,
     area: apiResult.meta?.region || apiResult.area || '얼굴 전체',
     narrative: n,
     recommendedProducts: apiResult.recommended_products || [],
