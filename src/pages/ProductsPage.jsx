@@ -272,26 +272,45 @@ const ProductsPage = () => {
       : {}
   ), [currentScan]);
 
-  const fetchProducts = useCallback(async ({ filters = [], seed = null, excludeIds = [] } = {}) => {
+  const fetchProducts = useCallback(async ({ filters = [], seed = null, isRefresh = false } = {}) => {
     setLoading(true);
     try {
+      // 리프레시 시 이미 많이 본 경우 shownIds를 리셋하여 빈 결과 방지
+      if (isRefresh && shownIds.current.size >= 15) {
+        shownIds.current.clear();
+      }
+
+      const excludeIds = isRefresh ? Array.from(shownIds.current) : [];
       const body = {
         measurement: currentScan
           ? { moisture: currentScan.moisture, oil: currentScan.oil, elasticity: currentScan.elasticity }
           : {},
         user_inputs: userInputs,
-        top_k: 20, // 더 많이 받아서 클라이언트 필터
+        top_k: 20,
       };
       if (filters.length > 0) body.filter_categories = filters;
       if (seed != null) body.seed = seed;
       if (excludeIds.length > 0) body.exclude_ids = excludeIds;
 
       const data = await getRecommendations(body);
-      const list = (data.recommended_products || []).map((p) => ({
+      let list = (data.recommended_products || []).map((p) => ({
         ...p,
         id: p.id || p.product_id,
         name: p.name || p.name_kr,
       }));
+
+      // 만약 exclude_ids 때문에 백엔드가 빈 목록을 줬다면, shownIds 비우고 제외 없이 재요청
+      if (list.length === 0 && excludeIds.length > 0) {
+        shownIds.current.clear();
+        delete body.exclude_ids;
+        const retryData = await getRecommendations(body);
+        list = (retryData.recommended_products || []).map((p) => ({
+          ...p,
+          id: p.id || p.product_id,
+          name: p.name || p.name_kr,
+        }));
+      }
+
       list.forEach((p) => p.id && shownIds.current.add(p.id));
       setProducts(list);
     } catch (err) {
@@ -364,8 +383,7 @@ const ProductsPage = () => {
   };
 
   const handleRefresh = () => {
-    const excludeIds = Array.from(shownIds.current);
-    fetchProducts({ filters: activeFilters, seed: Math.floor(Math.random() * 99999), excludeIds });
+    fetchProducts({ filters: activeFilters, seed: Math.floor(Math.random() * 99999), isRefresh: true });
   };
 
   const clearAll = () => {
