@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, User, Lock, Save, ChevronRight, Bell, Heart, RotateCcw } from 'lucide-react';
+import { Camera, User, Lock, Save, ChevronRight, Bell, Heart, RotateCcw, Scan, BarChart3, TrendingUp } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import useScanStore from '../store/scanStore';
 import Header from '../components/common/Header';
@@ -213,12 +213,43 @@ const MyPage = () => {
                 />
               </div>
 
-              <div className="text-center tablet:text-left">
+              <div className="text-center tablet:text-left flex-1">
                 <h2 className="text-2xl font-bold text-text-primary">{user?.nickname}</h2>
-                <p className="text-text-secondary">{user?.email}</p>
-                <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium border border-green-100">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                  총 스캔 횟수: {user?.scanCount || 0}회
+                <p className="text-text-secondary text-sm">{user?.email}</p>
+
+                {/* 핵심 통계 카드 3개 */}
+                <div className="mt-4 grid grid-cols-3 gap-3 max-w-xs tablet:max-w-none">
+                  {/* 총 스캔 횟수 */}
+                  <div className="bg-primary-50 border border-primary-100 rounded-xl p-2.5 text-center">
+                    <div className="flex items-center justify-center gap-1 mb-0.5">
+                      <Scan size={12} className="text-primary-500" />
+                      <span className="text-[10px] text-primary-600 font-semibold">총 스캔</span>
+                    </div>
+                    <p className="text-xl font-black text-primary-600">{scans.length}</p>
+                    <p className="text-[9px] text-primary-500">회</p>
+                  </div>
+
+                  {/* 최근 종합 점수 */}
+                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-2.5 text-center">
+                    <div className="flex items-center justify-center gap-1 mb-0.5">
+                      <BarChart3 size={12} className="text-blue-500" />
+                      <span className="text-[10px] text-blue-600 font-semibold">최근 점수</span>
+                    </div>
+                    <p className="text-xl font-black text-blue-600">
+                      {scans[0]?.overallScore ?? scans[0]?.narrative?.overall_score ?? '-'}
+                    </p>
+                    <p className="text-[9px] text-blue-500">점</p>
+                  </div>
+
+                  {/* 찜한 제품 수 */}
+                  <div className="bg-rose-50 border border-rose-100 rounded-xl p-2.5 text-center">
+                    <div className="flex items-center justify-center gap-1 mb-0.5">
+                      <Heart size={12} className="text-rose-500" />
+                      <span className="text-[10px] text-rose-600 font-semibold">찜 목록</span>
+                    </div>
+                    <p className="text-xl font-black text-rose-500">{wishlist.length}</p>
+                    <p className="text-[9px] text-rose-400">개</p>
+                  </div>
                 </div>
               </div>
             </div>
