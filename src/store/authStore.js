@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import * as authApi from '../api/auth';
+import useScanStore from './scanStore';
 
 const TOKEN_KEY = 'damda_token';
 const USER_KEY = 'damda_user';
@@ -30,6 +31,7 @@ const useAuthStore = create((set, get) => ({
     } catch {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
+      useScanStore.getState().clearAll();
       set({ isLoggedIn: false, user: null });
       return false;
     }
@@ -41,6 +43,9 @@ const useAuthStore = create((set, get) => ({
     try {
       const { access_token } = await authApi.login(email, password);
       localStorage.setItem(TOKEN_KEY, access_token);
+
+      // 이전 스캔 기록 초기화
+      useScanStore.getState().clearAll();
 
       // 토큰 저장 후 내 정보 조회 (GET /mypage)
       const user = await authApi.getMe();
@@ -61,6 +66,7 @@ const useAuthStore = create((set, get) => ({
     try {
       const { access_token } = await authApi.kakaoLogin(code, redirectUri);
       localStorage.setItem(TOKEN_KEY, access_token);
+      useScanStore.getState().clearAll();
       const user = await authApi.getMe();
       localStorage.setItem(USER_KEY, JSON.stringify(user));
       const localWishlist = JSON.parse(localStorage.getItem('damda_wishlist') || '[]');
@@ -79,6 +85,7 @@ const useAuthStore = create((set, get) => ({
     try {
       const { access_token } = await authApi.googleLogin(code, redirectUri);
       localStorage.setItem(TOKEN_KEY, access_token);
+      useScanStore.getState().clearAll();
       const user = await authApi.getMe();
       localStorage.setItem(USER_KEY, JSON.stringify(user));
       const localWishlist = JSON.parse(localStorage.getItem('damda_wishlist') || '[]');
@@ -97,6 +104,7 @@ const useAuthStore = create((set, get) => ({
     try {
       const { access_token } = await authApi.signup(data);
       localStorage.setItem(TOKEN_KEY, access_token);
+      useScanStore.getState().clearAll();
 
       // 가입 후 내 정보 조회
       const user = await authApi.getMe();
@@ -115,6 +123,7 @@ const useAuthStore = create((set, get) => ({
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem('damda_survey');
+    useScanStore.getState().clearAll();
     set({ isLoggedIn: false, user: null, survey: null, wishlist: [], error: null });
   },
 
