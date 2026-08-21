@@ -20,11 +20,21 @@ const useAuthStore = create((set, get) => ({
     const localWishlist = JSON.parse(localStorage.getItem('damda_wishlist') || '[]');
     set({ wishlist: localWishlist });
 
-    if (!token) return false;
+    if (!token) {
+      useScanStore.getState().clearAll();
+      return false;
+    }
 
     try {
       // GET /mypage 로 로그인 상태 확인
       const user = await authApi.getMe();
+      
+      // 유저가 변경되었거나 신규 회원인 경우 이전 스캔 기록 초기화
+      const prevUser = get().user;
+      if (!prevUser || (user?.user_id && prevUser?.user_id !== user.user_id)) {
+        useScanStore.getState().clearAll();
+      }
+
       set({ isLoggedIn: true, user });
       localStorage.setItem(USER_KEY, JSON.stringify(user));
       return true;
