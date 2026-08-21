@@ -293,8 +293,9 @@ const ScanPage = () => {
                     {SCAN_AREAS.map((area) => (
                       <button
                         key={area}
+                        disabled={scanStatus === 'scanning' || scanStatus === 'countdown'}
                         onClick={() => setSelectedArea(area)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                           selectedArea === area
                             ? 'bg-primary-500 text-white'
                             : 'bg-gray-100 text-text-secondary hover:bg-gray-200'
@@ -313,8 +314,9 @@ const ScanPage = () => {
                       <div key={item.id} className="flex items-center justify-between">
                         <span className="text-sm text-text-primary">{item.label}</span>
                         <button
+                          disabled={scanStatus === 'scanning' || scanStatus === 'countdown'}
                           onClick={() => toggleMeasurement(item.id)}
-                          className={`relative w-11 h-6 rounded-full transition-colors flex items-center ${
+                          className={`relative w-11 h-6 rounded-full transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed ${
                             measurements[item.id] ? 'bg-primary-500' : 'bg-gray-200'
                           }`}
                         >
