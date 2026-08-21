@@ -510,7 +510,7 @@ const AnalysisPage = () => {
 
   const sideMenuItems = [
     { id: 'overview', label: '종합 분석', icon: BarChart3 },
-    { id: 'heatmap', label: '항목 히트맵', icon: Sparkles },
+    { id: 'heatmap', label: '부위별 피부 히트맵', icon: Sparkles },
     { id: 'ai-care', label: 'AI 케어 조언', icon: Sparkles },
     { id: 'products', label: '제품 추천', icon: ShoppingBag },
     { id: 'export', label: '결과 내보내기', icon: Download },

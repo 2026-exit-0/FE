@@ -120,35 +120,35 @@ const LandingPage = () => {
                 <Cpu size={24} className="text-primary-500" />
               </div>
               <h3 className="text-lg font-bold text-primary-600 mb-1">ESP32 IoT</h3>
-              <p className="text-xs font-semibold text-text-primary mb-1">정밀 피부 스캐너</p>
-              <p className="text-[11px] text-text-secondary">FDC2112 & VEML7700 센서 연동</p>
+              <p className="text-xs font-semibold text-text-primary mb-1">정밀 피부 스캐너 연동</p>
+              <p className="text-[11px] text-text-secondary">FDC2112 정전용량 & VEML7700 하드웨어 센서 진단</p>
             </div>
             
             <div className="text-center group">
               <div className="w-14 h-14 bg-primary-50 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-primary-100 transition-colors duration-300">
                 <Brain size={24} className="text-primary-500" />
               </div>
-              <h3 className="text-lg font-bold text-primary-600 mb-1">EfficientNet</h3>
-              <p className="text-xs font-semibold text-text-primary mb-1">딥러닝 분석 엔진</p>
-              <p className="text-[11px] text-text-secondary">파이토치 AI 모델 기반 정밀 추론</p>
+              <h3 className="text-lg font-bold text-primary-600 mb-1">EfficientNet AI</h3>
+              <p className="text-xs font-semibold text-text-primary mb-1">딥러닝 이미지 분석 Engine</p>
+              <p className="text-[11px] text-text-secondary">PyTorch 전이학습 기반 피부 병변·상태 추론</p>
             </div>
             
             <div className="text-center group">
               <div className="w-14 h-14 bg-primary-50 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-primary-100 transition-colors duration-300">
                 <BarChart3 size={24} className="text-primary-500" />
               </div>
-              <h3 className="text-lg font-bold text-primary-600 mb-1">5가지</h3>
-              <p className="text-xs font-semibold text-text-primary mb-1">피부 지표 측정</p>
-              <p className="text-[11px] text-text-secondary">수분·유분·탄력·모공·색소침착 분석</p>
+              <h3 className="text-lg font-bold text-primary-600 mb-1">5대 피부 지표</h3>
+              <p className="text-xs font-semibold text-text-primary mb-1">종합 정밀 상태 분석</p>
+              <p className="text-[11px] text-text-secondary">수분·유분·모공·탄력·색소침착 수치화 및 히트맵</p>
             </div>
             
             <div className="text-center group">
               <div className="w-14 h-14 bg-primary-50 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-primary-100 transition-colors duration-300">
                 <Clock size={24} className="text-primary-500" />
               </div>
-              <h3 className="text-lg font-bold text-primary-600 mb-1">실시간</h3>
-              <p className="text-xs font-semibold text-text-primary mb-1">맞춤 루틴 제안</p>
-              <p className="text-[11px] text-text-secondary">위치 날씨 기반 스킨케어 가이드</p>
+              <h3 className="text-lg font-bold text-primary-600 mb-1">실시간 맞춤 케어</h3>
+              <p className="text-xs font-semibold text-text-primary mb-1">기상 정보 연동 솔루션</p>
+              <p className="text-[11px] text-text-secondary">위치 기반 날씨(온·습도/UV) 및 성분별 화장품 추천</p>
             </div>
           </div>
         </div>

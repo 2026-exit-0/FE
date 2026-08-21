@@ -32,7 +32,7 @@ const DashboardPage = () => {
     },
     {
       icon: BarChart3,
-      title: '시계열 분석',
+      title: '피부 변화 추이',
       desc: '측정 데이터를 통한 피부 변화 추적',
       path: '/analysis',
       color: 'text-blue-500',

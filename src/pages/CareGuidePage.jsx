@@ -213,7 +213,7 @@ const CareGuidePage = () => {
                 activeTab === 'weekly' ? 'bg-primary-500 text-white font-semibold shadow' : 'text-text-secondary hover:bg-gray-50'
               }`}
             >
-              <Calendar size={16} /> 주간 스페셜
+              <Calendar size={16} /> 주간 맞춤 케어
             </button>
           </div>
 
