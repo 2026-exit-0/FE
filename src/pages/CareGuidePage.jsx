@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   BookOpen, Sun, Moon, Calendar, Info, CheckCircle,
   Thermometer, Droplets, Wind, AlertTriangle, ArrowRight,
-  Sparkles, Leaf, Eye, CornerDownRight
+  Sparkles, Eye
 } from 'lucide-react';
 import Header from '../components/common/Header';
 import Sidebar from '../components/common/Sidebar';
@@ -91,20 +91,19 @@ const ROUTINE_TEMPLATES = {
   }
 };
 
-// 기본 중성 피부용은 복합성 로직 준용
 ROUTINE_TEMPLATES['중성'] = ROUTINE_TEMPLATES['복합성'];
 
 const CareGuidePage = () => {
-  const { user, survey, fetchSurvey } = useAuthStore();
+  const { survey, fetchSurvey } = useAuthStore();
   const { currentScan } = useScanStore();
   const { weather } = useWeather();
 
   const [activeTab, setActiveTab] = useState('morning'); // morning, night, weekly
   const [selectedStep, setSelectedStep] = useState(null); // 모달 상세 정보용
 
-  // 피부 타입 알아내기 (1순위: 스캔 결과 예측값, 2순위: 내 피부 설문 결과, 3순위: 기본값 '복합성')
-  const userSkinType = currentScan?.skinType?.replace(' 피부', '')?.replace(' 경향', '') || survey?.skin_type || '복합성';
-  const routine = ROUTINE_TEMPLATES[userSkinType] || ROUTINE_TEMPLATES['복합성'];
+  // 피부 타입 알아내기 (1순위: 스캔 결과 예측값, 2순위: 내 피부 설문 결과, 3순위: null)
+  const userSkinType = currentScan?.skinType?.replace(' 피부', '')?.replace(' 경향', '') || survey?.skin_type || null;
+  const routine = userSkinType ? (ROUTINE_TEMPLATES[userSkinType] || ROUTINE_TEMPLATES['복합성']) : null;
 
   useEffect(() => {
     fetchSurvey();
@@ -129,7 +128,7 @@ const CareGuidePage = () => {
     return '✨ 쾌적한 날씨입니다. 가벼운 보습 및 장벽 관리 루틴을 통해 유수분 밸런스를 유지하세요.';
   };
 
-  const currentSteps = routine[activeTab] || [];
+  const currentSteps = routine ? (routine[activeTab] || []) : [];
 
   return (
     <div className="min-h-screen bg-background-gray">
@@ -147,10 +146,12 @@ const CareGuidePage = () => {
             </div>
             
             {/* 피부타입 배지 */}
-            <div className="bg-gradient-to-r from-primary-50 to-emerald-50 text-primary-700 px-4 py-2 rounded-xl text-xs font-bold border border-primary-100 flex items-center gap-1.5 shadow-sm">
-              <Sparkles size={14} className="text-primary-500 flex-shrink-0" />
-              진단 피부 타입: <span className="underline font-extrabold">{userSkinType}</span>
-            </div>
+            {userSkinType && (
+              <div className="bg-gradient-to-r from-primary-50 to-emerald-50 text-primary-700 px-4 py-2 rounded-xl text-xs font-bold border border-primary-100 flex items-center gap-1.5 shadow-sm">
+                <Sparkles size={14} className="text-primary-500 flex-shrink-0" />
+                진단 피부 타입: <span className="underline font-extrabold">{userSkinType}</span>
+              </div>
+            )}
           </div>
 
           {/* 실시간 날씨 연동 케어팁 카드 (K.3) */}
@@ -171,87 +172,92 @@ const CareGuidePage = () => {
             )}
           </div>
 
-          {/* 스캔 이력 검증 경고 (K.1 스캔 유도 배너) */}
-          {!currentScan && (
-            <div className="bg-orange-50 border border-orange-100 rounded-2xl p-5 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="text-orange-500 flex-shrink-0 mt-0.5" size={20} />
-                <div>
-                  <p className="text-sm font-bold text-orange-800">아직 스캔 정보가 없어요</p>
-                  <p className="text-xs text-orange-600 leading-relaxed">
-                    피부 분석을 진행하시면 더 정확한 정밀 AI 맞춤 케어 가이드를 받을 수 있어요.
-                  </p>
-                </div>
+          {/* 피부 데이터 부재 시 비활성화 안내 카드 */}
+          {!userSkinType ? (
+            <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center shadow-sm">
+              <div className="w-16 h-16 bg-primary-50 text-primary-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <BookOpen size={32} />
               </div>
-              <Link to="/skin-check" className="w-full sm:w-auto">
-                <Button icon={ArrowRight} className="w-full justify-center">피부 스캔 시작</Button>
-              </Link>
+              <h3 className="text-lg font-bold text-text-primary mb-2">아직 등록된 피부 진단 정보가 없습니다</h3>
+              <p className="text-sm text-text-secondary max-w-md mx-auto mb-6 leading-relaxed">
+                피부 스캔이나 자가진단 설문을 먼저 진행하시면 내 피부 타입에 최적화된 아침/저녁 맞춤 케어 가이드를 받으실 수 있습니다.
+              </p>
+              <div className="flex flex-wrap justify-center gap-3">
+                <Link to="/scan">
+                  <Button icon={ArrowRight}>피부 스캔하러 가기</Button>
+                </Link>
+                <Link to="/skin-check">
+                  <Button variant="outline" icon={Sparkles}>자가진단 설문하기</Button>
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* 탭 네비게이션 */}
+              <div className="flex bg-white rounded-xl shadow-sm p-1 border border-gray-100 mb-6">
+                <button
+                  onClick={() => setActiveTab('morning')}
+                  className={`flex-1 py-3 text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition-colors ${
+                    activeTab === 'morning' ? 'bg-primary-500 text-white font-semibold shadow' : 'text-text-secondary hover:bg-gray-50'
+                  }`}
+                >
+                  <Sun size={16} /> 아침 루틴
+                </button>
+                <button
+                  onClick={() => setActiveTab('night')}
+                  className={`flex-1 py-3 text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition-colors ${
+                    activeTab === 'night' ? 'bg-primary-500 text-white font-semibold shadow' : 'text-text-secondary hover:bg-gray-50'
+                  }`}
+                >
+                  <Moon size={16} /> 저녁 루틴
+                </button>
+                <button
+                  onClick={() => setActiveTab('weekly')}
+                  className={`flex-1 py-3 text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition-colors ${
+                    activeTab === 'weekly' ? 'bg-primary-500 text-white font-semibold shadow' : 'text-text-secondary hover:bg-gray-50'
+                  }`}
+                >
+                  <Calendar size={16} /> 주간 맞춤 케어
+                </button>
+              </div>
+
+              {/* 루틴 카드 리스트 */}
+              <div className="space-y-4">
+                {currentSteps.map((stepItem, index) => (
+                  <div
+                    key={stepItem.step}
+                    onClick={() => setSelectedStep(stepItem)}
+                    className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex items-start gap-4 cursor-pointer hover:border-primary-300 hover:shadow-md transition-all group animate-fadeIn"
+                    style={{ animationDelay: `${index * 60}ms` }}
+                  >
+                    {/* 단계 배지 */}
+                    <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 flex flex-col items-center justify-center flex-shrink-0 group-hover:bg-primary-500 group-hover:text-white transition-colors">
+                      <span className="text-[10px] uppercase font-bold leading-none mb-0.5">Step</span>
+                      <span className="text-sm font-extrabold leading-none">{stepItem.step}</span>
+                    </div>
+
+                    {/* 정보 */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[10px] font-bold text-primary-500 bg-primary-50 border border-primary-100 px-2 py-0.5 rounded">
+                          {stepItem.type}
+                        </span>
+                        <h3 className="text-sm font-extrabold text-text-primary group-hover:text-primary-500 transition-colors leading-none truncate">
+                          {stepItem.name}
+                        </h3>
+                      </div>
+                      <p className="text-xs text-text-secondary leading-relaxed line-clamp-2">{stepItem.desc}</p>
+                    </div>
+
+                    {/* 화살표/보기 */}
+                    <div className="flex items-center gap-1.5 text-text-secondary group-hover:text-primary-500 text-xs font-semibold self-center flex-shrink-0 transition-colors">
+                      상세 정보 <Eye size={14} />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-
-          {/* 탭 네비게이션 */}
-          <div className="flex bg-white rounded-xl shadow-sm p-1 border border-gray-100 mb-6">
-            <button
-              onClick={() => setActiveTab('morning')}
-              className={`flex-1 py-3 text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition-colors ${
-                activeTab === 'morning' ? 'bg-primary-500 text-white font-semibold shadow' : 'text-text-secondary hover:bg-gray-50'
-              }`}
-            >
-              <Sun size={16} /> 아침 루틴
-            </button>
-            <button
-              onClick={() => setActiveTab('night')}
-              className={`flex-1 py-3 text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition-colors ${
-                activeTab === 'night' ? 'bg-primary-500 text-white font-semibold shadow' : 'text-text-secondary hover:bg-gray-50'
-              }`}
-            >
-              <Moon size={16} /> 저녁 루틴
-            </button>
-            <button
-              onClick={() => setActiveTab('weekly')}
-              className={`flex-1 py-3 text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition-colors ${
-                activeTab === 'weekly' ? 'bg-primary-500 text-white font-semibold shadow' : 'text-text-secondary hover:bg-gray-50'
-              }`}
-            >
-              <Calendar size={16} /> 주간 맞춤 케어
-            </button>
-          </div>
-
-          {/* 루틴 카드 리스트 */}
-          <div className="space-y-4">
-            {currentSteps.map((stepItem, index) => (
-              <div
-                key={stepItem.step}
-                onClick={() => setSelectedStep(stepItem)}
-                className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex items-start gap-4 cursor-pointer hover:border-primary-300 hover:shadow-md transition-all group animate-fadeIn"
-                style={{ animationDelay: `${index * 60}ms` }}
-              >
-                {/* 단계 배지 */}
-                <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 flex flex-col items-center justify-center flex-shrink-0 group-hover:bg-primary-500 group-hover:text-white transition-colors">
-                  <span className="text-[10px] uppercase font-bold leading-none mb-0.5">Step</span>
-                  <span className="text-sm font-extrabold leading-none">{stepItem.step}</span>
-                </div>
-
-                {/* 정보 */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-[10px] font-bold text-primary-500 bg-primary-50 border border-primary-100 px-2 py-0.5 rounded">
-                      {stepItem.type}
-                    </span>
-                    <h3 className="text-sm font-extrabold text-text-primary group-hover:text-primary-500 transition-colors leading-none truncate">
-                      {stepItem.name}
-                    </h3>
-                  </div>
-                  <p className="text-xs text-text-secondary leading-relaxed line-clamp-2">{stepItem.desc}</p>
-                </div>
-
-                {/* 화살표/보기 */}
-                <div className="flex items-center gap-1.5 text-text-secondary group-hover:text-primary-500 text-xs font-semibold self-center flex-shrink-0 transition-colors">
-                  상세 정보 <Eye size={14} />
-                </div>
-              </div>
-            ))}
-          </div>
         </main>
       </div>
 
