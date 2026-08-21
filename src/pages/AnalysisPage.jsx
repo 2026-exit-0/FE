@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Scan, BarChart3, Sparkles, ShoppingBag, Download, Check, AlertCircle, FileText, ArrowRight
+  Scan, BarChart3, Sparkles, ShoppingBag, Download, Check, AlertCircle, FileText, ArrowRight,
+  Users, TrendingUp, Star, Package
 } from 'lucide-react';
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
@@ -47,12 +48,21 @@ function extractMetrics(scan) {
     }));
   }
   return [
-    { label: '수분도', value: scan?.moisture ?? 0, ...ratingFromValue(scan?.moisture ?? 0), description: '정상 범위 (60-90%)' },
-    { label: '유분도', value: scan?.oil ?? 0, ...ratingFromValue(100 - (scan?.oil ?? 0)), description: 'T존 유분 분포' },
-    { label: '탄력', value: scan?.elasticity ?? 0, ...ratingFromValue(scan?.elasticity ?? 0), description: '볼 부위 탄력 지수' },
-    { label: '모공', value: scan?.spots ?? 0, ...ratingFromValue(scan?.spots ?? 0), description: '코 주변 모공 상태' },
-    { label: '색소침착', value: scan?.pigmentation ?? 0, ...ratingFromValue(100 - (scan?.pigmentation ?? 0)), description: '이마·볼 상단 색소' },
+    { label: '수분도', value: scan?.moisture ?? 0, ...ratingFromValue(scan?.moisture ?? 0), description: '정상 범위 (60-90%)', normalRange: '60~90%' },
+    { label: '유분도', value: scan?.oil ?? 0, ...ratingFromValue(100 - (scan?.oil ?? 0)), description: 'T존 유분 분포', normalRange: '30~60%' },
+    { label: '탄력', value: scan?.elasticity ?? 0, ...ratingFromValue(scan?.elasticity ?? 0), description: '볼 부위 탄력 지수', normalRange: '55~85%' },
+    { label: '모공', value: scan?.spots ?? 0, ...ratingFromValue(scan?.spots ?? 0), description: '코 주변 모공 상태', normalRange: '60~90%' },
+    { label: '색소침착', value: scan?.pigmentation ?? 0, ...ratingFromValue(100 - (scan?.pigmentation ?? 0)), description: '이마·볼 상단 색소', normalRange: '70~95%' },
   ];
+}
+
+// ─── 또래 비교 백분위 산출 (모의 계산) ───
+function calcPeerPercentile(score) {
+  // 점수 → 또래 상위 퍼센타일 (간단한 역선형 추정)
+  if (score >= 85) return { percentile: Math.round(100 - score * 0.12), label: '상위', tier: 'excellent' };
+  if (score >= 70) return { percentile: Math.round(100 - score * 0.25), label: '상위', tier: 'good' };
+  if (score >= 55) return { percentile: Math.round(100 - score * 0.35 + 10), label: '상위', tier: 'fair' };
+  return { percentile: Math.round(100 - score * 0.4 + 20), label: '하위', tier: 'poor' };
 }
 
 // 종합 점수 원형 차트
@@ -544,6 +554,9 @@ const AnalysisPage = () => {
                       <span className={`text-[9px] font-bold mt-1 px-2 py-0.5 rounded-full ${style.bg} ${style.text}`}>
                         {m.status}
                       </span>
+                      {m.normalRange && (
+                        <span className="text-[8px] text-text-secondary mt-0.5 opacity-70">정상 {m.normalRange}</span>
+                      )}
                     </div>
                   );
                 })}
@@ -578,59 +591,149 @@ const AnalysisPage = () => {
               {/* 탭 렌더링 영역 */}
               <div className="flex-1 min-w-0">
                 {/* 1. 종합 분석 */}
-                {activeMenu === 'overview' && (
-                  <div className="grid grid-cols-1 desktop:grid-cols-2 gap-6 animate-fadeIn">
-                    {/* 레이더 차트 */}
-                    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-                      <h3 className="text-sm font-bold text-text-primary mb-2">피부 상태 레이더 차트</h3>
-                      <div className="h-72 tablet:h-80">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-                            <PolarGrid stroke="#E5E7EB" />
-                            <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12, fill: '#757575', fontWeight: 500 }} />
-                            <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9, fill: '#9CA3AF' }} tickCount={5} axisLine={false} />
-                            <Radar name="지난 측정" dataKey="previous" stroke="#BDBDBD" fill="#E0E0E0" fillOpacity={0.25} strokeWidth={1.5} strokeDasharray="4 4" />
-                            <Radar name="오늘 측정" dataKey="current" stroke="#4CAF50" fill="#4CAF50" fillOpacity={0.2} strokeWidth={2} dot={{ r: 4, fill: '#4CAF50', stroke: '#fff', strokeWidth: 2 }} />
-                            <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} iconType="circle" iconSize={8} />
-                          </RadarChart>
-                        </ResponsiveContainer>
+                {activeMenu === 'overview' && (() => {
+                  const peer = calcPeerPercentile(overallScore);
+                  const peerTierColors = {
+                    excellent: { bg: 'bg-primary-50', border: 'border-primary-200', text: 'text-primary-700', badge: 'bg-primary-500' },
+                    good: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', badge: 'bg-blue-500' },
+                    fair: { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700', badge: 'bg-yellow-500' },
+                    poor: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700', badge: 'bg-orange-500' },
+                  };
+                  const pc = peerTierColors[peer.tier];
+                  // 리포트 내 추천 화장품 (3개 고정 카드, 실제 데이터 우선)
+                  const reportProducts = recommendedProducts.length > 0
+                    ? recommendedProducts.slice(0, 3)
+                    : [
+                        { id: 'r1', name: '순한 히알루론산 세럼', brand: '스킨타입 맞춤', emoji: '💧', tag: '수분 집중' },
+                        { id: 'r2', name: '저자극 모공 에센스', brand: '복합성 피부 추천', emoji: '✨', tag: 'T존 관리' },
+                        { id: 'r3', name: '광채 비타민 크림', brand: '색소침착 케어', emoji: '☀️', tag: '톤업·색소' },
+                      ];
+                  return (
+                  <div className="space-y-6 animate-fadeIn">
+                    {/* 레이더 + 지표 상세 */}
+                    <div className="grid grid-cols-1 desktop:grid-cols-2 gap-6">
+                      {/* 레이더 차트 */}
+                      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+                        <h3 className="text-sm font-bold text-text-primary mb-2">피부 상태 레이더 차트</h3>
+                        <div className="h-72 tablet:h-80">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                              <PolarGrid stroke="#E5E7EB" />
+                              <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12, fill: '#757575', fontWeight: 500 }} />
+                              <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9, fill: '#9CA3AF' }} tickCount={5} axisLine={false} />
+                              <Radar name="지난 측정" dataKey="previous" stroke="#BDBDBD" fill="#E0E0E0" fillOpacity={0.25} strokeWidth={1.5} strokeDasharray="4 4" />
+                              <Radar name="오늘 측정" dataKey="current" stroke="#4CAF50" fill="#4CAF50" fillOpacity={0.2} strokeWidth={2} dot={{ r: 4, fill: '#4CAF50', stroke: '#fff', strokeWidth: 2 }} />
+                              <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} iconType="circle" iconSize={8} />
+                            </RadarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+
+                      {/* 지표별 상세 */}
+                      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+                        <h3 className="text-sm font-bold text-text-primary mb-4">지표별 세부 진단</h3>
+                        <div className="space-y-4">
+                          {metrics.map((m) => {
+                            const style = statusColorMap[m.statusColor];
+                            return (
+                              <div key={m.label}>
+                                <div className="flex items-center gap-3 mb-1">
+                                  <span className="text-xs font-semibold text-text-primary w-14 flex-shrink-0">{m.label}</span>
+                                  <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full rounded-full transition-all duration-1000 ease-out"
+                                      style={{ width: `${m.value}%`, backgroundColor: style.color }}
+                                    />
+                                  </div>
+                                  <span className="text-sm font-bold text-text-primary w-10 text-right">{m.value}%</span>
+                                </div>
+                                <div className="flex items-center gap-2 ml-[68px]">
+                                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${style.bg} ${style.text}`}>
+                                    {m.status}
+                                  </span>
+                                  {m.normalRange && (
+                                    <span className="text-[9px] text-text-secondary bg-gray-50 border border-gray-200 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                                      정상 {m.normalRange}
+                                    </span>
+                                  )}
+                                  <p className="text-[11px] text-text-secondary leading-relaxed truncate">{m.description}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
 
-                    {/* 지표별 상세 */}
-                    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-                      <h3 className="text-sm font-bold text-text-primary mb-4">지표별 상세 분석</h3>
-                      <div className="space-y-4">
-                        {metrics.map((m) => {
-                          const style = statusColorMap[m.statusColor];
+                    {/* 또래 대비 피부 비교 카드 */}
+                    <div className={`rounded-2xl border ${pc.border} ${pc.bg} p-5 shadow-sm`}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${pc.badge} text-white`}>
+                          <Users size={16} />
+                        </div>
+                        <div>
+                          <h3 className={`text-sm font-bold ${pc.text}`}>또래 대비 내 피부</h3>
+                          <p className="text-[10px] text-text-secondary">동일 성별·연령대 평균과 비교한 결과입니다</p>
+                        </div>
+                        <div className="ml-auto text-right">
+                          <span className={`text-2xl font-black ${pc.text}`}>{peer.label} {peer.percentile}%</span>
+                          <p className="text-[10px] text-text-secondary mt-0.5">20대 여성 기준</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3">
+                        {metrics.slice(0, 3).map((m) => {
+                          const peerAvg = { '수분도': 68, '유분도': 48, '탄력': 62 }[m.label] ?? 65;
+                          const diff = m.value - peerAvg;
                           return (
-                            <div key={m.label}>
-                              <div className="flex items-center gap-3 mb-1">
-                                <span className="text-xs font-semibold text-text-primary w-14 flex-shrink-0">{m.label}</span>
-                                <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full rounded-full transition-all duration-1000 ease-out"
-                                    style={{
-                                      width: `${m.value}%`,
-                                      backgroundColor: style.color,
-                                    }}
-                                  />
-                                </div>
-                                <span className="text-sm font-bold text-text-primary w-10 text-right">{m.value}%</span>
-                              </div>
-                              <div className="flex items-start gap-2 ml-[68px]">
-                                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${style.bg} ${style.text}`}>
-                                  {m.status}
-                                </span>
-                                <p className="text-[11px] text-text-secondary leading-relaxed">{m.description}</p>
-                              </div>
+                            <div key={m.label} className="bg-white/60 backdrop-blur-sm rounded-xl p-3 text-center border border-white/80">
+                              <p className="text-[10px] text-text-secondary mb-1">{m.label}</p>
+                              <p className="text-base font-black text-text-primary">{m.value}%</p>
+                              <p className="text-[9px] text-text-secondary">평균 {peerAvg}%</p>
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full mt-1 inline-block ${
+                                diff >= 0 ? 'bg-primary-100 text-primary-700' : 'bg-orange-100 text-orange-700'
+                              }`}>
+                                {diff >= 0 ? `+${diff}` : diff}%p
+                              </span>
                             </div>
                           );
                         })}
                       </div>
                     </div>
+
+                    {/* 맞춤 화장품 추천 미니 섹션 (3개) */}
+                    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <Star size={15} className="text-yellow-500" />
+                          <h3 className="text-sm font-bold text-text-primary">분석 기반 추천 화장품</h3>
+                        </div>
+                        <Link to="/products" className="text-xs font-semibold text-primary-600 flex items-center gap-1 hover:text-primary-700 transition-colors">
+                          전체 보기 <ArrowRight size={12} />
+                        </Link>
+                      </div>
+                      <div className="grid grid-cols-1 tablet:grid-cols-3 gap-3">
+                        {reportProducts.map((p, i) => (
+                          <div key={p.id ?? i} className="flex items-center gap-3 bg-background-gray rounded-xl p-3 border border-gray-100 hover:border-primary-200 hover:shadow-sm transition-all">
+                            <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center text-lg flex-shrink-0 shadow-sm border border-gray-100">
+                              {p.emoji ?? '📦'}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[10px] text-text-secondary truncate">{p.brand ?? p.category ?? '피부 맞춤'}</p>
+                              <p className="text-xs font-bold text-text-primary truncate">{p.name ?? p.name_kr}</p>
+                              {p.tag && (
+                                <span className="text-[9px] bg-primary-50 text-primary-600 font-semibold px-1.5 py-0.5 rounded-full mt-1 inline-block">{p.tag}</span>
+                              )}
+                              {p.compatibility && (
+                                <span className="text-[9px] bg-primary-50 text-primary-600 font-semibold px-1.5 py-0.5 rounded-full mt-1 inline-block">매칭 {p.compatibility}%</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                )}
+                  );
+                })()}
 
                 {/* 2. 항목 히트맵 (H.5.2) */}
                 {activeMenu === 'heatmap' && (
