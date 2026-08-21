@@ -10,13 +10,23 @@ const Header = ({ variant = 'landing' }) => {
   const navigate = useNavigate();
 
   const handleAnchorClick = (anchor) => {
+    const scrollToTarget = () => {
+      const el = document.getElementById(anchor);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // 시각적 피드백 효과 (반짝임)
+        el.classList.add('ring-2', 'ring-primary-400', 'ring-offset-4', 'transition-all', 'duration-500');
+        setTimeout(() => {
+          el.classList.remove('ring-2', 'ring-primary-400', 'ring-offset-4');
+        }, 1500);
+      }
+    };
+
     if (location.pathname === '/') {
-      document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth' });
+      scrollToTarget();
     } else {
       navigate('/');
-      setTimeout(() => {
-        document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth' });
-      }, 300);
+      setTimeout(scrollToTarget, 300);
     }
   };
 
