@@ -82,7 +82,7 @@ const ProductCard = ({ product, onClick }) => {
             <p className="text-sm font-bold text-text-primary leading-snug line-clamp-2">{product.name}</p>
             <div className="flex flex-wrap gap-1 mt-1">{catTags}</div>
           </div>
-          <span className="text-xs font-bold bg-gradient-to-br from-primary-500 to-purple-500 text-white px-2.5 py-1 rounded-full flex-shrink-0">
+          <span className="text-xs font-bold bg-gradient-to-r from-emerald-500 to-green-600 text-white px-2.5 py-1 rounded-lg flex-shrink-0 shadow-sm">
             {product.score?.toFixed(1) ?? '0'}점
           </span>
         </div>
@@ -170,7 +170,7 @@ const ProductModal = ({ product, onClose }) => {
               </button>
             </div>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <span className="text-sm font-bold bg-gradient-to-br from-primary-500 to-purple-500 text-white px-3 py-1 rounded-full">
+              <span className="text-sm font-bold bg-gradient-to-r from-emerald-500 to-green-600 text-white px-3 py-1 rounded-lg shadow-sm">
                 {product.score?.toFixed(1) ?? '0'}점
               </span>
               {/* 가격대 */}
