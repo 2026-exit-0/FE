@@ -121,15 +121,19 @@ const useScanStore = create(
         try {
           const history = await getScanHistory();
           const parsed = Array.isArray(history) ? history.map((s) => parseApiResult(s)) : [];
-          set({ scans: parsed, currentScan: parsed[0] || null });
+          set((state) => ({
+            scans: parsed.length > 0 ? parsed : state.scans,
+            currentScan: parsed.length > 0 ? parsed[0] : state.currentScan,
+          }));
           return parsed;
         } catch {
-          set({ scans: [], currentScan: null });
           return [];
         }
       },
 
       initializeIfNeeded: async () => {
+        const state = get();
+        if (state.currentScan || state.scans.length > 0) return;
         return get().fetchHistory();
       },
 

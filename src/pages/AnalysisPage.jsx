@@ -84,7 +84,7 @@ const ScoreCircle = ({ score }) => {
 
 const AnalysisPage = () => {
   useAuth(true);
-  const { currentScan, initializeIfNeeded } = useScanStore();
+  const { currentScan, scans, initializeIfNeeded } = useScanStore();
   const [activeMenu, setActiveMenu] = useState('overview'); // overview, heatmap, ai-care, products, export
 
   useEffect(() => {
@@ -96,8 +96,8 @@ const AnalysisPage = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [activeMenu]);
 
-  const analysis = currentScan;
-  const hasScanData = !!currentScan;
+  const analysis = currentScan || scans[0] || null;
+  const hasScanData = !!analysis;
 
   if (!hasScanData) {
     return (
