@@ -20,8 +20,11 @@ const useAuthStore = create((set, get) => ({
     const localWishlist = JSON.parse(localStorage.getItem('damda_wishlist') || '[]');
     set({ wishlist: localWishlist });
 
-    if (!token) {
+    if (!token || token === 'mock_access_token_dev') {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
       useScanStore.getState().clearAll();
+      set({ isLoggedIn: false, user: null });
       return false;
     }
 

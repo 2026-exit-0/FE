@@ -2,19 +2,11 @@ import axios from 'axios';
 
 const isMock = import.meta.env.VITE_USE_MOCK === 'true';
 
-// 개발/배포 환경 무관하게 Mixed Content (HTTPS -> HTTP) 방지를 위해 Netlify Proxy 활용
-const getBaseURL = () => {
-  if (isMock) return '';
-  const envBase = import.meta.env.VITE_API_BASE;
-  // HTTPS 프로토콜 웹에서 HTTP 백엔드로 직접 전송 시 차단 방지를 위해 프록시 주소 사용
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && envBase?.startsWith('http:')) {
-    return ''; // Netlify _redirects 프록시 경유
-  }
-  return envBase || '';
-};
+// BE 정식 주소 (기본값: http://52.79.241.24:8000)
+const baseURL = isMock ? '' : (import.meta.env.VITE_API_BASE || 'http://52.79.241.24:8000');
 
 const client = axios.create({
-  baseURL: getBaseURL(),
+  baseURL,
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
