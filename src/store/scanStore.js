@@ -117,18 +117,20 @@ const useScanStore = create(
       setUserInputs: (inputs) => set({ userInputs: inputs }),
       clearUserInputs: () => set({ userInputs: null }),
 
-      initializeIfNeeded: async () => {
-        const state = get();
-        if (state.scans.length > 0) return;
-
+      fetchHistory: async () => {
         try {
           const history = await getScanHistory();
-          const parsed = history.map((s) => parseApiResult(s));
+          const parsed = Array.isArray(history) ? history.map((s) => parseApiResult(s)) : [];
           set({ scans: parsed, currentScan: parsed[0] || null });
+          return parsed;
         } catch {
-          // API 실패 시 빈 상태 유지
           set({ scans: [], currentScan: null });
+          return [];
         }
+      },
+
+      initializeIfNeeded: async () => {
+        return get().fetchHistory();
       },
 
       addScan: (apiResult) => {

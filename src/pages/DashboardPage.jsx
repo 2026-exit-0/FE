@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Scan, BarChart3, ShoppingBag, BookOpen,
@@ -15,10 +16,14 @@ import { UV_LEVELS } from '../utils/constants';
 const DashboardPage = () => {
   const { user } = useAuth(true);
   const { weather } = useWeather();
-  const { scans, currentScan } = useScanStore();
+  const { scans, currentScan, initializeIfNeeded } = useScanStore();
 
-  const hasScanData = (user?.scanCount > 0) || scans.length > 0 || !!currentScan;
-  const scanCount = Math.max(user?.scanCount || 0, scans.length);
+  useEffect(() => {
+    initializeIfNeeded();
+  }, [initializeIfNeeded]);
+
+  const hasScanData = scans.length > 0 || !!currentScan;
+  const scanCount = scans.length;
   const uvInfo = UV_LEVELS[weather?.uv] || UV_LEVELS.moderate;
 
   const quickAccess = [
