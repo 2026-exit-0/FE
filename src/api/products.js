@@ -2,34 +2,51 @@ import client, { isMock } from './client';
 import { mockProducts, calculateCompatibility } from '../utils/mockData';
 
 // ── 제품 추천 (POST /scans/{id}/recommend 또는 GET /products) ────────
-export async function getRecommendations(body, sessionId) {
+export async function getRecommendations(body = {}, sessionId) {
+  const isDemo = localStorage.getItem('damda_token') === 'demo_access_token';
   if (isMock) {
     await delay(500);
     return buildMockRecommendations(body);
   }
 
-  // 1. BE 세션 기반 추천: POST /scans/{id}/recommend
-  if (sessionId) {
-    const res = await client.post(`/scans/${sessionId}/recommend`);
-    const items = Array.isArray(res.data) ? res.data : (res.data?.recommended_products || res.data?.products || []);
-    return { recommended_products: items };
-  }
+  try {
+    // 1. BE 세션 기반 추천: POST /scans/{id}/recommend
+    if (sessionId && !String(sessionId).startsWith('mock_')) {
+      const res = await client.post(`/scans/${sessionId}/recommend`);
+      const items = Array.isArray(res.data) ? res.data : (res.data?.recommended_products || res.data?.products || []);
+      if (items.length > 0) return { recommended_products: items };
+    }
 
-  // 2. 세션 ID가 없을 경우 신규 제품 목록 API 호출 (GET /products)
-  const res = await client.get('/products');
-  const items = Array.isArray(res.data) ? res.data : (res.data?.products || []);
-  return { recommended_products: items };
+    // 2. 세션 ID가 없거나 실패 시 신규 제품 목록 API 호출 (GET /products)
+    const res = await client.get('/products');
+    const items = Array.isArray(res.data) ? res.data : (res.data?.products || []);
+    if (items.length > 0) return { recommended_products: items };
+    if (isDemo) return buildMockRecommendations(body);
+    return { recommended_products: [] };
+  } catch {
+    if (isDemo) return buildMockRecommendations(body);
+    return { recommended_products: [] };
+  }
 }
 
 // ── 제품 목록 조회 (GET /products) ──────────────────────
 export async function getProducts() {
+  const isDemo = localStorage.getItem('damda_token') === 'demo_access_token';
   if (isMock) {
     await delay(300);
     return { products: mockProducts };
   }
 
-  const res = await client.get('/products');
-  return res.data;
+  try {
+    const res = await client.get('/products');
+    const items = Array.isArray(res.data) ? res.data : (res.data?.products || []);
+    if (items.length > 0) return res.data;
+    if (isDemo) return { products: mockProducts };
+    return res.data;
+  } catch (err) {
+    if (isDemo) return { products: mockProducts };
+    throw err;
+  }
 }
 
 // ── 특정 제품 상세 (GET /products/{id}) ──────────────────

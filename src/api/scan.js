@@ -47,26 +47,42 @@ export async function getScannerHealth() {
 
 // ── ESP32-CAM 스캐너 측정 ─────────────────────────────────
 export async function measureWithScanner(formData) {
-  if (isMock) {
-    await delay(2000);
-    return buildMockResult(formData?.get?.('region') || '얼굴 전체');
-  }
-
-  const { session_id } = await createScanSession();
-  const result = await analyzeScanMock(session_id);
-  return { ...result, session_id };
-}
-
-// ── 사진 업로드 분석 ─────────────────────────────────────
-export async function measureWithPhoto(formData) {
-  if (isMock) {
+  const isDemo = localStorage.getItem('damda_token') === 'demo_access_token';
+  if (isMock || isDemo) {
     await delay(1500);
     return buildMockResult(formData?.get?.('region') || '얼굴 전체');
   }
 
-  const { session_id } = await createScanSession();
-  const result = await analyzeScanMock(session_id);
-  return { ...result, session_id };
+  try {
+    const { session_id } = await createScanSession();
+    const result = await analyzeScanMock(session_id);
+    return { ...result, session_id };
+  } catch (err) {
+    if (isDemo) {
+      return buildMockResult(formData?.get?.('region') || '얼굴 전체');
+    }
+    throw err;
+  }
+}
+
+// ── 사진 업로드 분석 ─────────────────────────────────────
+export async function measureWithPhoto(formData) {
+  const isDemo = localStorage.getItem('damda_token') === 'demo_access_token';
+  if (isMock || isDemo) {
+    await delay(1500);
+    return buildMockResult(formData?.get?.('region') || '얼굴 전체');
+  }
+
+  try {
+    const { session_id } = await createScanSession();
+    const result = await analyzeScanMock(session_id);
+    return { ...result, session_id };
+  } catch (err) {
+    if (isDemo) {
+      return buildMockResult(formData?.get?.('region') || '얼굴 전체');
+    }
+    throw err;
+  }
 }
 
 // ── 분석 리포트 PDF 다운로드 (GET /report/{session_id}/pdf) ───
