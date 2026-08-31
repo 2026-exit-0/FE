@@ -1,18 +1,1 @@
-# Netlify API Proxy Rules to bypass Mixed Content (HTTPS -> HTTP)
-/weather http://52.79.241.24:8000/weather 200!
-/auth/* http://52.79.241.24:8000/auth/:splat 200!
-/surveys/* http://52.79.241.24:8000/surveys/:splat 200!
-/scans/* http://52.79.241.24:8000/scans/:splat 200!
-/mypage http://52.79.241.24:8000/mypage 200!
-/products/* http://52.79.241.24:8000/products/:splat 200!
-/products http://52.79.241.24:8000/products 200!
-/wishlist http://52.79.241.24:8000/wishlist 200!
-/result/* http://52.79.241.24:8000/result/:splat 200!
-/history http://52.79.241.24:8000/history 200!
-/report/* http://52.79.241.24:8000/report/:splat 200!
-/report http://52.79.241.24:8000/report 200!
-/care/* http://52.79.241.24:8000/care/:splat 200!
-/api/* http://52.79.241.24:8000/:splat 200!
-
-# SPA React Router Fallback
 /* /index.html 200
