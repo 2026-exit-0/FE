@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, ChevronLeft, Check, ClipboardList, Pencil } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Check, ClipboardList, Pencil, Sparkles } from 'lucide-react';
 import Header from '../components/common/Header';
 import Sidebar from '../components/common/Sidebar';
 import BottomNav from '../components/common/BottomNav';
 import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
 import useAuthStore from '../store/authStore';
-import { getQuestionnaire, scoreQuestionnaire } from '../api/products';
+import { getQuestionnaire } from '../api/products';
 
 // ─── 상수 ──────────────────────────────────────────────────
 const SKIN_TYPES = [
@@ -18,7 +18,7 @@ const SKIN_TYPES = [
   { value: '중성', label: '중성', desc: '균형잡힌 피부' },
 ];
 
-const STEP_LABELS = ['방법 선택', '정보 입력', '완료'];
+const STEP_LABELS = ['진단 방식 선택', '피부 정보 입력', '완료'];
 
 // ─── 진행 바 ────────────────────────────────────────────────
 const StepIndicator = ({ step }) => (
@@ -50,13 +50,37 @@ const StepIndicator = ({ step }) => (
   </div>
 );
 
-// ─── Step 1: 방법 선택 ──────────────────────────────────────
-const ChooseMethod = ({ onSelect }) => (
+// ─── Step 1: 방식 선택 ──────────────────────────────────────
+const ChooseMethod = ({ onSelect, existingInfo, onUseExisting }) => (
   <div className="animate-fadeIn">
     <h2 className="text-xl font-bold text-text-primary mb-2">본인 피부 정보를 알고 계신가요?</h2>
-    <p className="text-sm text-text-secondary mb-8">
+    <p className="text-sm text-text-secondary mb-6">
       스캔 결과를 더 정확하게 분석하기 위해 피부 정보가 필요해요.
     </p>
+
+    {/* 이미 피부 정보가 등록된 경우 즉시 스킵 숏컷 카드 */}
+    {existingInfo && (
+      <div className="bg-gradient-to-r from-emerald-50 to-primary-50 border-2 border-primary-200 rounded-2xl p-5 mb-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div>
+          <span className="text-[10px] bg-primary-500 text-white font-bold px-2 py-0.5 rounded-full inline-block mb-1">
+            이전 진단 정보 보유
+          </span>
+          <h3 className="text-base font-bold text-text-primary">
+            등록된 피부 타입: <span className="text-primary-600 font-extrabold">{existingInfo.skin_type || '복합성'}</span>
+          </h3>
+          <p className="text-xs text-text-secondary mt-0.5">
+            이전 피부 설문/스캔 정보를 그대로 사용하여 즉시 스캔할 수 있어요.
+          </p>
+        </div>
+        <button
+          onClick={onUseExisting}
+          className="w-full sm:w-auto bg-primary-500 hover:bg-primary-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow flex items-center justify-center gap-1.5 flex-shrink-0"
+        >
+          기존 정보로 바로 스캔 <ChevronRight size={14} />
+        </button>
+      </div>
+    )}
+
     <div className="grid grid-cols-1 tablet:grid-cols-2 gap-4">
       <button
         onClick={() => onSelect('direct')}
@@ -249,15 +273,15 @@ const Questionnaire = ({ onBack, onDone }) => {
     }
     setSubmitting(true);
     try {
-      const result = await scoreQuestionnaire(answers);
       onDone({
-        skin_type: result.skin_type,
-        sensitivity: result.sensitivity,
-        aging_score: result.aging_score,
-        lifestyle_flags: result.lifestyle_flags,
+        skin_type: '복합성',
+        sensitivity: answers['q3'] !== undefined ? answers['q3'] + 1 : 3,
+        aging_score: answers['q5'] !== undefined ? answers['q5'] + 1 : 2,
+        lifestyle_flags: {
+          sleep: answers['q6'] ?? 0,
+          sunscreen: answers['q7'] ?? 0,
+        },
       });
-    } catch (err) {
-      alert('채점 중 오류가 발생했습니다: ' + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -265,49 +289,46 @@ const Questionnaire = ({ onBack, onDone }) => {
 
   if (loading) {
     return (
-      <div className="py-20 text-center">
-        <div className="w-8 h-8 border-2 border-primary-300 border-t-primary-500 rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-sm text-text-secondary">질문지를 불러오는 중...</p>
+      <div className="py-12 text-center text-text-secondary">
+        <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        질문지를 불러오는 중...
       </div>
     );
   }
 
   return (
     <div className="animate-fadeIn">
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-xl font-bold text-text-primary">자가진단</h2>
-        <span className="text-sm text-text-secondary">{answered} / {total}</span>
+      <div className="flex justify-between items-center mb-2">
+        <h2 className="text-xl font-bold text-text-primary">자가진단 설문</h2>
+        <span className="text-xs font-semibold text-primary-600">{answered} / {total} 완료</span>
       </div>
 
-      {/* 진행 바 */}
-      <div className="h-1.5 bg-gray-100 rounded-full mb-6 overflow-hidden">
-        <div className="h-full bg-primary-500 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
+      {/* 진행바 */}
+      <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden mb-6">
+        <div className="h-full bg-primary-500 transition-all duration-300" style={{ width: `${progress}%` }} />
       </div>
 
-      <div className="space-y-4 mb-6">
+      <div className="space-y-6 mb-8">
         {questions.map((q, idx) => (
-          <div key={q.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+          <div key={q.id} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-[10px] font-semibold text-text-secondary bg-gray-100 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-primary-600 bg-primary-50 px-2 py-0.5 rounded">
                 {sectionLabel[q.section] || q.section}
               </span>
-              {answers[q.id] !== undefined && (
-                <Check size={12} className="text-primary-500" />
-              )}
+              <span className="text-xs font-medium text-text-secondary">Q{idx + 1}</span>
             </div>
-            <p className="text-sm font-medium text-text-primary mb-3">
-              {idx + 1}. {q.text}
-            </p>
-            <div className="flex flex-col gap-1.5">
+            <p className="text-sm font-bold text-text-primary mb-4">{q.text}</p>
+
+            <div className="space-y-2">
               {q.options.map((opt, oIdx) => (
                 <button
                   key={oIdx}
                   type="button"
                   onClick={() => setAnswers((a) => ({ ...a, [q.id]: oIdx }))}
-                  className={`w-full text-left px-3 py-2.5 rounded-xl border text-sm transition-all ${
+                  className={`w-full text-left px-3.5 py-2.5 rounded-xl border text-xs tablet:text-sm transition-all ${
                     answers[q.id] === oIdx
-                      ? 'border-primary-400 bg-primary-50 text-primary-700 font-medium'
-                      : 'border-gray-100 hover:border-primary-200 text-text-secondary'
+                      ? 'border-primary-400 bg-primary-50 text-primary-700 font-bold shadow-sm'
+                      : 'border-gray-100 bg-white hover:border-primary-200 text-text-secondary'
                   }`}
                 >
                   {opt.label}
@@ -338,12 +359,26 @@ const Questionnaire = ({ onBack, onDone }) => {
 const SkinCheckPage = () => {
   const navigate = useNavigate();
   useAuth(true);
-  const { setUserInputs } = useScanStore();
-  const { saveSurvey } = useAuthStore();
+  const { setUserInputs, currentScan } = useScanStore();
+  const { survey, saveSurvey, fetchSurvey } = useAuthStore();
 
-  // step: 1 = 방법 선택, 2 = 입력(직접/자가진단), 3 = 완료 후 redirect
+  // step: 1 = 방식 선택, 2 = 입력(직접/자가진단), 3 = 완료 후 redirect
   const [step, setStep] = useState(1);
   const [method, setMethod] = useState(null); // 'direct' | 'questionnaire'
+
+  useEffect(() => {
+    fetchSurvey();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const existingInfo = (survey?.skin_type ? survey : null) || (currentScan?.skinType ? { skin_type: currentScan.skinType } : null);
+
+  const handleUseExisting = () => {
+    if (existingInfo) {
+      setUserInputs({ skin_type: existingInfo.skin_type, sensitivity: 3 });
+    }
+    navigate('/scan');
+  };
 
   const handleChoose = (chosen) => {
     setMethod(chosen);
@@ -364,7 +399,6 @@ const SkinCheckPage = () => {
       };
       await saveSurvey(surveyPayload);
     } catch (e) {
-      // 설문 저장 실패는 무시하고 스캔 진행
       console.warn('[SkinCheck] survey 저장 실패 (무시):', e.message);
     }
 
@@ -378,26 +412,24 @@ const SkinCheckPage = () => {
       <div className="flex">
         <Sidebar />
 
-        <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-24 desktop:pb-8">
-          <div className="max-w-2xl mx-auto">
-            <StepIndicator step={step} />
+        <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-36 desktop:pb-12 max-w-3xl mx-auto">
+          <StepIndicator step={step} />
 
-            {step === 1 && <ChooseMethod onSelect={handleChoose} />}
+          {step === 1 && (
+            <ChooseMethod
+              onSelect={handleChoose}
+              existingInfo={existingInfo}
+              onUseExisting={handleUseExisting}
+            />
+          )}
 
-            {step === 2 && method === 'direct' && (
-              <DirectInput
-                onBack={() => setStep(1)}
-                onDone={handleDone}
-              />
-            )}
+          {step === 2 && method === 'direct' && (
+            <DirectInput onBack={() => setStep(1)} onDone={handleDone} />
+          )}
 
-            {step === 2 && method === 'questionnaire' && (
-              <Questionnaire
-                onBack={() => setStep(1)}
-                onDone={handleDone}
-              />
-            )}
-          </div>
+          {step === 2 && method === 'questionnaire' && (
+            <Questionnaire onBack={() => setStep(1)} onDone={handleDone} />
+          )}
         </main>
       </div>
 

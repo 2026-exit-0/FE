@@ -19,7 +19,7 @@ export const COSMETIC_INTERESTS = ['클렌저', '토너', '세럼/앰플', '크�
 
 export const AGE_GROUPS = ['10대', '20대', '30대', '40대', '50대 이상'];
 
-export const SCAN_AREAS = ['얼굴 전체', '이마', '눈', '턱', '목', '손등'];
+export const SCAN_AREAS = ['이마', '코', '왼쪽 뺨', '오른쪽 뺨', '턱'];
 
 export const LIGHTING_MODES = [
   { id: 'white', label: '백색 LED' },

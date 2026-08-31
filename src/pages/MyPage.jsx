@@ -44,18 +44,33 @@ const MyPage = () => {
     confirmPassword: '',
   });
 
-  // 마운트 시 최신 survey 조회
+  // 마운트 시 최신 survey 및 스캔 이력 조회
   useEffect(() => {
     fetchSurvey().then((s) => {
-      if (s) setSurveyData({
-        skin_type: s.skin_type || '',
-        concerns: s.concerns || [],
-        allergies: s.allergies || [],
-        preferred_categories: s.preferred_categories || [],
-      });
+      if (s) {
+        setSurveyData({
+          skin_type: s.skin_type || '',
+          concerns: s.concerns || [],
+          allergies: s.allergies || [],
+          preferred_categories: s.preferred_categories || [],
+        });
+      }
     });
+    useScanStore.getState().fetchHistory();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // store의 survey 변경 시 surveyData 폼 상태 자동 동기화
+  useEffect(() => {
+    if (survey) {
+      setSurveyData({
+        skin_type: survey.skin_type || '',
+        concerns: survey.concerns || [],
+        allergies: survey.allergies || [],
+        preferred_categories: survey.preferred_categories || [],
+      });
+    }
+  }, [survey]);
 
   // 5초 타이머 관리
   useEffect(() => {
@@ -182,7 +197,7 @@ const MyPage = () => {
       <div className="flex">
         <Sidebar />
 
-        <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-24 desktop:pb-8">
+        <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-36 desktop:pb-12">
           <div className="max-w-4xl mx-auto space-y-6">
             <h1 className="text-2xl font-bold text-text-primary mb-6">마이페이지</h1>
 

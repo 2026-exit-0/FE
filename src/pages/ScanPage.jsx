@@ -11,12 +11,11 @@ import { getScannerHealth, measureWithScanner } from '../api/scan';
 import { SCAN_AREAS, MEASUREMENT_ITEMS } from '../utils/constants';
 
 const REGION_MAP = {
-  '얼굴 전체': 'PART_0',
   '이마': 'FOREHEAD',
-  '눈': 'L_EYE',
+  '코': 'NOSE',
+  '왼쪽 뺨': 'L_CHEEK',
+  '오른쪽 뺨': 'R_CHEEK',
   '턱': 'CHIN',
-  '목': 'CHIN',
-  '손등': 'PART_0',
 };
 
 const ScanPage = () => {
@@ -28,7 +27,7 @@ const ScanPage = () => {
   const [scanErrorMsg, setScanErrorMsg] = useState('');
   const [countdown, setCountdown] = useState(3);
   const [scanProgress, setScanProgress] = useState(0);
-  const [selectedArea, setSelectedArea] = useState('얼굴 전체');
+  const [selectedArea, setSelectedArea] = useState('이마');
   const [scannerStatus, setScannerStatus] = useState('checking');
   const [scannerMsg, setScannerMsg] = useState('스캐너 상태 확인 중...');
   const [measurements, setMeasurements] = useState(
@@ -149,7 +148,7 @@ const ScanPage = () => {
       <div className="flex">
         <Sidebar />
 
-        <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-24 desktop:pb-8">
+        <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-36 desktop:pb-12">
           <div className="grid grid-cols-1 desktop:grid-cols-12 gap-6">
 
             {/* 스캔 인터페이스 */}
