@@ -229,14 +229,14 @@ const DirectInput = ({ onBack, onDone }) => {
         </div>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 pt-4 pb-20">
         <button type="button" onClick={onBack}
-          className="flex items-center gap-1.5 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-text-secondary hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-1.5 px-5 py-3 border border-gray-200 bg-white rounded-xl text-sm font-medium text-text-secondary hover:bg-gray-50 transition-colors shadow-sm"
         >
           <ChevronLeft size={16} /> 이전
         </button>
         <button type="submit" disabled={!form.skin_type}
-          className="flex-1 bg-primary-500 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-primary-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 bg-primary-500 text-white py-3 rounded-xl text-sm font-bold hover:bg-primary-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
         >
           스캔하러 가기 →
         </button>
@@ -339,14 +339,14 @@ const Questionnaire = ({ onBack, onDone }) => {
         ))}
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 pt-4 pb-20">
         <button type="button" onClick={onBack}
-          className="flex items-center gap-1.5 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-text-secondary hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-1.5 px-5 py-3 border border-gray-200 bg-white rounded-xl text-sm font-medium text-text-secondary hover:bg-gray-50 transition-colors shadow-sm"
         >
           <ChevronLeft size={16} /> 이전
         </button>
         <button onClick={handleSubmit} disabled={submitting}
-          className="flex-1 bg-primary-500 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-primary-600 transition-colors disabled:opacity-50"
+          className="flex-1 bg-primary-500 text-white py-3 rounded-xl text-sm font-bold hover:bg-primary-600 transition-colors disabled:opacity-50 shadow-md flex items-center justify-center gap-2"
         >
           {submitting ? '분석 중...' : `진단 완료 → 스캔하러 가기`}
         </button>
@@ -412,7 +412,7 @@ const SkinCheckPage = () => {
       <div className="flex">
         <Sidebar />
 
-        <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-36 desktop:pb-12 max-w-3xl mx-auto">
+        <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-56 desktop:pb-16 max-w-3xl mx-auto">
           <StepIndicator step={step} />
 
           {step === 1 && (
