@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const isMock = import.meta.env.VITE_USE_MOCK === 'true';
+const isMock = false; // 백엔드 정식 통신 모드로 강제 고정
 
 // BE 정식 주소 (기본값: http://52.79.241.24:8000)
 const baseURL = isMock ? '' : (import.meta.env.VITE_API_BASE || 'http://52.79.241.24:8000');
