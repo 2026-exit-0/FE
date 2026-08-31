@@ -14,20 +14,21 @@ const client = axios.create({
   },
 });
 
-// 요청 인터셉터 — JWT 자동 첨부
+// 요청 인터셉터 — JWT 자동 첨부 (데모 토큰 제외)
 client.interceptors.request.use((config) => {
   const token = localStorage.getItem('damda_token');
-  if (token) {
+  if (token && token !== 'demo_access_token') {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-// 응답 인터셉터 — 401 시 자동 로그아웃
+// 응답 인터셉터 — 401 시 자동 로그아웃 (데모 토큰 사용 시 제외)
 client.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const token = localStorage.getItem('damda_token');
+    if (error.response?.status === 401 && token !== 'demo_access_token') {
       localStorage.removeItem('damda_token');
       localStorage.removeItem('damda_user');
       window.location.href = '/login';
