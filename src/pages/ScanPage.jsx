@@ -10,6 +10,9 @@ import useScanStore from '../store/scanStore';
 import { getScannerHealth, measureWithScanner } from '../api/scan';
 import { SCAN_AREAS, MEASUREMENT_ITEMS } from '../utils/constants';
 
+// 하드웨어 실시간 스트림 엔드포인트 (하드웨어 팀에서 URL 확정 시 여기에 입력하거나 .env의 VITE_SCANNER_STREAM_URL 사용)
+const SCANNER_STREAM_URL = import.meta.env.VITE_SCANNER_STREAM_URL || '';
+
 const REGION_MAP = {
   '이마': 'FOREHEAD',
   '코': 'NOSE',
@@ -30,6 +33,7 @@ const ScanPage = () => {
   const [selectedArea, setSelectedArea] = useState('이마');
   const [scannerStatus, setScannerStatus] = useState('checking');
   const [scannerMsg, setScannerMsg] = useState('스캐너 상태 확인 중...');
+  const [isStreamLoaded, setIsStreamLoaded] = useState(false);
   const [measurements, setMeasurements] = useState(
     MEASUREMENT_ITEMS.reduce((acc, item) => ({ ...acc, [item.id]: item.default }), {})
   );
@@ -167,9 +171,32 @@ const ScanPage = () => {
                   <span className="text-xs text-text-secondary">UV 모드</span>
                 </div>
 
-                {/* 얼굴 가이드 */}
-                <div className="bg-gray-900 rounded-2xl aspect-[4/3] relative flex items-center justify-center mb-4 overflow-hidden">
-                  <div className="absolute inset-0 opacity-10">
+                {/* 카메라 / 얼굴 가이드 */}
+                <div className="bg-gray-900 rounded-2xl aspect-[4/3] relative flex items-center justify-center mb-4 overflow-hidden shadow-inner">
+                  {/* 하드웨어 실시간 MJPEG 스트림 (URL이 있고 연결 성공 시 표시) */}
+                  {SCANNER_STREAM_URL && (
+                    <img
+                      src={SCANNER_STREAM_URL}
+                      alt="실시간 스캐너 화면"
+                      className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
+                        isStreamLoaded ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                      }`}
+                      onLoad={() => setIsStreamLoaded(true)}
+                      onError={() => setIsStreamLoaded(false)}
+                    />
+                  )}
+
+                  {/* 스트림 상태 뱃지 (실시간 스트림 연결 시 표시) */}
+                  {isStreamLoaded && (
+                    <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2.5 py-1 bg-black/60 backdrop-blur-sm rounded-full text-[11px] text-white font-medium border border-white/10">
+                      <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                      <span className="text-red-400 font-bold">LIVE</span>
+                      <span className="text-gray-300">스캐너 화면</span>
+                    </div>
+                  )}
+
+                  {/* 격자 및 가이드 라인 오버레이 */}
+                  <div className={`absolute inset-0 transition-opacity duration-300 ${isStreamLoaded ? 'opacity-20 pointer-events-none' : 'opacity-10'}`}>
                     {[...Array(10)].map((_, i) => (
                       <div key={`h${i}`} className="absolute w-full h-px bg-green-400" style={{ top: `${i * 10}%` }} />
                     ))}
@@ -178,7 +205,8 @@ const ScanPage = () => {
                     ))}
                   </div>
 
-                  <svg viewBox="0 0 200 280" className="h-[80%] w-auto opacity-40" fill="none" stroke="#4CAF50" strokeWidth="1.5">
+                  {/* 얼굴 윤곽 가이드 SVG */}
+                  <svg viewBox="0 0 200 280" className={`h-[80%] w-auto pointer-events-none transition-opacity duration-300 ${isStreamLoaded ? 'opacity-30' : 'opacity-40'}`} fill="none" stroke="#4CAF50" strokeWidth="1.5">
                     <ellipse cx="100" cy="130" rx="70" ry="90" />
                     <ellipse cx="70" cy="115" rx="12" ry="8" />
                     <ellipse cx="130" cy="115" rx="12" ry="8" />
@@ -187,10 +215,10 @@ const ScanPage = () => {
                   </svg>
 
                   {scanStatus === 'scanning' && (
-                    <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-green-400 to-transparent animate-scan-line" />
+                    <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-green-400 to-transparent animate-scan-line z-10" />
                   )}
                   {scanStatus === 'countdown' && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-20">
                       <div className="text-center">
                         <div className="text-7xl font-bold text-green-400 animate-pulse">{countdown}</div>
                         <p className="text-green-300 text-sm mt-2">스캔 준비 중...</p>
@@ -198,7 +226,7 @@ const ScanPage = () => {
                     </div>
                   )}
                   {scanStatus === 'complete' && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-20">
                       <div className="text-center">
                         <CheckCircle size={48} className="text-green-400 mx-auto mb-3" />
                         <p className="text-green-300 text-lg font-semibold">스캔 완료!</p>
@@ -207,7 +235,7 @@ const ScanPage = () => {
                     </div>
                   )}
                   {scanStatus === 'error' && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-6 text-center z-10">
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-6 text-center z-30">
                       <div>
                         <AlertTriangle size={44} className="text-orange-400 mx-auto mb-3 animate-pulse" />
                         <p className="text-white text-base font-semibold mb-1">측정에 실패했습니다</p>
@@ -221,8 +249,8 @@ const ScanPage = () => {
                       </div>
                     </div>
                   )}
-                  {scanStatus === 'ready' && (
-                    <div className="absolute bottom-6 left-0 right-0 text-center">
+                  {scanStatus === 'ready' && !isStreamLoaded && (
+                    <div className="absolute bottom-6 left-0 right-0 text-center pointer-events-none">
                       <p className="text-green-400/80 text-sm">스캔 부위를 중앙에 맞춰주세요</p>
                     </div>
                   )}
