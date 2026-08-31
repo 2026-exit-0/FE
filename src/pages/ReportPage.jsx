@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   FileText, Download, Scan, TrendingUp, TrendingDown,
@@ -13,8 +13,7 @@ import BottomNav from '../components/common/BottomNav';
 import Button from '../components/common/Button';
 import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
-import { downloadReportPdf } from '../api/scan';
-import { weeklyData, measurementHistory } from '../utils/mockData';
+import { downloadReportPdf, getScanHistory } from '../api/scan';
 
 // ─── 기간 필터 ──────────────────────────────────────────
 const periodFilters = [
@@ -159,9 +158,17 @@ const ReportPage = () => {
   const { currentScan } = useScanStore();
   const [period, setPeriod] = useState('month');
   const [metric, setMetric] = useState('moisture');
+  const [scanHistory, setScanHistory] = useState([]);
+
+  // 백엔드에서 측정 기록 가져오기
+  useEffect(() => {
+    getScanHistory()
+      .then((data) => setScanHistory(Array.isArray(data) ? data : []))
+      .catch(() => setScanHistory([]));
+  }, []);
 
   const hasScanData = !!currentScan;
-  const scanCount = measurementHistory.length;
+  const scanCount = scanHistory.length;
   const hasEnoughScans = scanCount >= 2;
 
   // 동적 차트 데이터 제네레이터
@@ -440,7 +447,7 @@ const ReportPage = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {measurementHistory.map((item) => (
+                          {scanHistory.map((item) => (
                             <tr
                               key={item.id}
                               className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors"

@@ -95,7 +95,8 @@ export async function getScanHistory() {
     }));
   }
 
-  return [];
+  const res = await client.get('/history');
+  return Array.isArray(res.data) ? res.data : [];
 }
 
 // ── 특정 스캔 조회 ───────────────────────────────────────
@@ -105,7 +106,8 @@ export async function getScanById(scanId) {
     return { ...mockAnalysis, id: scanId };
   }
 
-  return { ...mockAnalysis, id: scanId };
+  const res = await client.get(`/result/${scanId}`);
+  return res.data;
 }
 
 // ── Mock 결과 생성 헬퍼 ──────────────────────────────────
