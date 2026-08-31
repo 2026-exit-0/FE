@@ -2,8 +2,9 @@ import axios from 'axios';
 
 const isMock = false;
 
-// BE 정식 IP 직접 연결
-const baseURL = 'http://52.79.241.24:8000';
+// 배포(PROD) 환경: Netlify SSL 프록시 경유 (HTTPS->HTTP Mixed Content 차단 방지)
+// 로컬 개발 환경: BE 주소 또는 VITE_API_BASE
+const baseURL = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_BASE || 'http://52.79.241.24:8000');
 
 const client = axios.create({
   baseURL,
