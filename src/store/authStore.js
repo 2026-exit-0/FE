@@ -20,6 +20,19 @@ const useAuthStore = create((set, get) => ({
     const localWishlist = JSON.parse(localStorage.getItem('damda_wishlist') || '[]');
     set({ wishlist: localWishlist });
 
+    if (token === 'demo_access_token') {
+      const storedUser = JSON.parse(localStorage.getItem(USER_KEY) || 'null') || {
+        user_id: '00000000-0000-0000-0000-000000000001',
+        email: 'demo@damda.com',
+        nickname: '체험용 게스트',
+        profile_image_url: null,
+        notify_analysis: true,
+        notify_recommend: true,
+      };
+      set({ isLoggedIn: true, user: storedUser });
+      return true;
+    }
+
     if (!token || token === 'mock_access_token_dev') {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
@@ -109,6 +122,24 @@ const useAuthStore = create((set, get) => ({
       set({ loading: false, error: message });
       return { success: false, message };
     }
+  },
+
+  // ── 테스트/체험용 가상 로그인 ───────────────────────────
+  demoLogin: () => {
+    const demoUser = {
+      user_id: '00000000-0000-0000-0000-000000000001',
+      email: 'demo@damda.com',
+      nickname: '체험용 게스트',
+      profile_image_url: null,
+      notify_analysis: true,
+      notify_recommend: true,
+    };
+    localStorage.setItem(TOKEN_KEY, 'demo_access_token');
+    localStorage.setItem(USER_KEY, JSON.stringify(demoUser));
+    useScanStore.getState().clearAll();
+    const localWishlist = JSON.parse(localStorage.getItem('damda_wishlist') || '[]');
+    set({ isLoggedIn: true, user: demoUser, wishlist: localWishlist, loading: false, error: null });
+    return { success: true };
   },
 
   // ── 회원가입 ──────────────────────────────────────────

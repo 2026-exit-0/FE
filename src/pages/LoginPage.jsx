@@ -9,10 +9,15 @@ import { isMock } from '../api/client';
 const LoginPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { login, kakaoLogin, googleLogin } = useAuthStore();
+  const { login, kakaoLogin, googleLogin, demoLogin } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleDemoLogin = () => {
+    demoLogin();
+    navigate('/dashboard');
+  };
 
   // OAuth 콜백 수신 처리 (?code=...&provider=...)
   useEffect(() => {
@@ -177,6 +182,16 @@ const LoginPage = () => {
             >
               로그인
             </Button>
+
+            {/* 멘토링/심사위원/체험용 가상 로그인 버튼 */}
+            <button
+              type="button"
+              onClick={handleDemoLogin}
+              className="w-full py-2.5 px-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 shadow-sm"
+            >
+              <span>✨</span>
+              <span>체험용 1초 간편 로그인 (테스트/심사용)</span>
+            </button>
           </form>
 
           {/* Social Login */}
