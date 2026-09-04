@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   Scan, BarChart3, ShoppingBag, BookOpen,
   Thermometer, Droplets, Sun, ArrowRight,
-  Wifi, Sparkles, BatteryCharging,
+  Wifi, Sparkles,
   Heart, ShieldCheck, Clock, Award, ChevronRight, Moon, Check
 } from 'lucide-react';
 import Header from '../components/common/Header';
@@ -160,7 +160,7 @@ const DashboardPage = () => {
 
                 <h1 className="text-2xl tablet:text-3xl font-extrabold tracking-tight leading-tight">
                   {user?.nickname || '회원'}님, 오늘 피부는<br />
-                  <span className="text-emerald-300 underline decoration-emerald-400/50 decoration-wavy decoration-2 underline-offset-4">
+                  <span className="text-emerald-300">
                     T존 피지 밸런싱
                   </span>에 집중할 타이밍이에요.
                 </h1>
@@ -249,23 +249,15 @@ const DashboardPage = () => {
                   </span>
                 </div>
                 <p className="text-xs text-text-secondary mt-0.5">
-                  ESP32-CAM 듀얼 광원(White 5500K / UV 395nm) 및 FDC2112 수분 센서 준비 완료
+                  피부 측정을 위한 IoT 스캐너가 정상 연결되었습니다.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-4 text-xs text-text-secondary w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0 border-gray-100">
-              <div className="flex items-center gap-1.5 font-medium text-emerald-700 bg-emerald-50/70 px-3 py-1.5 rounded-xl">
-                <BatteryCharging size={15} />
-                <span>배터리 88%</span>
-              </div>
-              <div className="flex items-center gap-1.5 font-medium text-purple-700 bg-purple-50 px-3 py-1.5 rounded-xl">
-                <Sparkles size={14} />
-                <span>UV 395nm 대기</span>
-              </div>
+            <div className="flex items-center gap-3 text-xs w-full md:w-auto justify-end border-t md:border-t-0 pt-3 md:pt-0 border-gray-100">
               <Link
                 to="/scan"
-                className="btn-primary text-xs px-4 py-2 rounded-xl font-bold flex items-center gap-1.5 shadow-sm"
+                className="btn-primary text-xs px-5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 shadow-sm hover:shadow transition-all"
               >
                 측정하기 <ArrowRight size={13} />
               </Link>
