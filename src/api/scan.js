@@ -158,6 +158,8 @@ function buildMockResult(region) {
       classification: { skin_type: '복합성' },
     },
     recommended_products: [],
+    white_image_url: '/assets/demo_white_light.jpg',
+    uv_image_url: '/assets/demo_uv_light.jpg',
     meta: {
       region,
       ckpt_epoch: 'mock',

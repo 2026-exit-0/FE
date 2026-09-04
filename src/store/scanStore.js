@@ -55,6 +55,8 @@ export function parseApiResult(apiResult) {
         tips: tipsList.length > 0 ? tipsList : ['하루 1.5L 이상 수분 섭취와 자외선 차단을 권장합니다.'],
       },
       recommendedProducts: apiResult.recommended_products || [],
+      white_image_url: apiResult.white_image_url || apiResult.image_url || '/assets/demo_white_light.jpg',
+      uv_image_url: apiResult.uv_image_url || '/assets/demo_uv_light.jpg',
       meta: apiResult.meta || {},
       _raw: apiResult,
     };
@@ -91,6 +93,8 @@ export function parseApiResult(apiResult) {
     area: apiResult.meta?.region || apiResult.area || '얼굴 전체',
     narrative: n,
     recommendedProducts: apiResult.recommended_products || [],
+    white_image_url: apiResult.white_image_url || apiResult.image_url || '/assets/demo_white_light.jpg',
+    uv_image_url: apiResult.uv_image_url || '/assets/demo_uv_light.jpg',
     meta: apiResult.meta || {},
     _raw: apiResult,
   };

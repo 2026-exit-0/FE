@@ -86,9 +86,9 @@ const ScoreCircle = ({ score }) => {
 const DualLightViewer = ({ analysis }) => {
   const [showOverlay, setShowOverlay] = useState(true);
 
-  // 백엔드 실제 사진 URL 또는 데모/기본값
-  const whiteImg = analysis?.white_image_url || analysis?.image_url || null;
-  const uvImg = analysis?.uv_image_url || null;
+  // 백엔드 실제 사진 URL 또는 데모 기본 사진
+  const whiteImg = analysis?.white_image_url || analysis?.image_url || '/assets/demo_white_light.jpg';
+  const uvImg = analysis?.uv_image_url || '/assets/demo_uv_light.jpg';
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
