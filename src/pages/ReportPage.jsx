@@ -151,24 +151,20 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-// ─── ReportPage 메인 ────────────────────────────────────
 const ReportPage = () => {
   const navigate = useNavigate();
   useAuth(true);
-  const { currentScan } = useScanStore();
+  const { currentScan, scans, setCurrentScan, initializeIfNeeded } = useScanStore();
   const [period, setPeriod] = useState('month');
   const [metric, setMetric] = useState('moisture');
-  const [scanHistory, setScanHistory] = useState([]);
 
   // 백엔드에서 측정 기록 가져오기
   useEffect(() => {
-    getScanHistory()
-      .then((data) => setScanHistory(Array.isArray(data) ? data : []))
-      .catch(() => setScanHistory([]));
-  }, []);
+    initializeIfNeeded();
+  }, [initializeIfNeeded]);
 
-  const hasScanData = !!currentScan;
-  const scanCount = scanHistory.length;
+  const hasScanData = scans.length > 0 || !!currentScan;
+  const scanCount = scans.length;
   const hasEnoughScans = scanCount >= 2;
 
   // 동적 차트 데이터 제네레이터
@@ -447,40 +443,53 @@ const ReportPage = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {scanHistory.map((item) => (
-                            <tr
-                              key={item.id}
-                              className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors"
-                            >
-                              <td className="py-3.5 pr-3 text-text-primary font-medium">
-                                {item.date}
-                              </td>
-                              <td className="py-3.5 pr-3 text-text-secondary">
-                                {item.skinType}
-                              </td>
-                              <td className="py-3.5 pr-3 font-bold text-text-primary">
-                                {item.score}
-                              </td>
-                              <td className="py-3.5">
-                                <div className="flex items-center gap-2">
-                                  <ProgressBar value={item.score} />
-                                  {item.change !== '-' && (
-                                    <span
-                                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                                        item.trend === 'up'
-                                          ? 'bg-primary-50 text-primary-600'
-                                          : item.trend === 'down'
-                                          ? 'bg-red-50 text-red-500'
-                                          : 'bg-gray-100 text-text-secondary'
-                                      }`}
-                                    >
-                                      {item.change}
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
+                          {scans.map((item, index) => {
+                            const score = item.overallScore ?? item.total_score ?? item.score ?? 70;
+                            const prevScore = scans[index + 1]?.overallScore ?? scans[index + 1]?.total_score ?? null;
+                            const diff = prevScore !== null ? score - prevScore : null;
+                            const changeText = diff !== null ? (diff > 0 ? `+${diff}` : `${diff}`) : '-';
+                            const trend = diff !== null ? (diff > 0 ? 'up' : diff < 0 ? 'down' : 'same') : 'same';
+
+                            return (
+                              <tr
+                                key={item.id || item.sessionId || index}
+                                onClick={() => {
+                                  setCurrentScan(item);
+                                  navigate('/analysis');
+                                }}
+                                className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors cursor-pointer group"
+                                title="클릭하여 상세 분석 결과 보기"
+                              >
+                                <td className="py-3.5 pr-3 text-text-primary font-medium group-hover:text-primary-600 transition-colors">
+                                  {item.date || '최근'}
+                                </td>
+                                <td className="py-3.5 pr-3 text-text-secondary">
+                                  {item.skinType || '복합성 피부'}
+                                </td>
+                                <td className="py-3.5 pr-3 font-bold text-text-primary">
+                                  {score}점
+                                </td>
+                                <td className="py-3.5">
+                                  <div className="flex items-center gap-2">
+                                    <ProgressBar value={score} />
+                                    {changeText !== '-' && (
+                                      <span
+                                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                          trend === 'up'
+                                            ? 'bg-primary-50 text-primary-600'
+                                            : trend === 'down'
+                                            ? 'bg-red-50 text-red-500'
+                                            : 'bg-gray-100 text-text-secondary'
+                                        }`}
+                                      >
+                                        {changeText}
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
