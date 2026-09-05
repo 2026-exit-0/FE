@@ -115,7 +115,7 @@ const ScanPage = () => {
         const result = await measureWithScanner(fd);
         addScan(result);
         setScanStatus('complete');
-        setTimeout(() => navigate('/analysis'), 1200);
+        setTimeout(() => navigate('/analysis'), 2200);
       } catch (err) {
         console.error('측정 실패:', err);
         const errorMsg = err.code === 'ECONNABORTED' || err.message?.includes('timeout')
@@ -226,12 +226,35 @@ const ScanPage = () => {
                     </div>
                   )}
                   {scanStatus === 'complete' && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-20">
-                      <div className="text-center">
-                        <CheckCircle size={48} className="text-green-400 mx-auto mb-3" />
-                        <p className="text-green-300 text-lg font-semibold">스캔 완료!</p>
-                        <p className="text-green-400/60 text-sm mt-1">분석 페이지로 이동 중...</p>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/85 p-4 z-20 animate-fadeIn text-center">
+                      <div className="flex items-center gap-2 mb-3 bg-emerald-500/20 text-emerald-300 px-3.5 py-1.5 rounded-full border border-emerald-400/30 shadow-sm">
+                        <CheckCircle size={16} className="text-emerald-400 shrink-0" />
+                        <span className="text-xs font-bold">스캔 및 듀얼 촬영 완료!</span>
                       </div>
+                      <div className="grid grid-cols-2 gap-3 w-full max-w-xs mb-3">
+                        <div className="rounded-xl overflow-hidden border border-emerald-400/40 relative shadow-lg bg-black/40">
+                          <img
+                            src="/assets/demo_white_light.jpg"
+                            alt="White Light"
+                            className="w-full aspect-square object-cover"
+                          />
+                          <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 bg-black/75 backdrop-blur-xs text-[10px] text-white rounded font-medium border border-white/10">
+                            White 5500K
+                          </span>
+                        </div>
+                        <div className="rounded-xl overflow-hidden border border-purple-400/40 relative shadow-lg bg-black/40">
+                          <img
+                            src="/assets/demo_uv_light.jpg"
+                            alt="UV Light"
+                            className="w-full aspect-square object-cover"
+                          />
+                          <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 bg-black/75 backdrop-blur-xs text-[10px] text-purple-200 rounded font-medium border border-purple-400/20">
+                            UV 395nm
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-white text-sm font-bold tracking-tight">AI 12개 지표 정밀 분석 중...</p>
+                      <p className="text-emerald-400 text-xs mt-1 animate-pulse font-medium">분석 결과 페이지로 이동합니다</p>
                     </div>
                   )}
                   {scanStatus === 'error' && (
