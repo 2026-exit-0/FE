@@ -4,7 +4,7 @@ import {
   Scan, BarChart3, ShoppingBag, BookOpen,
   Thermometer, Droplets, Sun, ArrowRight,
   Wifi, Sparkles,
-  Heart, ShieldCheck, Clock, Award, ChevronRight, Moon, Check
+  Heart, ShieldCheck, Clock, ChevronRight, Moon
 } from 'lucide-react';
 import Header from '../components/common/Header';
 import Sidebar from '../components/common/Sidebar';
@@ -24,7 +24,6 @@ const DashboardPage = () => {
   }, [initializeIfNeeded]);
 
   const hasScanData = scans.length > 0 || !!currentScan;
-  const scanCount = scans.length;
   const uvInfo = UV_LEVELS[weather?.uv] || UV_LEVELS.moderate;
 
   // 대표 점수 및 지표
@@ -119,17 +118,6 @@ const DashboardPage = () => {
     },
   ];
 
-  // 주간 스킨케어 챌린지 (월~일)
-  const weekDays = [
-    { day: '월', done: true, score: 81 },
-    { day: '화', done: true, score: 82 },
-    { day: '수', done: true, score: 84 },
-    { day: '목', done: false, score: null, today: true },
-    { day: '금', done: false, score: null },
-    { day: '토', done: false, score: null },
-    { day: '일', done: false, score: null },
-  ];
-
   return (
     <div className="min-h-screen bg-[#fafaf8]">
       <Header variant="dashboard" />
@@ -139,14 +127,12 @@ const DashboardPage = () => {
 
         <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-28 desktop:pb-12 max-w-6xl mx-auto space-y-7 animate-fadeIn">
           
-          {/* ── 1. 에디토리얼 프리미엄 히어로 배너 (Radiant Skin & NŪMA 감성) ── */}
+          {/* ── 1. 에디토리얼 프리미엄 히어로 배너 ── */}
           <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-emerald-800 via-primary-700 to-teal-900 text-white p-6 tablet:p-9 shadow-xl border border-emerald-600/30">
-            {/* 감성적인 유기적 배경 블러 오버레이 */}
             <div className="absolute -top-24 -right-24 w-80 h-80 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -bottom-20 -left-20 w-72 h-72 bg-teal-300/15 rounded-full blur-2xl pointer-events-none" />
 
             <div className="relative z-10 flex flex-col desktop:flex-row desktop:items-center justify-between gap-8">
-              {/* 좌측: 타이포 & 데일리 처방 헤드라인 */}
               <div className="max-w-xl space-y-4">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-emerald-200 text-xs font-semibold border border-white/10">
@@ -186,9 +172,8 @@ const DashboardPage = () => {
                 </div>
               </div>
 
-              {/* 우측: 종합 피부 점수 링 카드 & AI 부위별 매핑 뷰 */}
+              {/* 우측: 종합 피부 점수 링 카드 & 지표 */}
               <div className="flex flex-col sm:flex-row items-center gap-5 bg-white/10 backdrop-blur-lg border border-white/20 p-5 tablet:p-6 rounded-3xl shadow-inner flex-shrink-0">
-                {/* 종합 점수 게이지 */}
                 <div className="relative w-28 h-28 flex items-center justify-center flex-shrink-0">
                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                     <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="8" />
@@ -205,7 +190,6 @@ const DashboardPage = () => {
                   </div>
                 </div>
 
-                {/* 피부 타입 & 3대 핵심 지표 */}
                 <div className="space-y-2 text-center sm:text-left">
                   <div className="inline-block bg-emerald-400 text-emerald-950 text-xs font-bold px-3 py-1 rounded-full shadow-sm">
                     {userSkinType}
@@ -309,114 +293,75 @@ const DashboardPage = () => {
             </div>
           </div>
 
-          {/* ── 4. 2열 복합 섹션: [주간 스킨 스트릭] & [실시간 환경 연동 방어] ── */}
-          <div className="grid grid-cols-1 desktop:grid-cols-2 gap-6">
-            
-            {/* 좌: 7일간의 데일리 스킨 스트릭 위젯 */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm flex flex-col justify-between">
+          {/* ── 4. 실시간 환경 연동 & 데일리 피부 방어 솔루션 ── */}
+          <div className="bg-white rounded-3xl border border-gray-100 p-6 tablet:p-8 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Award size={18} className="text-amber-500" />
-                    <h3 className="text-sm font-bold text-text-primary">
-                      이번 주 스킨케어 챌린지
-                    </h3>
-                  </div>
-                  <span className="text-xs font-bold text-primary-600 bg-primary-50 px-2.5 py-1 rounded-full">
-                    3일 연속 달성 💧
-                  </span>
+                <div className="flex items-center gap-2">
+                  <Sun size={20} className="text-amber-500" />
+                  <h3 className="text-base font-bold text-text-primary">
+                    오늘의 환경 & 피부 방어 솔루션
+                  </h3>
                 </div>
-
-                <p className="text-xs text-text-secondary mb-5">
-                  매일 아침 4초 스캔으로 피부 밸런스를 측정하고 맞춤 루틴을 완성해 보세요.
+                <p className="text-xs text-text-secondary mt-1">
+                  기상청 실시간 API를 통해 사용자의 현재 위치 환경을 분석하여 즉각적인 스킨케어 가이드를 제공합니다.
                 </p>
+              </div>
+              <span className="text-xs font-semibold text-primary-700 bg-primary-50 px-3.5 py-1.5 rounded-full w-fit border border-primary-100">
+                📍 {weather?.region || '서울'} 기준 환경 동기화
+              </span>
+            </div>
 
-                {/* 요일별 원형 체크 뱃지 */}
-                <div className="grid grid-cols-7 gap-2 text-center">
-                  {weekDays.map((w) => (
-                    <div
-                      key={w.day}
-                      className={`flex flex-col items-center p-2.5 rounded-xl transition-all ${
-                        w.done
-                          ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
-                          : w.today
-                          ? 'bg-primary-500 text-white shadow-sm ring-2 ring-primary-300'
-                          : 'bg-gray-50 border border-gray-100 text-text-secondary'
-                      }`}
-                    >
-                      <span className="text-[11px] font-semibold mb-1">{w.day}</span>
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                        w.done ? 'bg-emerald-500 text-white' : w.today ? 'bg-white text-primary-600' : 'bg-gray-200 text-gray-400'
-                      }`}>
-                        {w.done ? <Check size={12} strokeWidth={3} /> : w.today ? '오늘' : '-'}
-                      </div>
-                      <span className="text-[10px] mt-1 font-bold">
-                        {w.score ? `${w.score}점` : '-'}
-                      </span>
-                    </div>
-                  ))}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+              <div className="flex items-center gap-4 p-4 rounded-2xl bg-blue-50/60 border border-blue-100/80">
+                <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <Thermometer size={22} />
+                </div>
+                <div>
+                  <span className="text-xs text-text-secondary font-medium">현재 기온</span>
+                  <p className="text-xl font-black text-blue-900">{weather?.temp ?? 23}°C</p>
+                  <span className="text-[10px] text-blue-600 font-medium">피부 유분 분비 보통</span>
                 </div>
               </div>
 
-              <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between text-xs">
-                <span className="text-text-secondary">누적 완료 스캔: <strong className="text-text-primary">{scanCount || 3}회</strong></span>
-                <Link to="/analysis" className="font-semibold text-primary-600 hover:text-primary-700 flex items-center gap-1">
-                  리포트 상세 <ArrowRight size={12} />
-                </Link>
+              <div className="flex items-center gap-4 p-4 rounded-2xl bg-cyan-50/60 border border-cyan-100/80">
+                <div className="w-12 h-12 rounded-xl bg-cyan-100 text-cyan-600 flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <Droplets size={22} />
+                </div>
+                <div>
+                  <span className="text-xs text-text-secondary font-medium">대기 습도</span>
+                  <p className="text-xl font-black text-cyan-900">{weather?.humidity ?? 55}%</p>
+                  <span className="text-[10px] text-cyan-600 font-medium">수분 증발 보통</span>
+                </div>
+              </div>
+
+              <div className={`flex items-center gap-4 p-4 rounded-2xl border ${uvInfo.bg} ${uvInfo.border || 'border-amber-200'}`}>
+                <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <Sun size={22} />
+                </div>
+                <div>
+                  <span className="text-xs text-text-secondary font-medium">자외선 지수 (UV)</span>
+                  <p className={`text-xl font-black ${uvInfo.color}`}>{uvInfo.label}</p>
+                  <span className="text-[10px] text-amber-700 font-medium">외출 전 차단 필수</span>
+                </div>
               </div>
             </div>
 
-            {/* 우: 실시간 기상/환경 데이터 & 피부 방어 가이드 */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Sun size={18} className="text-amber-500" />
-                    <h3 className="text-sm font-bold text-text-primary">
-                      오늘의 환경 & 피부 방어 가이드
-                    </h3>
-                  </div>
-                  <span className="text-xs text-text-secondary font-medium">
-                    {weather?.region || '서울'} 기준
-                  </span>
+            <div className="bg-gradient-to-r from-amber-50/90 to-primary-50/70 border border-amber-200/70 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <ShieldCheck size={20} />
                 </div>
-
-                {/* 3개 온/습/UV 카드 */}
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  <div className="text-center p-3.5 bg-[#f8fafc] rounded-xl border border-gray-100">
-                    <Thermometer size={20} className="mx-auto text-blue-500 mb-1" />
-                    <p className="text-lg font-extrabold text-text-primary">{weather?.temp ?? 23}°C</p>
-                    <p className="text-[10px] text-text-secondary font-medium">외기 기온</p>
-                  </div>
-
-                  <div className="text-center p-3.5 bg-[#f8fafc] rounded-xl border border-gray-100">
-                    <Droplets size={20} className="mx-auto text-cyan-500 mb-1" />
-                    <p className="text-lg font-extrabold text-text-primary">{weather?.humidity ?? 55}%</p>
-                    <p className="text-[10px] text-text-secondary font-medium">대기 습도</p>
-                  </div>
-
-                  <div className={`text-center p-3.5 rounded-xl border ${uvInfo.bg} ${uvInfo.border || 'border-amber-200'}`}>
-                    <Sun size={20} className={`mx-auto ${uvInfo.color} mb-1`} />
-                    <p className={`text-lg font-extrabold ${uvInfo.color}`}>{uvInfo.label}</p>
-                    <p className="text-[10px] text-text-secondary font-medium">자외선 지수</p>
-                  </div>
-                </div>
-
-                {/* 피부 방어 솔루션 알림 */}
-                <div className="bg-amber-50/80 border border-amber-200/60 rounded-xl p-3.5 flex items-start gap-2.5">
-                  <ShieldCheck size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-900 leading-relaxed">
-                    자외선과 건조한 공기가 피부 장벽을 자극할 수 있습니다. <strong>SPF 50+ 무기자차 선크림</strong>과 <strong>수분 진정 미스트</strong> 휴대를 권장합니다.
+                <div>
+                  <h4 className="text-xs font-bold text-amber-950 mb-0.5">닥터 담다의 실시간 피부 방어 코멘트</h4>
+                  <p className="text-xs text-amber-900 leading-relaxed font-normal">
+                    자외선과 건조한 공기가 피부 장벽을 자극하기 쉬운 환경입니다. <strong>SPF 50+ 무기자차 선크림</strong> 도포와 <strong>수분 진정 미스트</strong> 수시 사용을 권장합니다.
                   </p>
                 </div>
               </div>
-
-              <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
-                <span className="text-text-secondary">기상청 실시간 API 연동</span>
-                <Link to="/care-guide" className="font-semibold text-amber-700 hover:text-amber-800 flex items-center gap-1">
-                  환경 맞춤 케어법 <ArrowRight size={12} />
-                </Link>
-              </div>
+              <Link to="/care-guide" className="btn-primary text-xs px-4 py-2.5 rounded-xl font-bold whitespace-nowrap self-end sm:self-auto shadow-sm flex items-center gap-1.5 flex-shrink-0">
+                맞춤 케어법 전체보기 <ArrowRight size={13} />
+              </Link>
             </div>
           </div>
 
@@ -451,7 +396,6 @@ const DashboardPage = () => {
                   className="bg-background-gray rounded-2xl p-4 border border-gray-100 hover:border-primary-300 hover:shadow-md transition-all group flex flex-col justify-between"
                 >
                   <div>
-                    {/* 상단 썸네일 & 뱃지 */}
                     <div className="aspect-square bg-white rounded-xl flex items-center justify-center text-4xl mb-3 shadow-inner relative overflow-hidden border border-gray-100">
                       <span>{p.emoji}</span>
                       <span className="absolute top-2 left-2 text-[10px] font-bold bg-gradient-to-r from-emerald-500 to-green-600 text-white px-2 py-0.5 rounded-lg shadow-sm">
@@ -501,7 +445,6 @@ const DashboardPage = () => {
               </h3>
 
               <div className="grid grid-cols-1 tablet:grid-cols-2 gap-4">
-                {/* Day Routine */}
                 <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/10 flex items-start gap-4">
                   <div className="w-10 h-10 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center flex-shrink-0 text-xl font-bold">
                     <Sun size={22} />
@@ -517,7 +460,6 @@ const DashboardPage = () => {
                   </div>
                 </div>
 
-                {/* Night Routine */}
                 <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/10 flex items-start gap-4">
                   <div className="w-10 h-10 rounded-xl bg-indigo-400/20 text-indigo-300 flex items-center justify-center flex-shrink-0 text-xl font-bold">
                     <Moon size={22} />
