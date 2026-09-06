@@ -168,7 +168,12 @@ const ScanPage = () => {
                     }`} />
                     <span className="text-sm text-text-secondary">{scannerMsg}</span>
                   </div>
-                  <span className="text-xs text-text-secondary">UV 모드</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full border border-primary-100">
+                      {selectedArea}
+                    </span>
+                    <span className="text-xs text-text-secondary">UV 모드</span>
+                  </div>
                 </div>
 
                 {/* 카메라 / 얼굴 가이드 */}
@@ -274,7 +279,7 @@ const ScanPage = () => {
                   )}
                   {scanStatus === 'ready' && !isStreamLoaded && (
                     <div className="absolute bottom-6 left-0 right-0 text-center pointer-events-none">
-                      <p className="text-green-400/80 text-sm">스캔 부위를 중앙에 맞춰주세요</p>
+                      <p className="text-green-400/80 text-sm">[{selectedArea}] 부위를 중앙에 맞춰주세요</p>
                     </div>
                   )}
                 </div>
@@ -338,23 +343,44 @@ const ScanPage = () => {
                 <h3 className="text-sm font-semibold text-text-primary mb-4">스캔 설정</h3>
 
                 <div className="mb-5">
-                  <p className="text-xs font-medium text-text-secondary mb-2">측정 부위</p>
-                  <div className="flex flex-wrap gap-2">
-                    {SCAN_AREAS.map((area) => (
-                      <button
-                        key={area}
-                        disabled={scanStatus === 'scanning' || scanStatus === 'countdown'}
-                        onClick={() => setSelectedArea(area)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                          selectedArea === area
-                            ? 'bg-primary-500 text-white'
-                            : 'bg-gray-100 text-text-secondary hover:bg-gray-200'
-                        }`}
-                      >
-                        {area}
-                      </button>
-                    ))}
+                  <div className="flex items-center justify-between mb-2.5">
+                    <p className="text-xs font-semibold text-text-primary">측정 부위</p>
+                    <span className="text-[11px] font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full border border-primary-100">
+                      단일 선택
+                    </span>
                   </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                    {SCAN_AREAS.map((area) => {
+                      const isSelected = selectedArea === area;
+                      return (
+                        <button
+                          key={area}
+                          type="button"
+                          disabled={scanStatus === 'scanning' || scanStatus === 'countdown'}
+                          onClick={() => setSelectedArea(area)}
+                          className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-medium transition-all border disabled:opacity-50 disabled:cursor-not-allowed ${
+                            isSelected
+                              ? 'bg-primary-50 border-primary-500 text-primary-700 font-bold shadow-xs ring-1 ring-primary-500'
+                              : 'bg-white border-gray-200 text-text-secondary hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          <span
+                            className={`w-2.5 h-2.5 rounded-full border flex items-center justify-center transition-colors shrink-0 ${
+                              isSelected
+                                ? 'border-primary-600 bg-primary-600'
+                                : 'border-gray-300 bg-transparent'
+                            }`}
+                          >
+                            {isSelected && <span className="w-1 h-1 rounded-full bg-white" />}
+                          </span>
+                          <span className="truncate">{area}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11px] text-text-secondary mt-2">
+                    선택 부위: <strong className="text-primary-600 font-bold">{selectedArea}</strong> (1회 스캔 시 한 부위만 집중 측정됩니다)
+                  </p>
                 </div>
 
                 <div>

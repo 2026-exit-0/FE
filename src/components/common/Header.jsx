@@ -40,7 +40,7 @@ const Header = ({ variant = 'landing' }) => {
     { label: '대시보드', path: '/dashboard' },
     { label: '피부 스캔', path: '/scan' },
     { label: '분석 결과', path: '/analysis' },
-    { label: '리포트', path: '/report' },
+    { label: '분석 리포트', path: '/report' },
     { label: '제품 추천', path: '/products' },
   ];
 
