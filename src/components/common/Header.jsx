@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
+import { useModeStore } from '../../store/modeStore';
 
 const Header = ({ variant = 'landing' }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isLoggedIn, user, logout } = useAuthStore();
+  const { mode, setMode } = useModeStore();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -86,6 +88,32 @@ const Header = ({ variant = 'landing' }) => {
 
           {/* Right Actions */}
           <div className="hidden tablet:flex items-center gap-3">
+            {/* AI 모드 토글 (목업 ↔ 실제 AI) */}
+            <div className="flex items-center bg-gray-100 p-0.5 rounded-full border border-gray-200/80 mr-1" title="AI 분석 모드 전환">
+              <button
+                type="button"
+                onClick={() => setMode('mock')}
+                className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
+                  mode === 'mock'
+                    ? 'bg-white text-primary-600 shadow-xs'
+                    : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                목업
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('real')}
+                className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
+                  mode === 'real'
+                    ? 'bg-primary-500 text-white shadow-xs'
+                    : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                실제 AI
+              </button>
+            </div>
+
             {isLoggedIn ? (
               <>
                 <Link to="/mypage" className="text-sm font-medium text-text-secondary hover:text-primary-500 transition-colors duration-200">
@@ -116,13 +144,40 @@ const Header = ({ variant = 'landing' }) => {
             )}
           </div>
 
-          {/* Mobile Menu Button */}
-          <button
-            className="tablet:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
+          {/* Mobile Right: AI Mode Toggle + Menu Button */}
+          <div className="flex items-center gap-2 tablet:hidden">
+            <div className="flex items-center bg-gray-100 p-0.5 rounded-full border border-gray-200/80">
+              <button
+                type="button"
+                onClick={() => setMode('mock')}
+                className={`px-2 py-0.5 rounded-full text-[11px] font-bold transition-all ${
+                  mode === 'mock'
+                    ? 'bg-white text-primary-600 shadow-xs'
+                    : 'text-gray-400'
+                }`}
+              >
+                목업
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('real')}
+                className={`px-2 py-0.5 rounded-full text-[11px] font-bold transition-all ${
+                  mode === 'real'
+                    ? 'bg-primary-500 text-white shadow-xs'
+                    : 'text-gray-400'
+                }`}
+              >
+                실제 AI
+              </button>
+            </div>
+
+            <button
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Menu */}

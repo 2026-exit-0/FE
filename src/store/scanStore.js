@@ -33,6 +33,7 @@ export function parseApiResult(apiResult) {
 
     return {
       sessionId: apiResult.session_id,
+      is_mock: Boolean(apiResult.is_mock ?? apiResult._raw?.is_mock ?? false),
       moisture: moistureVal,
       oil: oilVal,
       elasticity: elasticityVal,
@@ -91,6 +92,7 @@ export function parseApiResult(apiResult) {
     skinType: apiResult.predictions?.classification?.skin_type || apiResult.skinType || '복합성 피부',
     date: fallbackDate,
     area: apiResult.meta?.region || apiResult.area || '얼굴 전체',
+    is_mock: Boolean(apiResult.is_mock ?? apiResult._raw?.is_mock ?? false),
     narrative: n,
     recommendedProducts: apiResult.recommended_products || [],
     white_image_url: apiResult.white_image_url || apiResult.image_url || '/assets/demo_white_light.jpg',
@@ -143,7 +145,12 @@ const useScanStore = create(
 
       addScan: (apiResult) => {
         const parsed = parseApiResult(apiResult);
-        const newScan = { ...parsed, id: Date.now(), createdAt: new Date().toISOString() };
+        const newScan = {
+          ...parsed,
+          is_mock: Boolean(apiResult?.is_mock ?? parsed.is_mock ?? false),
+          id: Date.now(),
+          createdAt: new Date().toISOString(),
+        };
         set((state) => ({
           scans: [newScan, ...state.scans],
           currentScan: newScan,

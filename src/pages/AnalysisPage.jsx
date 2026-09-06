@@ -706,12 +706,25 @@ const AnalysisPage = () => {
         <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-24 desktop:pb-8 animate-fadeIn">
           <div className="max-w-6xl mx-auto">
             {/* ── 상단 요약 배너 ── */}
-            <div className="flex flex-col tablet:flex-row items-center gap-5 mb-5 bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+            <div className="relative flex flex-col tablet:flex-row items-center gap-5 mb-5 bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+              {/* 데모 배지 (결과 카드 상단: 정직성 필수 표기 및 눈에 띄지 않게 은은한 그레이 톤) */}
+              {(analysis?.is_mock || analysis?._raw?.is_mock) && (
+                <div className="absolute top-3 right-4 flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-gray-50 border border-gray-200/60 text-[10px] text-gray-400 font-normal tracking-tight select-none">
+                  <span className="w-1 h-1 rounded-full bg-gray-300 shrink-0" />
+                  <span>데모 · 예시 데이터</span>
+                </div>
+              )}
+
               <div className="bg-primary-50 border border-primary-100 rounded-2xl p-5 flex flex-col items-center flex-shrink-0">
                 <ScoreCircle score={overallScore} />
                 <span className="mt-2 inline-block bg-primary-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-sm">
                   {analysis.skinType || '복합성 피부'}
                 </span>
+                {(analysis?.is_mock || analysis?._raw?.is_mock) && (
+                  <span className="mt-1 text-[9px] text-gray-400 font-normal select-none">
+                    데모 · 예시 데이터
+                  </span>
+                )}
               </div>
 
               <div className="flex flex-wrap gap-3 justify-center tablet:justify-start flex-1 w-full">

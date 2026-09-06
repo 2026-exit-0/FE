@@ -7,6 +7,7 @@ import BottomNav from '../components/common/BottomNav';
 import Button from '../components/common/Button';
 import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
+import { useModeStore } from '../store/modeStore';
 import { getScannerHealth, measureWithScanner } from '../api/scan';
 import { SCAN_AREAS, MEASUREMENT_ITEMS } from '../utils/constants';
 
@@ -25,6 +26,7 @@ const ScanPage = () => {
   const navigate = useNavigate();
   useAuth(true);
   const { addScan, initializeIfNeeded, userInputs } = useScanStore();
+  const { mode, setMode } = useModeStore();
 
   const [scanStatus, setScanStatus] = useState('ready');
   const [scanErrorMsg, setScanErrorMsg] = useState('');
@@ -171,6 +173,13 @@ const ScanPage = () => {
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full border border-primary-100">
                       {selectedArea}
+                    </span>
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
+                      mode === 'mock'
+                        ? 'bg-purple-50 text-purple-600 border-purple-200/70'
+                        : 'bg-emerald-50 text-emerald-600 border-emerald-200/70'
+                    }`}>
+                      {mode === 'mock' ? '목업' : '실제 AI'}
                     </span>
                     <span className="text-xs text-text-secondary">UV 모드</span>
                   </div>
@@ -341,6 +350,51 @@ const ScanPage = () => {
             <div className="desktop:col-span-5 space-y-6">
               <div className="card">
                 <h3 className="text-sm font-semibold text-text-primary mb-4">스캔 설정</h3>
+
+                {/* AI 분석 모드 토글 */}
+                <div className="mb-5 pb-4 border-b border-gray-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-text-primary">AI 분석 모드</p>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                      mode === 'mock'
+                        ? 'bg-purple-50 text-purple-600 border-purple-200/60'
+                        : 'bg-emerald-50 text-emerald-600 border-emerald-200/60'
+                    }`}>
+                      {mode === 'mock' ? '시연용 목업 활성' : '실시간 AI 연동'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 bg-gray-100 p-1 rounded-xl">
+                    <button
+                      type="button"
+                      disabled={scanStatus === 'scanning' || scanStatus === 'countdown'}
+                      onClick={() => setMode('mock')}
+                      className={`py-2 px-3 rounded-lg text-xs font-bold transition-all disabled:opacity-50 ${
+                        mode === 'mock'
+                          ? 'bg-white text-primary-600 shadow-xs'
+                          : 'text-text-secondary hover:text-text-primary'
+                      }`}
+                    >
+                      목업 (시연용)
+                    </button>
+                    <button
+                      type="button"
+                      disabled={scanStatus === 'scanning' || scanStatus === 'countdown'}
+                      onClick={() => setMode('real')}
+                      className={`py-2 px-3 rounded-lg text-xs font-bold transition-all disabled:opacity-50 ${
+                        mode === 'real'
+                          ? 'bg-primary-500 text-white shadow-xs'
+                          : 'text-text-secondary hover:text-text-primary'
+                      }`}
+                    >
+                      실제 AI
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-text-secondary mt-1.5">
+                    {mode === 'mock'
+                      ? '⚡ 끊김 없는 시연 촬영을 위한 사전 큐레이션 데이터 모드입니다.'
+                      : '🔬 ESP32 스캐너 및 백엔드 AI 모델을 호출하여 실시간 분석합니다.'}
+                  </p>
+                </div>
 
                 <div className="mb-5">
                   <div className="flex items-center justify-between mb-2.5">

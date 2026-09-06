@@ -1,5 +1,6 @@
 import client, { isMock } from './client';
 import { mockAnalysis, mockScanHistory } from '../utils/mockData';
+import { getAiMode } from '../store/modeStore';
 
 // ── 신규 BE 스캔 세션 생성 (POST /scans) ────────────────────
 export async function createScanSession(data = {}) {
@@ -47,39 +48,96 @@ export async function getScannerHealth() {
 
 // ── ESP32-CAM 스캐너 측정 ─────────────────────────────────
 export async function measureWithScanner(formData) {
-  const isDemo = localStorage.getItem('damda_token') === 'demo_access_token';
-  if (isMock || isDemo) {
-    await delay(1500);
-    return buildMockResult(formData?.get?.('region') || '얼굴 전체');
+  const mode = getAiMode();
+  const isDemo = mode === 'mock';
+  const region = formData?.get?.('region') || '얼굴 전체';
+
+  // 1. 세션 생성
+  let sessionId = null;
+  try {
+    const session = await createScanSession({
+      scan_area: region,
+      uv_mode: true,
+      moisture_on: true,
+      pore_on: true,
+      melanin_on: true,
+      elasticity_on: true,
+    });
+    sessionId = session?.session_id;
+  } catch (sessErr) {
+    console.warn('[measureWithScanner] 세션 생성 실패:', sessErr);
+    if (isDemo) {
+      await delay(1200);
+      return buildMockResult(region);
+    }
+    throw sessErr;
   }
 
+  // 2. 분석 호출 (POST /scans/{session_id}/analyze-scan?demo=true|false)
   try {
-    const { session_id } = await createScanSession();
-    const result = await analyzeScanMock(session_id);
-    return { ...result, session_id };
+    const res = await client.post(`/scans/${sessionId}/analyze-scan?demo=${isDemo}`);
+    const data = res.data || {};
+    return {
+      ...data,
+      session_id: sessionId,
+      is_mock: data.is_mock !== undefined ? Boolean(data.is_mock) : isDemo,
+    };
   } catch (err) {
+    console.warn('[measureWithScanner] analyze-scan 호출 실패:', err);
+
+    // 목업(데모) 모드일 때 Fallback: analyze-mock 시도 또는 buildMockResult
     if (isDemo) {
-      return buildMockResult(formData?.get?.('region') || '얼굴 전체');
+      try {
+        const fallbackRes = await client.post(`/scans/${sessionId}/analyze-mock`);
+        return {
+          ...fallbackRes.data,
+          session_id: sessionId,
+          is_mock: true,
+        };
+      } catch {
+        return buildMockResult(region);
+      }
     }
+
+    // 실제 AI 모드: 스캐너/AI 미연결 시 503 등 그대로 throw
     throw err;
   }
 }
 
 // ── 사진 업로드 분석 ─────────────────────────────────────
 export async function measureWithPhoto(formData) {
-  const isDemo = localStorage.getItem('damda_token') === 'demo_access_token';
-  if (isMock || isDemo) {
-    await delay(1500);
-    return buildMockResult(formData?.get?.('region') || '얼굴 전체');
+  const mode = getAiMode();
+  const isDemo = mode === 'mock';
+  const region = formData?.get?.('region') || '얼굴 전체';
+
+  let sessionId = null;
+  try {
+    const session = await createScanSession({ scan_area: region });
+    sessionId = session?.session_id;
+  } catch (sessErr) {
+    if (isDemo) {
+      await delay(1200);
+      return buildMockResult(region);
+    }
+    throw sessErr;
   }
 
   try {
-    const { session_id } = await createScanSession();
-    const result = await analyzeScanMock(session_id);
-    return { ...result, session_id };
+    const uploadData = formData instanceof FormData ? formData : new FormData();
+    uploadData.set('demo', isDemo ? 'true' : 'false');
+
+    const res = await client.post(`/scans/${sessionId}/analyze`, uploadData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    const data = res.data || {};
+    return {
+      ...data,
+      session_id: sessionId,
+      is_mock: data.is_mock !== undefined ? Boolean(data.is_mock) : isDemo,
+    };
   } catch (err) {
     if (isDemo) {
-      return buildMockResult(formData?.get?.('region') || '얼굴 전체');
+      return buildMockResult(region);
     }
     throw err;
   }
@@ -174,6 +232,7 @@ function buildMockResult(region) {
     skinType: '복합성 피부',
     date: new Date().toISOString().split('T')[0].replace(/-/g, '.'),
     area: region,
+    is_mock: true,
   };
 }
 
