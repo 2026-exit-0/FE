@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Scan, BarChart3, Sparkles, ShoppingBag, Download, Check, AlertCircle, FileText, ArrowRight,
-  Users, TrendingUp, Star, Package, Camera, Eye, EyeOff, Layers, Sun, Moon
+  Users, TrendingUp, Star, Package, Camera, Eye, EyeOff, Sun, Moon
 } from 'lucide-react';
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
@@ -84,8 +84,6 @@ const ScoreCircle = ({ score }) => {
 
 // ─── 듀얼 라이트(일반광 vs UV 395nm) 촬영 비교 뷰 ───
 const DualLightViewer = ({ analysis }) => {
-  const [showOverlay, setShowOverlay] = useState(true);
-
   // 백엔드 실제 사진 URL 또는 데모 기본 사진
   const whiteImg = analysis?.white_image_url || analysis?.image_url || '/assets/demo_white_light.jpg';
   const uvImg = analysis?.uv_image_url || '/assets/demo_uv_light.jpg';
@@ -109,20 +107,6 @@ const DualLightViewer = ({ analysis }) => {
             동일 측정 부위의 표면 반사광(White 5500K)과 395nm 형광 반응(UV)을 교차 분석합니다.
           </p>
         </div>
-
-        {/* AI 오버레이 감지 마커 토글 */}
-        <button
-          type="button"
-          onClick={() => setShowOverlay(!showOverlay)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
-            showOverlay
-              ? 'bg-primary-50 border-primary-200 text-primary-700'
-              : 'bg-gray-50 border-gray-200 text-text-secondary hover:bg-gray-100'
-          }`}
-        >
-          <Layers size={13} />
-          <span>AI 감지 마커 {showOverlay ? 'ON' : 'OFF'}</span>
-        </button>
       </div>
 
       {/* 2열 비교 카드 */}
@@ -146,30 +130,6 @@ const DualLightViewer = ({ analysis }) => {
                 <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#a36846_1px,transparent_1px)] [background-size:8px_8px]" />
                 <div className="w-32 h-32 rounded-full border-2 border-amber-400/40 border-dashed flex items-center justify-center">
                   <div className="w-20 h-20 rounded-full border border-amber-500/30" />
-                </div>
-              </div>
-            )}
-
-            {/* AI 분석 감지 포인트 오버레이 (White Light) */}
-            {showOverlay && (
-              <div className="absolute inset-0 pointer-events-none p-4">
-                <div className="absolute top-[32%] left-[42%] flex items-center gap-1">
-                  <span className="w-3 h-3 rounded-full border-2 border-emerald-500 bg-emerald-400/40 animate-ping" />
-                  <span className="text-[9px] bg-black/75 text-emerald-300 font-bold px-1.5 py-0.5 rounded backdrop-blur-sm">
-                    모공 정상 (양호)
-                  </span>
-                </div>
-                <div className="absolute bottom-[28%] right-[22%] flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 rounded-full border-2 border-green-500 bg-green-400/40" />
-                  <span className="text-[9px] bg-black/75 text-green-300 font-bold px-1.5 py-0.5 rounded backdrop-blur-sm">
-                    피부결 균일
-                  </span>
-                </div>
-                <div className="absolute top-[22%] right-[28%] flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full border-2 border-amber-500 bg-amber-400/40" />
-                  <span className="text-[9px] bg-black/75 text-amber-300 font-bold px-1.5 py-0.5 rounded backdrop-blur-sm">
-                    미세 요철 구역
-                  </span>
                 </div>
               </div>
             )}
@@ -210,30 +170,6 @@ const DualLightViewer = ({ analysis }) => {
 
                 <div className="w-32 h-32 rounded-full border-2 border-purple-500/30 border-dashed flex items-center justify-center">
                   <div className="w-20 h-20 rounded-full border border-purple-400/20" />
-                </div>
-              </div>
-            )}
-
-            {/* AI 분석 감지 포인트 오버레이 (UV Light) */}
-            {showOverlay && (
-              <div className="absolute inset-0 pointer-events-none p-4">
-                <div className="absolute top-[34%] left-[36%] flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 rounded-full border border-orange-400 bg-orange-500 shadow-[0_0_8px_#f97316]" />
-                  <span className="text-[9px] bg-black/85 text-orange-400 font-bold px-1.5 py-0.5 rounded border border-orange-500/40 backdrop-blur-sm">
-                    피지선 형광 (32%)
-                  </span>
-                </div>
-                <div className="absolute top-[24%] right-[22%] flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 rounded-full border border-purple-400 bg-purple-600 shadow-[0_0_8px_#a855f7]" />
-                  <span className="text-[9px] bg-black/85 text-purple-300 font-bold px-1.5 py-0.5 rounded border border-purple-500/40 backdrop-blur-sm">
-                    잠재 색소 침착
-                  </span>
-                </div>
-                <div className="absolute bottom-[24%] left-[28%] flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full border border-cyan-400 bg-cyan-400 shadow-[0_0_6px_#22d3ee]" />
-                  <span className="text-[9px] bg-black/85 text-cyan-300 font-bold px-1.5 py-0.5 rounded border border-cyan-500/40 backdrop-blur-sm">
-                    미세 각질 반응
-                  </span>
                 </div>
               </div>
             )}
