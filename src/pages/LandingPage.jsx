@@ -71,14 +71,9 @@ const LandingPage = () => {
       {/* ── 상단 네비게이션 ── */}
       <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5">
-            <span className="w-8 h-8 rounded-xl bg-gradient-to-tr from-primary-600 to-emerald-400 flex items-center justify-center text-white font-black text-base shadow-sm">
-              담
-            </span>
-            <div className="flex flex-col">
-              <span className="text-base font-extrabold text-text-primary tracking-tight leading-none">담다</span>
-              <span className="text-[10px] text-text-secondary font-medium tracking-wider uppercase">DAMDA SkinLab</span>
-            </div>
+          <Link to="/" className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-primary-500"></span>
+            <span className="text-xl font-bold text-text-primary">담다</span>
           </Link>
 
           <nav className="hidden tablet:flex items-center gap-8 text-xs font-semibold text-text-secondary">
@@ -113,14 +108,14 @@ const LandingPage = () => {
           <div className="grid grid-cols-1 desktop:grid-cols-12 gap-10 items-center">
             {/* 좌측: 타이포그래피 & 핵심 가치 */}
             <div className="desktop:col-span-6 space-y-6 text-center desktop:text-left">
-              <h1 className="text-3xl sm:text-4xl tablet:text-5xl font-black text-text-primary tracking-tight leading-[1.2]">
+              <h1 className="text-3xl sm:text-4xl tablet:text-5xl font-black text-text-primary tracking-normal leading-[1.35] tablet:leading-[1.45]">
                 내 피부를 정확하게<br />
-                <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                <span className="inline-block mt-2.5 sm:mt-3 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                   분석하고 관리하세요
                 </span>
               </h1>
 
-              <p className="text-sm tablet:text-base text-text-secondary leading-relaxed max-w-xl mx-auto desktop:mx-0 font-normal">
+              <p className="text-sm tablet:text-base text-text-secondary leading-relaxed max-w-xl mx-auto desktop:mx-0 font-normal pt-1">
                 IoT 스캐너와 AI 딥러닝 분석으로<br />
                 수분·유분·모공·색소침착을 정밀하게 측정하고<br />
                 나만의 스킨케어 루틴을 제안받으세요.
