@@ -42,6 +42,10 @@ const ScanPage = () => {
 
   const isSubmittingRef = useRef(false);
 
+  const isDemo = mode === 'mock';
+  const displayScannerStatus = isDemo ? 'ok' : scannerStatus;
+  const displayScannerMsg = isDemo ? '스캐너 연결됨 (상태: 대기 중)' : scannerMsg;
+
   useEffect(() => { initializeIfNeeded(); }, [initializeIfNeeded]);
 
   // 스캐너 상태 확인
@@ -63,7 +67,7 @@ const ScanPage = () => {
       }
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [mode]);
 
   const toggleMeasurement = (id) => setMeasurements((prev) => ({ ...prev, [id]: !prev[id] }));
 
@@ -164,11 +168,11 @@ const ScanPage = () => {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full transition-colors ${
-                      scannerStatus === 'ok' ? 'bg-green-500' :
-                      scannerStatus === 'checking' ? 'bg-yellow-400 animate-pulse' :
+                      displayScannerStatus === 'ok' ? 'bg-green-500' :
+                      displayScannerStatus === 'checking' ? 'bg-yellow-400 animate-pulse' :
                       'bg-orange-400'
                     }`} />
-                    <span className="text-sm text-text-secondary">{scannerMsg}</span>
+                    <span className="text-sm text-text-secondary">{displayScannerMsg}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full border border-primary-100">
@@ -464,22 +468,22 @@ const ScanPage = () => {
               <div className="card">
                 <h3 className="text-sm font-semibold text-text-primary mb-3">스캐너 연결</h3>
                 <div className={`rounded-xl p-4 flex items-center gap-3 ${
-                  scannerStatus === 'ok' ? 'bg-primary-50' : 'bg-orange-50'
+                  displayScannerStatus === 'ok' ? 'bg-primary-50' : 'bg-orange-50'
                 }`}>
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    scannerStatus === 'ok' ? 'bg-primary-100' : 'bg-orange-100'
+                    displayScannerStatus === 'ok' ? 'bg-primary-100' : 'bg-orange-100'
                   }`}>
-                    {scannerStatus === 'ok'
+                    {displayScannerStatus === 'ok'
                       ? <Wifi size={18} className="text-primary-500" />
                       : <WifiOff size={18} className="text-orange-500" />
                     }
                   </div>
                   <div>
-                    <p className={`text-sm font-medium ${scannerStatus === 'ok' ? 'text-primary-700' : 'text-orange-700'}`}>
-                      {scannerStatus === 'ok' ? '스캐너 연결됨' : '스캐너 미연결'}
+                    <p className={`text-sm font-medium ${displayScannerStatus === 'ok' ? 'text-primary-700' : 'text-orange-700'}`}>
+                      {displayScannerStatus === 'ok' ? '스캐너 연결됨' : '스캐너 미연결'}
                     </p>
-                    <p className={`text-xs ${scannerStatus === 'ok' ? 'text-primary-500' : 'text-orange-500'}`}>
-                      {scannerMsg}
+                    <p className={`text-xs ${displayScannerStatus === 'ok' ? 'text-primary-500' : 'text-orange-500'}`}>
+                      {displayScannerMsg}
                     </p>
                   </div>
                 </div>

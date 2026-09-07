@@ -38,12 +38,22 @@ export async function analyzeScanMock(sessionId) {
 
 // ── 스캐너 상태 확인 ─────────────────────────────────────
 export async function getScannerHealth() {
-  if (isMock) {
-    await delay(400);
-    return { status: 'unreachable', message: '개발 모드 — 스캐너 미연결' };
+  const mode = getAiMode();
+  if (mode === 'mock') {
+    await delay(150);
+    return {
+      status: 'ok',
+      message: '스캐너 연결됨 (상태: 대기 중)',
+      esp32_data: { state: '대기 중' },
+    };
   }
 
-  return { status: 'unreachable', message: '스캐너 미연결' };
+  try {
+    const res = await client.get('/scanner/health');
+    return res.data;
+  } catch {
+    return { status: 'unreachable', message: '스캐너 미연결 — Wi-Fi 확인' };
+  }
 }
 
 // ── ESP32-CAM 스캐너 측정 ─────────────────────────────────
