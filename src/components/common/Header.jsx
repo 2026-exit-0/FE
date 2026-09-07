@@ -99,7 +99,7 @@ const Header = ({ variant = 'landing' }) => {
                     : 'text-gray-400 hover:text-gray-600'
                 }`}
               >
-                목업
+                시연용
               </button>
               <button
                 type="button"
@@ -156,7 +156,7 @@ const Header = ({ variant = 'landing' }) => {
                     : 'text-gray-400'
                 }`}
               >
-                목업
+                시연용
               </button>
               <button
                 type="button"

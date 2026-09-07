@@ -183,7 +183,7 @@ const ScanPage = () => {
                         ? 'bg-purple-50 text-purple-600 border-purple-200/70'
                         : 'bg-emerald-50 text-emerald-600 border-emerald-200/70'
                     }`}>
-                      {mode === 'mock' ? '목업' : '실제 AI'}
+                      {mode === 'mock' ? '시연용' : '실제 AI'}
                     </span>
                     <span className="text-xs text-text-secondary">UV 모드</span>
                   </div>
@@ -364,7 +364,7 @@ const ScanPage = () => {
                         ? 'bg-purple-50 text-purple-600 border-purple-200/60'
                         : 'bg-emerald-50 text-emerald-600 border-emerald-200/60'
                     }`}>
-                      {mode === 'mock' ? '시연용 목업 활성' : '실시간 AI 연동'}
+                      {mode === 'mock' ? '시연 모드 활성' : '실시간 AI 연동'}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 bg-gray-100 p-1 rounded-xl">
@@ -378,7 +378,7 @@ const ScanPage = () => {
                           : 'text-text-secondary hover:text-text-primary'
                       }`}
                     >
-                      목업 (시연용)
+                      시연용
                     </button>
                     <button
                       type="button"
