@@ -25,6 +25,13 @@ export async function createScanSession(data = {}) {
   return res.data; // { session_id }
 }
 
+// ── 하드웨어 스캔 트리거 및 상태 확인 (HW 버튼 / 프론트 버튼 연동) ────
+export const triggerScan = (deviceId = 'ESP32_1') =>
+  client.post('/scans/trigger', { status: 'scanning', device_id: deviceId }).then((r) => r.data);
+
+export const getScanStatus = () =>
+  client.get('/scans/status').then((r) => r.data);
+
 // ── 신규 BE 스캔 분석 (POST /scans/{id}/analyze-mock) ────────
 export async function analyzeScanMock(sessionId) {
   if (isMock) {

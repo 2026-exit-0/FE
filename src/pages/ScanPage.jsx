@@ -8,7 +8,7 @@ import Button from '../components/common/Button';
 import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
 import { useModeStore } from '../store/modeStore';
-import { getScannerHealth, measureWithScanner } from '../api/scan';
+import { getScannerHealth, measureWithScanner, triggerScan, getScanStatus } from '../api/scan';
 import { SCAN_AREAS, MEASUREMENT_ITEMS } from '../utils/constants';
 
 const REGION_MAP = {
@@ -159,10 +159,28 @@ const ScanPage = () => {
   const startScan = useCallback(() => {
     if (scanStatus === 'scanning' || scanStatus === 'countdown' || isSubmittingRef.current) return;
     isSubmittingRef.current = false;
+    if (!isDemo) {
+      triggerScan().catch(() => {});
+    }
     setScanStatus('countdown');
     setCountdown(3);
     setScanProgress(0);
-  }, [scanStatus]);
+  }, [scanStatus, isDemo]);
+
+  // 하드웨어 버튼 감지용 폴링 (2초마다 상태 확인)
+  useEffect(() => {
+    if (scanStatus !== 'ready' || isDemo) return;
+    const poll = setInterval(async () => {
+      try {
+        const data = await getScanStatus();
+        if (data?.status === 'scanning') {
+          setScanStatus('scanning');
+          setScanProgress(0);
+        }
+      } catch (_) {}
+    }, 2000);
+    return () => clearInterval(poll);
+  }, [scanStatus, isDemo]);
 
   const checklist = [
     { icon: CheckCircle, text: '밝은 환경에서 측정하세요', type: 'ok' },
