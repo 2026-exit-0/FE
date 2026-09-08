@@ -1,4 +1,5 @@
 # Netlify Backend SSL Proxy (HTTPS -> HTTP Mixed Content 우회)
+/devices     http://52.79.241.24:8001/devices          200
 /auth/*      http://52.79.241.24:8000/auth/:splat      200
 /weather     http://52.79.241.24:8000/weather          200
 /scans/*     http://52.79.241.24:8000/scans/:splat     200

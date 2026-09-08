@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Scan as ScanIcon, CheckCircle, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
+import { Scan as ScanIcon, CheckCircle, AlertTriangle, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import Header from '../components/common/Header';
 import Sidebar from '../components/common/Sidebar';
 import BottomNav from '../components/common/BottomNav';
@@ -10,9 +10,6 @@ import useScanStore from '../store/scanStore';
 import { useModeStore } from '../store/modeStore';
 import { getScannerHealth, measureWithScanner } from '../api/scan';
 import { SCAN_AREAS, MEASUREMENT_ITEMS } from '../utils/constants';
-
-// 하드웨어 실시간 스트림 엔드포인트 (하드웨어 팀에서 URL 확정 시 여기에 입력하거나 .env의 VITE_SCANNER_STREAM_URL 사용)
-const SCANNER_STREAM_URL = import.meta.env.VITE_SCANNER_STREAM_URL || '';
 
 const REGION_MAP = {
   '이마': 'FOREHEAD',
@@ -35,6 +32,8 @@ const ScanPage = () => {
   const [selectedArea, setSelectedArea] = useState('이마');
   const [scannerStatus, setScannerStatus] = useState('checking');
   const [scannerMsg, setScannerMsg] = useState('스캐너 상태 확인 중...');
+  const [streamUrl, setStreamUrl] = useState(import.meta.env.VITE_SCANNER_STREAM_URL || '');
+  const [detectedIp, setDetectedIp] = useState(null);
   const [isStreamLoaded, setIsStreamLoaded] = useState(false);
   const [measurements, setMeasurements] = useState(
     MEASUREMENT_ITEMS.reduce((acc, item) => ({ ...acc, [item.id]: item.default }), {})
@@ -48,26 +47,47 @@ const ScanPage = () => {
 
   useEffect(() => { initializeIfNeeded(); }, [initializeIfNeeded]);
 
-  // 스캐너 상태 확인
-  useEffect(() => {
-    let cancelled = false;
-    getScannerHealth().then((data) => {
-      if (cancelled) return;
+  // 스캐너 상태 및 ESP32 스트리밍 URL 확인
+  const checkScanner = useCallback(async () => {
+    if (mode === 'mock') {
+      setScannerStatus('ok');
+      setScannerMsg('스캐너 연결됨 (상태: 대기 중)');
+      return;
+    }
+
+    setScannerStatus('checking');
+    setScannerMsg('스캐너 상태 확인 중...');
+    try {
+      const data = await getScannerHealth();
       if (data.status === 'ok') {
         setScannerStatus('ok');
-        setScannerMsg(`스캐너 연결됨 (상태: ${data.esp32_data?.state || '대기 중'})`);
+        setScannerMsg(data.message || '스캐너 연결됨');
+        if (data.streamUrl) {
+          setStreamUrl(data.streamUrl);
+          setDetectedIp(data.ip || null);
+        }
       } else {
         setScannerStatus('unreachable');
         setScannerMsg(data.message || '스캐너 미연결 — Wi-Fi 확인');
+        if (!import.meta.env.VITE_SCANNER_STREAM_URL) {
+          setStreamUrl('');
+          setDetectedIp(null);
+        }
       }
-    }).catch(() => {
-      if (!cancelled) {
-        setScannerStatus('unreachable');
-        setScannerMsg('서버 응답 없음');
-      }
-    });
-    return () => { cancelled = true; };
+    } catch {
+      setScannerStatus('unreachable');
+      setScannerMsg('서버 응답 없음');
+    }
   }, [mode]);
+
+  useEffect(() => {
+    checkScanner();
+    // 실제 AI 모드일 때 10초마다 기기 등록 상태 확인
+    if (mode !== 'mock') {
+      const timer = setInterval(checkScanner, 10000);
+      return () => clearInterval(timer);
+    }
+  }, [checkScanner, mode]);
 
   const toggleMeasurement = (id) => setMeasurements((prev) => ({ ...prev, [id]: !prev[id] }));
 
@@ -173,6 +193,16 @@ const ScanPage = () => {
                       'bg-orange-400'
                     }`} />
                     <span className="text-sm text-text-secondary">{displayScannerMsg}</span>
+                    {mode !== 'mock' && (
+                      <button
+                        type="button"
+                        onClick={checkScanner}
+                        title="기기 재검색"
+                        className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                      >
+                        <RefreshCw size={13} className={scannerStatus === 'checking' ? 'animate-spin' : ''} />
+                      </button>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full border border-primary-100">
@@ -192,9 +222,9 @@ const ScanPage = () => {
                 {/* 카메라 / 얼굴 가이드 */}
                 <div className="bg-gray-900 rounded-2xl aspect-[4/3] relative flex items-center justify-center mb-4 overflow-hidden shadow-inner">
                   {/* 하드웨어 실시간 MJPEG 스트림 (URL이 있고 연결 성공 시 표시) */}
-                  {SCANNER_STREAM_URL && (
+                  {streamUrl && (
                     <img
-                      src={SCANNER_STREAM_URL}
+                      src={streamUrl}
                       alt="실시간 스캐너 화면"
                       className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
                         isStreamLoaded ? 'opacity-100' : 'opacity-0 pointer-events-none'
@@ -209,7 +239,15 @@ const ScanPage = () => {
                     <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2.5 py-1 bg-black/60 backdrop-blur-sm rounded-full text-[11px] text-white font-medium border border-white/10">
                       <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
                       <span className="text-red-400 font-bold">LIVE</span>
-                      <span className="text-gray-300">스캐너 화면</span>
+                      <span className="text-gray-300">ESP32 스캐너 {detectedIp ? `(${detectedIp})` : ''}</span>
+                    </div>
+                  )}
+
+                  {/* 동일 WiFi 연결 가이드 (IP가 확인되었으나 스트림 로딩 전일 때) */}
+                  {!isStreamLoaded && streamUrl && mode !== 'mock' && (
+                    <div className="absolute bottom-3 inset-x-3 z-10 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-black/70 backdrop-blur-sm rounded-xl text-[11px] text-gray-300 border border-white/10 text-center">
+                      <Wifi size={13} className="text-emerald-400 shrink-0" />
+                      <span>ESP32와 동일한 Wi-Fi에 접속되어 있으면 실시간 스트리밍이 연결됩니다.</span>
                     </div>
                   )}
 

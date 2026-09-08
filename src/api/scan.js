@@ -36,6 +36,40 @@ export async function analyzeScanMock(sessionId) {
   return res.data; // { session_id, status, total_score, result: {...}, advice: {...} }
 }
 
+// ── ESP32 기기 목록 및 스트리밍 URL 조회 (EC2 포트 8001 /devices) ───
+export async function getEsp32Devices() {
+  const url = import.meta.env.PROD
+    ? '/devices'
+    : (import.meta.env.VITE_DEVICE_REGISTRY_URL || '/devices');
+
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    if (!import.meta.env.PROD) {
+      try {
+        const directRes = await fetch('http://52.79.241.24:8001/devices', { signal: AbortSignal.timeout(3000) });
+        if (directRes.ok) return await directRes.json();
+      } catch {
+        // ignore
+      }
+    }
+    console.warn('[getEsp32Devices] 기기 조회 실패:', err);
+    return {};
+  }
+}
+
+export async function getEsp32StreamInfo(deviceId = 'ESP32_1') {
+  const devices = await getEsp32Devices();
+  const ip = devices?.[deviceId] || Object.values(devices || {})[0] || null;
+  return {
+    ip,
+    streamUrl: ip ? `http://${ip}/stream` : null,
+    devices: devices || {},
+  };
+}
+
 // ── 스캐너 상태 확인 ─────────────────────────────────────
 export async function getScannerHealth() {
   const mode = getAiMode();
@@ -45,14 +79,38 @@ export async function getScannerHealth() {
       status: 'ok',
       message: '스캐너 연결됨 (상태: 대기 중)',
       esp32_data: { state: '대기 중' },
+      streamUrl: null,
+      ip: null,
     };
   }
 
+  // 1. EC2 포트 8001 /devices 에서 ESP32 등록 여부 확인
+  try {
+    const { ip, streamUrl } = await getEsp32StreamInfo();
+    if (ip) {
+      return {
+        status: 'ok',
+        message: `스캐너 연결됨 (IP: ${ip})`,
+        ip,
+        streamUrl,
+        esp32_data: { state: '대기 중', ip },
+      };
+    }
+  } catch {
+    // continue
+  }
+
+  // 2. 백엔드 /scanner/health 폴백 시도
   try {
     const res = await client.get('/scanner/health');
     return res.data;
   } catch {
-    return { status: 'unreachable', message: '스캐너 미연결 — Wi-Fi 확인' };
+    return {
+      status: 'unreachable',
+      message: '스캐너 미연결 — ESP32 Wi-Fi 확인',
+      ip: null,
+      streamUrl: null,
+    };
   }
 }
 

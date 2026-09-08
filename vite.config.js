@@ -7,6 +7,10 @@ export default defineConfig({
     port: 3000,
     open: true,
     proxy: {
+      '/devices': {
+        target: 'http://52.79.241.24:8001',
+        changeOrigin: true,
+      },
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
