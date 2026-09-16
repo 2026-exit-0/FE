@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getScanHistory } from '../api/scan';
+import { mockDemoScanHistory } from '../utils/mockData';
+import { getAiMode } from '../store/modeStore';
 
 // 백엔드 narrative / result 응답을 flat 구조로 변환 (차트/UI 호환)
 export function parseApiResult(apiResult) {
@@ -139,6 +141,19 @@ const useScanStore = create(
 
       initializeIfNeeded: async () => {
         const state = get();
+        const mode = getAiMode();
+        // 시연용(mock) 모드일 때 스캔 기록이 2건 미만이면 풍성한 목업 히스토리를 채워줌
+        if (mode === 'mock' && state.scans.length < 2) {
+          const parsedMocks = mockDemoScanHistory.map((s) => parseApiResult(s));
+          const userScans = state.scans.filter((s) => !String(s.id).startsWith('10'));
+          const combined = [...userScans, ...parsedMocks];
+          set({
+            scans: combined,
+            currentScan: state.currentScan || combined[0],
+          });
+          return combined;
+        }
+
         if (state.currentScan || state.scans.length > 0) return;
         return get().fetchHistory();
       },

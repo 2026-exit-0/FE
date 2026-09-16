@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, User, Lock, Save, ChevronRight, Bell, Heart, RotateCcw, Scan, BarChart3, TrendingUp } from 'lucide-react';
+import { Camera, User, Lock, Save, Heart, RotateCcw, Scan, BarChart3, TrendingUp } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import useScanStore from '../store/scanStore';
 import Header from '../components/common/Header';
@@ -22,12 +22,16 @@ const MyPage = () => {
   const [undoBackup, setUndoBackup] = useState(null);
   const [showUndoSnackbar, setShowUndoSnackbar] = useState(false);
 
-  // BE MypageOut: { nickname, notify_analysis, notify_recommend }
+  // 닉네임 상태
   const [profileData, setProfileData] = useState({
     nickname: user?.nickname || '',
-    notify_analysis: user?.notify_analysis ?? true,
-    notify_recommend: user?.notify_recommend ?? true,
   });
+
+  useEffect(() => {
+    if (user?.nickname) {
+      setProfileData({ nickname: user.nickname });
+    }
+  }, [user?.nickname]);
 
   // 피부 설문 (SurveyIn/Out)
   const [surveyData, setSurveyData] = useState({
@@ -104,16 +108,49 @@ const MyPage = () => {
   };
 
   const handleSaveProfile = async () => {
-    // BE PATCH /mypage: nickname, notify_analysis, notify_recommend 만 전송
-    const result = await updateUser({
+    let hasError = false;
+
+    // 1. 비밀번호 입력 시 유효성 검사 및 변경
+    const isPasswordFilled = pwdData.currentPassword || pwdData.newPassword || pwdData.confirmPassword;
+    if (isPasswordFilled) {
+      if (!pwdData.currentPassword) {
+        showToast('현재 비밀번호를 입력해 주세요.');
+        return;
+      }
+      if (pwdData.newPassword !== pwdData.confirmPassword) {
+        showToast('새 비밀번호가 일치하지 않습니다.');
+        return;
+      }
+      if (pwdData.newPassword.length < 8) {
+        showToast('새 비밀번호는 8자 이상이어야 합니다.');
+        return;
+      }
+
+      const pwdRes = await changePassword(pwdData.currentPassword, pwdData.newPassword);
+      if (pwdRes.success) {
+        setPwdData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      } else {
+        showToast(pwdRes.message || '비밀번호 변경에 실패했습니다.');
+        hasError = true;
+      }
+    }
+
+    // 2. 닉네임 수정
+    const nickRes = await updateUser({
       nickname: profileData.nickname,
-      notify_analysis: profileData.notify_analysis,
-      notify_recommend: profileData.notify_recommend,
     });
-    if (result.success) {
-      showToast('내 정보가 성공적으로 수정되었습니다.');
-    } else {
-      showToast(result.message || '정보 수정에 실패했습니다.');
+
+    if (!nickRes.success) {
+      showToast(nickRes.message || '닉네임 수정에 실패했습니다.');
+      hasError = true;
+    }
+
+    if (!hasError) {
+      if (isPasswordFilled) {
+        showToast('닉네임과 비밀번호가 성공적으로 수정되었습니다.');
+      } else {
+        showToast('내 정보가 성공적으로 수정되었습니다.');
+      }
     }
   };
 
@@ -290,12 +327,6 @@ const MyPage = () => {
                 찜 목록 ({wishlist.length})
               </button>
               <button
-                className={`flex-1 py-3 px-4 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap ${activeTab === 'password' ? 'bg-primary-500 text-white' : 'text-text-secondary hover:bg-gray-50'}`}
-                onClick={() => setActiveTab('password')}
-              >
-                비밀번호 변경
-              </button>
-              <button
                 className={`flex-1 py-3 px-4 text-sm font-semibold rounded-lg transition-colors whitespace-nowrap ${activeTab === 'scans' ? 'bg-primary-500 text-white' : 'text-text-secondary hover:bg-gray-50'}`}
                 onClick={() => setActiveTab('scans')}
               >
@@ -306,50 +337,91 @@ const MyPage = () => {
             {/* Tab Content */}
             <div className="card min-h-[400px]">
               
-              {/* Profile Tab - BE MypageOut 필드만 수정 */}
+              {/* Profile Tab - 내 정보 수정 (닉네임 + 비밀번호) */}
               {activeTab === 'profile' && (
-                <div className="space-y-6 animate-fadeIn">
-                  <h3 className="text-lg font-bold text-text-primary border-b pb-4">내 계정 정보</h3>
+                <div className="space-y-6 animate-fadeIn max-w-xl">
+                  <div className="border-b pb-4">
+                    <h3 className="text-lg font-bold text-text-primary">내 계정 정보</h3>
+                    <p className="text-xs text-text-secondary mt-1">닉네임과 비밀번호를 수정할 수 있습니다.</p>
+                  </div>
 
+                  {/* 이메일 (계정 ID - 읽기 전용) */}
                   <div>
-                    <label className="block text-sm font-medium text-text-primary mb-2">닉네임</label>
+                    <label className="block text-sm font-medium text-text-primary mb-1.5">이메일 계정</label>
+                    <input
+                      type="text"
+                      value={user?.email || ''}
+                      disabled
+                      className="input-field bg-gray-50 text-gray-500 cursor-not-allowed"
+                    />
+                    <p className="text-[11px] text-text-secondary mt-1">로그인 아이디로 사용되는 이메일입니다.</p>
+                  </div>
+
+                  {/* 닉네임 */}
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary mb-1.5">닉네임</label>
                     <input
                       type="text"
                       value={profileData.nickname}
                       onChange={(e) => setProfileData(p => ({ ...p, nickname: e.target.value }))}
                       className="input-field"
+                      placeholder="닉네임을 입력해 주세요"
                     />
                   </div>
 
-                  <div className="border-t pt-4">
-                    <h4 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                      <Bell size={16} /> 알림 설정
-                    </h4>
-                    <div className="space-y-3">
-                      <label className="flex items-center justify-between cursor-pointer">
-                        <div>
-                          <p className="text-sm font-medium text-text-primary">분석 결과 알림</p>
-                          <p className="text-xs text-text-secondary">스캔 분석이 완료되면 알려드려요</p>
-                        </div>
+                  {/* 비밀번호 변경 섹션 */}
+                  <div className="border-t pt-5 space-y-4">
+                    <div>
+                      <h4 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                        <Lock size={16} className="text-primary-500" /> 비밀번호 변경
+                      </h4>
+                      <p className="text-xs text-text-secondary mt-0.5">
+                        비밀번호를 변경하려면 현재 비밀번호와 새 비밀번호를 입력해 주세요. (변경하지 않을 경우 비워두세요)
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-text-primary mb-1.5">현재 비밀번호</label>
+                      <div className="relative">
+                        <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
-                          type="checkbox"
-                          checked={profileData.notify_analysis}
-                          onChange={(e) => setProfileData(p => ({ ...p, notify_analysis: e.target.checked }))}
-                          className="w-5 h-5 text-primary-500 rounded focus:ring-primary-500"
+                          type="password"
+                          value={pwdData.currentPassword}
+                          onChange={(e) => setPwdData(p => ({ ...p, currentPassword: e.target.value }))}
+                          className="input-field pl-10"
+                          placeholder="현재 비밀번호 입력"
                         />
-                      </label>
-                      <label className="flex items-center justify-between cursor-pointer">
-                        <div>
-                          <p className="text-sm font-medium text-text-primary">제품 추천 알림</p>
-                          <p className="text-xs text-text-secondary">맞춤 화장품 추천이 있을 때 알려드려요</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 tablet:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-text-primary mb-1.5">새 비밀번호</label>
+                        <div className="relative">
+                          <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                          <input
+                            type="password"
+                            value={pwdData.newPassword}
+                            onChange={(e) => setPwdData(p => ({ ...p, newPassword: e.target.value }))}
+                            className="input-field pl-10"
+                            placeholder="새 비밀번호 (8자 이상)"
+                          />
                         </div>
-                        <input
-                          type="checkbox"
-                          checked={profileData.notify_recommend}
-                          onChange={(e) => setProfileData(p => ({ ...p, notify_recommend: e.target.checked }))}
-                          className="w-5 h-5 text-primary-500 rounded focus:ring-primary-500"
-                        />
-                      </label>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-text-primary mb-1.5">새 비밀번호 확인</label>
+                        <div className="relative">
+                          <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                          <input
+                            type="password"
+                            value={pwdData.confirmPassword}
+                            onChange={(e) => setPwdData(p => ({ ...p, confirmPassword: e.target.value }))}
+                            className="input-field pl-10"
+                            placeholder="새 비밀번호 다시 입력"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -445,61 +517,6 @@ const MyPage = () => {
                       <p className="text-sm">찜한 화장품이 없습니다.</p>
                     </div>
                   )}
-                </div>
-              )}
-
-              {/* Password Tab */}
-              {activeTab === 'password' && (
-                <div className="max-w-md space-y-5 animate-fadeIn">
-                  <h3 className="text-lg font-bold text-text-primary border-b pb-4 mb-4">비밀번호 변경</h3>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-text-primary mb-2">현재 비밀번호</label>
-                    <div className="relative">
-                      <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <input
-                        type="password"
-                        value={pwdData.currentPassword}
-                        onChange={(e) => setPwdData(p => ({ ...p, currentPassword: e.target.value }))}
-                        className="input-field pl-11"
-                        placeholder="현재 비밀번호 입력"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-text-primary mb-2">새 비밀번호</label>
-                    <div className="relative">
-                      <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <input
-                        type="password"
-                        value={pwdData.newPassword}
-                        onChange={(e) => setPwdData(p => ({ ...p, newPassword: e.target.value }))}
-                        className="input-field pl-11"
-                        placeholder="새 비밀번호 입력 (8자 이상)"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-text-primary mb-2">새 비밀번호 확인</label>
-                    <div className="relative">
-                      <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <input
-                        type="password"
-                        value={pwdData.confirmPassword}
-                        onChange={(e) => setPwdData(p => ({ ...p, confirmPassword: e.target.value }))}
-                        className="input-field pl-11"
-                        placeholder="새 비밀번호 다시 입력"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="pt-4">
-                    <Button onClick={handleSavePassword} className="w-full">
-                      비밀번호 변경하기
-                    </Button>
-                  </div>
                 </div>
               )}
 

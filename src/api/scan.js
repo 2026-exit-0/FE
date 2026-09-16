@@ -68,6 +68,13 @@ export async function getEsp32Devices() {
 }
 
 export async function getEsp32StreamInfo(deviceId = 'ESP32_1') {
+  if (import.meta.env.VITE_SCANNER_STREAM_URL) {
+    return {
+      ip: 'custom',
+      streamUrl: import.meta.env.VITE_SCANNER_STREAM_URL,
+      devices: {},
+    };
+  }
   const devices = await getEsp32Devices();
   const ip = devices?.[deviceId] || Object.values(devices || {})[0] || null;
   return {
@@ -232,20 +239,19 @@ export async function downloadReportPdf(sessionId) {
 
 // ── 측정 기록 조회 ───────────────────────────────────────
 export async function getScanHistory() {
-  if (isMock) {
-    await delay(300);
-    return mockScanHistory.map((s) => ({
-      ...mockAnalysis,
-      id: s.id,
-      date: s.date,
-      area: s.area,
-      skinType: s.type,
-      overallScore: s.score,
-    }));
+  const mode = getAiMode();
+  if (isMock || mode === 'mock') {
+    await delay(200);
+    return mockScanHistory;
   }
 
-  const res = await client.get('/history');
-  return Array.isArray(res.data) ? res.data : [];
+  try {
+    const res = await client.get('/history');
+    return Array.isArray(res.data) ? res.data : [];
+  } catch (err) {
+    console.warn('[getScanHistory] 기록 조회 실패:', err);
+    return [];
+  }
 }
 
 // ── 특정 스캔 조회 ───────────────────────────────────────

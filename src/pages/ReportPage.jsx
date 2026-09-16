@@ -13,6 +13,8 @@ import BottomNav from '../components/common/BottomNav';
 import Button from '../components/common/Button';
 import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
+import { useModeStore } from '../store/modeStore';
+import { mockDemoScanHistory } from '../utils/mockData';
 import { downloadReportPdf, getScanHistory } from '../api/scan';
 
 // ─── 기간 필터 ──────────────────────────────────────────
@@ -154,6 +156,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 const ReportPage = () => {
   const navigate = useNavigate();
   useAuth(true);
+  const { mode } = useModeStore();
   const { currentScan, scans, setCurrentScan, initializeIfNeeded } = useScanStore();
   const [period, setPeriod] = useState('month');
   const [metric, setMetric] = useState('moisture');
@@ -163,8 +166,17 @@ const ReportPage = () => {
     initializeIfNeeded();
   }, [initializeIfNeeded]);
 
-  const hasScanData = scans.length > 0 || !!currentScan;
-  const scanCount = scans.length;
+  // 시연용(mock) 모드이거나 스캔 기록이 2회 미만인 경우, 목업 히스토리를 병합하여 항상 풍성한 리포트 제공
+  const displayScans = useMemo(() => {
+    if (mode === 'mock' || scans.length < 2) {
+      const userScans = scans.filter((s) => !String(s.id).startsWith('10'));
+      return [...userScans, ...mockDemoScanHistory];
+    }
+    return scans;
+  }, [mode, scans]);
+
+  const hasScanData = displayScans.length > 0 || !!currentScan;
+  const scanCount = displayScans.length;
   const hasEnoughScans = scanCount >= 2;
 
   // 동적 차트 데이터 제네레이터
@@ -288,7 +300,14 @@ const ReportPage = () => {
             {/* ── 상단 제목 + PDF 내보내기 ──────────────── */}
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h1 className="text-xl font-bold text-text-primary">분석 리포트</h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-bold text-text-primary">분석 리포트</h1>
+                  {mode === 'mock' && (
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full border bg-purple-50 text-purple-600 border-purple-200/70">
+                      시연용 데이터
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-text-secondary">피부 변화 추이를 확인하세요</p>
               </div>
               <button
@@ -443,9 +462,9 @@ const ReportPage = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {scans.map((item, index) => {
+                          {displayScans.map((item, index) => {
                             const score = item.overallScore ?? item.total_score ?? item.score ?? 70;
-                            const prevScore = scans[index + 1]?.overallScore ?? scans[index + 1]?.total_score ?? null;
+                            const prevScore = displayScans[index + 1]?.overallScore ?? displayScans[index + 1]?.total_score ?? null;
                             const diff = prevScore !== null ? score - prevScore : null;
                             const changeText = diff !== null ? (diff > 0 ? `+${diff}` : `${diff}`) : '-';
                             const trend = diff !== null ? (diff > 0 ? 'up' : diff < 0 ? 'down' : 'same') : 'same';

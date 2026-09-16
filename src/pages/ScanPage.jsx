@@ -34,16 +34,25 @@ const ScanPage = () => {
   const [scannerMsg, setScannerMsg] = useState('스캐너 상태 확인 중...');
   const [streamUrl, setStreamUrl] = useState(import.meta.env.VITE_SCANNER_STREAM_URL || '');
   const [detectedIp, setDetectedIp] = useState(null);
-  const [isStreamLoaded, setIsStreamLoaded] = useState(false);
+  const [streamError, setStreamError] = useState(false);
   const [measurements, setMeasurements] = useState(
     MEASUREMENT_ITEMS.reduce((acc, item) => ({ ...acc, [item.id]: item.default }), {})
   );
 
   const isSubmittingRef = useRef(false);
+  const scanOriginRef = useRef('software');
+
+  useEffect(() => {
+    if (streamUrl) {
+      setStreamError(false);
+      console.log('[ESP32 Stream] 스트리밍 URL 적용:', streamUrl);
+    }
+  }, [streamUrl]);
 
   const isDemo = mode === 'mock';
   const displayScannerStatus = isDemo ? 'ok' : scannerStatus;
   const displayScannerMsg = isDemo ? '스캐너 연결됨 (상태: 대기 중)' : scannerMsg;
+  const isScannerBlocked = !isDemo && scannerStatus !== 'ok';
 
   useEffect(() => { initializeIfNeeded(); }, [initializeIfNeeded]);
 
@@ -115,57 +124,114 @@ const ScanPage = () => {
     setScanProgress(0);
   }, [scanStatus, countdown]);
 
-  // 스캔 진행 (mock: 프로그레스 바, real: API 응답 대기)
+  // 스캔 진행 및 실제 촬영 완료 감지 (mock: 5초 타이머, real: getScanStatus 폴링 완료 감지)
   useEffect(() => {
     if (scanStatus !== 'scanning') return;
 
-    if (scanProgress < 100) {
-      const t = setTimeout(() => setScanProgress((p) => Math.min(p + 2, 100)), 100);
-      return () => clearTimeout(t);
-    }
+    let progressTimer = null;
+    let pollTimer = null;
+    let isCancelled = false;
 
-    // 진행바 완료 → 실제 API 호출 (중복 호출 방지)
-    if (isSubmittingRef.current) return;
-    isSubmittingRef.current = true;
-
-    const run = async () => {
-      try {
-        const fd = new FormData();
-        fd.append('region', REGION_MAP[selectedArea] || 'PART_0');
-        // 자가진단 / 직접 입력 결과 첨부
-        if (userInputs) {
-          Object.entries(userInputs).forEach(([key, val]) => {
-            if (val !== null && val !== undefined) fd.append(key, String(val));
-          });
-        }
-        const result = await measureWithScanner(fd);
-        addScan(result);
-        setScanStatus('complete');
-        setTimeout(() => navigate('/analysis'), 2200);
-      } catch (err) {
-        console.error('측정 실패:', err);
-        const errorMsg = err.code === 'ECONNABORTED' || err.message?.includes('timeout')
-          ? '측정 응답 시간이 초과되었습니다 (30초 제한). ESP32 스캐너 수신 상태를 확인해 주세요.'
-          : (err.response?.data?.detail || '네트워크 연결이 불안정하거나 측정에 실패했습니다.');
-        setScanErrorMsg(errorMsg);
-        setScanStatus('error');
-      } finally {
-        isSubmittingRef.current = false;
+    // 1. 시연용(Mock) 모드: 약 5초 동안 100%까지 증가
+    if (isDemo) {
+      if (scanProgress < 100) {
+        progressTimer = setTimeout(() => setScanProgress((p) => Math.min(p + 2, 100)), 100);
+        return () => clearTimeout(progressTimer);
       }
-    };
-    run();
-  }, [scanStatus, scanProgress, navigate, selectedArea, addScan, userInputs]);
+    } else {
+      // 2. 실제 AI 모드:
+      // 프로그레스 바는 90%까지 서서히 상승하고, ESP32 완료(status: idle 복귀) 감지 시 100%로 도달
+      if (scanProgress < 90) {
+        progressTimer = setTimeout(() => setScanProgress((p) => Math.min(p + 2, 90)), 200);
+      }
 
-  const startScan = useCallback(() => {
-    if (scanStatus === 'scanning' || scanStatus === 'countdown' || isSubmittingRef.current) return;
-    isSubmittingRef.current = false;
-    if (!isDemo) {
-      triggerScan().catch(() => {});
+      // 하드웨어 완료 상태(idle) 폴링 (1.2초 주기)
+      pollTimer = setInterval(async () => {
+        try {
+          const data = await getScanStatus();
+          // 스캔 완료 후 서버가 status를 'idle'로 리셋했거나 완료된 경우 (최소 2.5초 진행 후 감지)
+          if (data?.status === 'idle' && scanProgress >= 20) {
+            console.log('[ESP32] 하드웨어 촬영 완료 감지 (status: idle) -> 분석 요청 진행');
+            clearInterval(pollTimer);
+            if (!isCancelled) {
+              setScanProgress(100);
+            }
+          }
+        } catch (_) {}
+      }, 1200);
+
+      // 최대 20초 안전 타임아웃 (서버 응답 지연 시에도 영구 정지 방지)
+      const safetyTimeout = setTimeout(() => {
+        console.warn('[ESP32] 안전 타임아웃 도달: 분석 요청 강제 진행');
+        if (!isCancelled) {
+          setScanProgress(100);
+        }
+      }, 20000);
+
+      return () => {
+        isCancelled = true;
+        clearTimeout(progressTimer);
+        clearInterval(pollTimer);
+        clearTimeout(safetyTimeout);
+      };
     }
+
+    // 3. 진행바 완료(100%) → 백엔드 최종 분석 API 호출
+    if (scanProgress >= 100) {
+      if (isSubmittingRef.current) return;
+      isSubmittingRef.current = true;
+
+      const run = async () => {
+        try {
+          const fd = new FormData();
+          fd.append('region', REGION_MAP[selectedArea] || 'PART_0');
+          // 자가진단 / 직접 입력 결과 첨부
+          if (userInputs) {
+            Object.entries(userInputs).forEach(([key, val]) => {
+              if (val !== null && val !== undefined) fd.append(key, String(val));
+            });
+          }
+          const result = await measureWithScanner(fd);
+          addScan(result);
+          setScanStatus('complete');
+          setTimeout(() => navigate('/analysis'), 2200);
+        } catch (err) {
+          console.error('측정 실패:', err);
+          const errorMsg = err.code === 'ECONNABORTED' || err.message?.includes('timeout')
+            ? '측정 응답 시간이 초과되었습니다 (30초 제한). ESP32 스캐너 수신 상태를 확인해 주세요.'
+            : (err.response?.data?.detail || '네트워크 연결이 불안정하거나 측정에 실패했습니다.');
+          setScanErrorMsg(errorMsg);
+          setScanStatus('error');
+        } finally {
+          isSubmittingRef.current = false;
+        }
+      };
+      run();
+    }
+  }, [scanStatus, scanProgress, isDemo, navigate, selectedArea, addScan, userInputs]);
+
+  const startScan = useCallback(async () => {
+    if (scanStatus === 'scanning' || scanStatus === 'countdown' || isSubmittingRef.current) return;
+    if (isScannerBlocked) return;
+    isSubmittingRef.current = false;
+    scanOriginRef.current = 'software';
+
+    // 실제 AI 모드: triggerScan() 호출하여 하드웨어에 스캔 시작 신호 전송
+    if (!isDemo) {
+      try {
+        await triggerScan();
+      } catch (err) {
+        console.error('[startScan] triggerScan 실패:', err);
+        setScanErrorMsg('스캐너 시작 신호(trigger) 전송에 실패했습니다. ESP32 전원 및 Wi-Fi 연결을 확인해 주세요.');
+        setScanStatus('error');
+        return;
+      }
+    }
+
     setScanStatus('countdown');
     setCountdown(3);
     setScanProgress(0);
-  }, [scanStatus, isDemo]);
+  }, [scanStatus, isDemo, isScannerBlocked]);
 
   // 하드웨어 버튼 감지용 폴링 (2초마다 상태 확인)
   useEffect(() => {
@@ -174,6 +240,8 @@ const ScanPage = () => {
       try {
         const data = await getScanStatus();
         if (data?.status === 'scanning') {
+          console.log('[ESP32] 하드웨어 물리 버튼 감지 -> 스캔 시작');
+          scanOriginRef.current = 'hardware';
           setScanStatus('scanning');
           setScanProgress(0);
         }
@@ -239,38 +307,52 @@ const ScanPage = () => {
 
                 {/* 카메라 / 얼굴 가이드 */}
                 <div className="bg-gray-900 rounded-2xl aspect-[4/3] relative flex items-center justify-center mb-4 overflow-hidden shadow-inner">
-                  {/* 하드웨어 실시간 MJPEG 스트림 (URL이 있고 연결 성공 시 표시) */}
-                  {streamUrl && (
+                  {/* 하드웨어 실시간 MJPEG 스트림 (URL이 있고 에러 없을 시 즉시 표시) */}
+                  {streamUrl && !streamError && (
                     <img
                       src={streamUrl}
                       alt="실시간 스캐너 화면"
-                      className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
-                        isStreamLoaded ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                      }`}
-                      onLoad={() => setIsStreamLoaded(true)}
-                      onError={() => setIsStreamLoaded(false)}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      onError={(e) => {
+                        console.warn('[ESP32 Stream] 이미지 로딩 실패 (Mixed Content 또는 네트워크 미접속):', streamUrl);
+                        setStreamError(true);
+                      }}
                     />
                   )}
 
-                  {/* 스트림 상태 뱃지 (실시간 스트림 연결 시 표시) */}
-                  {isStreamLoaded && (
-                    <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2.5 py-1 bg-black/60 backdrop-blur-sm rounded-full text-[11px] text-white font-medium border border-white/10">
+                  {/* 스트림 상태 뱃지 (실시간 스트림 정상 출력 시) */}
+                  {streamUrl && !streamError && (
+                    <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2.5 py-1 bg-black/60 backdrop-blur-sm rounded-full text-[11px] text-white font-medium border border-white/10 shadow">
                       <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
                       <span className="text-red-400 font-bold">LIVE</span>
                       <span className="text-gray-300">ESP32 스캐너 {detectedIp ? `(${detectedIp})` : ''}</span>
                     </div>
                   )}
 
-                  {/* 동일 WiFi 연결 가이드 (IP가 확인되었으나 스트림 로딩 전일 때) */}
-                  {!isStreamLoaded && streamUrl && mode !== 'mock' && (
-                    <div className="absolute bottom-3 inset-x-3 z-10 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-black/70 backdrop-blur-sm rounded-xl text-[11px] text-gray-300 border border-white/10 text-center">
-                      <Wifi size={13} className="text-emerald-400 shrink-0" />
-                      <span>ESP32와 동일한 Wi-Fi에 접속되어 있으면 실시간 스트리밍이 연결됩니다.</span>
+                  {/* 동일 WiFi 연결 가이드 & Mixed Content 우회 옵션 (스트림 로딩 실패 시) */}
+                  {streamError && streamUrl && mode !== 'mock' && (
+                    <div className="absolute bottom-3 inset-x-3 z-10 flex flex-col items-center justify-center gap-1 p-2.5 bg-black/85 backdrop-blur-sm rounded-xl text-[11px] text-gray-200 border border-white/10 text-center">
+                      <div className="flex items-center gap-1.5 text-amber-300 font-semibold">
+                        <Wifi size={13} className="shrink-0" />
+                        <span>ESP32 실시간 화면에 연결할 수 없습니다</span>
+                      </div>
+                      <p className="text-[10px] text-gray-400 leading-relaxed max-w-sm">
+                        {typeof window !== 'undefined' && window.location.protocol === 'https:'
+                          ? 'HTTPS 환경에서는 브라우저 보안으로 로컬 HTTP 스트림이 차단될 수 있습니다. 로컬(http://localhost:3000)에서 실행하거나 아래 버튼으로 열어보세요.'
+                          : 'ESP32와 동일한 Wi-Fi 네트워크에 접속되어 있는지 확인해 주세요.'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => window.open(streamUrl, '_blank')}
+                        className="mt-0.5 px-3 py-1 bg-white/15 hover:bg-white/25 text-white rounded text-[10px] font-medium transition-colors border border-white/10"
+                      >
+                        새 창에서 스트림 직접 열기 ({detectedIp || 'ESP32'}) ↗
+                      </button>
                     </div>
                   )}
 
                   {/* 격자 및 가이드 라인 오버레이 */}
-                  <div className={`absolute inset-0 transition-opacity duration-300 ${isStreamLoaded ? 'opacity-20 pointer-events-none' : 'opacity-10'}`}>
+                  <div className={`absolute inset-0 transition-opacity duration-300 ${streamUrl && !streamError ? 'opacity-20 pointer-events-none' : 'opacity-10'}`}>
                     {[...Array(10)].map((_, i) => (
                       <div key={`h${i}`} className="absolute w-full h-px bg-green-400" style={{ top: `${i * 10}%` }} />
                     ))}
@@ -280,7 +362,7 @@ const ScanPage = () => {
                   </div>
 
                   {/* 얼굴 윤곽 가이드 SVG */}
-                  <svg viewBox="0 0 200 280" className={`h-[80%] w-auto pointer-events-none transition-opacity duration-300 ${isStreamLoaded ? 'opacity-30' : 'opacity-40'}`} fill="none" stroke="#4CAF50" strokeWidth="1.5">
+                  <svg viewBox="0 0 200 280" className={`h-[80%] w-auto pointer-events-none transition-opacity duration-300 ${streamUrl && !streamError ? 'opacity-30' : 'opacity-40'}`} fill="none" stroke="#4CAF50" strokeWidth="1.5">
                     <ellipse cx="100" cy="130" rx="70" ry="90" />
                     <ellipse cx="70" cy="115" rx="12" ry="8" />
                     <ellipse cx="130" cy="115" rx="12" ry="8" />
@@ -338,10 +420,16 @@ const ScanPage = () => {
                         <p className="text-white text-base font-semibold mb-1">측정에 실패했습니다</p>
                         <p className="text-gray-300 text-xs mb-4 leading-relaxed max-w-xs">{scanErrorMsg}</p>
                         <button
-                          onClick={startScan}
+                          onClick={() => {
+                            if (isScannerBlocked) {
+                              checkScanner();
+                            } else {
+                              startScan();
+                            }
+                          }}
                           className="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold rounded-lg transition-colors shadow"
                         >
-                          다시 시도하기
+                          {isScannerBlocked ? '스캐너 재연결 확인' : '다시 시도하기'}
                         </button>
                       </div>
                     </div>
@@ -378,15 +466,35 @@ const ScanPage = () => {
 
                 <Button
                   onClick={startScan}
-                  disabled={scanStatus === 'scanning' || scanStatus === 'countdown'}
-                  className="w-full text-base"
+                  disabled={scanStatus === 'scanning' || scanStatus === 'countdown' || isScannerBlocked}
+                  className={`w-full text-base transition-all ${
+                    isScannerBlocked
+                      ? 'opacity-60 cursor-not-allowed bg-gray-200 text-gray-500 hover:bg-gray-200 border-gray-300 shadow-none'
+                      : ''
+                  }`}
                   size="lg"
                 >
                   <ScanIcon size={20} />
-                  {scanStatus === 'ready' ? '스캔 시작하기' :
-                   scanStatus === 'error' ? '다시 시도하기' :
-                   scanStatus === 'complete' ? '다시 스캔하기' : '스캔 중...'}
+                  {isScannerBlocked
+                    ? (scannerStatus === 'checking' ? '스캐너 확인 중...' : '스캐너 연결 후 스캔 가능')
+                    : (scanStatus === 'ready' ? '스캔 시작하기' :
+                       scanStatus === 'error' ? '다시 시도하기' :
+                       scanStatus === 'complete' ? '다시 스캔하기' : '스캔 중...')}
                 </Button>
+
+                {isScannerBlocked && (
+                  <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-xl flex items-start gap-2.5 text-xs text-orange-700 animate-fadeIn">
+                    <AlertTriangle size={15} className="shrink-0 text-orange-500 mt-0.5" />
+                    <div>
+                      <p className="font-semibold mb-0.5">스캐너 연결 후 측정이 가능합니다</p>
+                      <p className="text-orange-600 leading-relaxed">
+                        {scannerStatus === 'checking'
+                          ? '스캐너 연결 상태를 확인하고 있습니다. 잠시만 기다려주세요.'
+                          : 'ESP32 스캐너가 아직 연결되지 않았습니다. 같은 Wi-Fi에 연결되어 있는지 확인하거나, 우측 상단에서 [시연용] 모드로 전환하시면 바로 체험할 수 있습니다.'}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 주의사항 */}
@@ -427,7 +535,10 @@ const ScanPage = () => {
                     <button
                       type="button"
                       disabled={scanStatus === 'scanning' || scanStatus === 'countdown'}
-                      onClick={() => setMode('mock')}
+                      onClick={() => {
+                        setMode('mock');
+                        if (scanStatus === 'error') setScanStatus('ready');
+                      }}
                       className={`py-2 px-3 rounded-lg text-xs font-bold transition-all disabled:opacity-50 ${
                         mode === 'mock'
                           ? 'bg-white text-primary-600 shadow-xs'
