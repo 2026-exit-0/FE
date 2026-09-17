@@ -361,14 +361,19 @@ const ScanPage = () => {
                     ))}
                   </div>
 
-                  {/* 얼굴 윤곽 가이드 SVG */}
-                  <svg viewBox="0 0 200 280" className={`h-[80%] w-auto pointer-events-none transition-opacity duration-300 ${streamUrl && !streamError ? 'opacity-30' : 'opacity-40'}`} fill="none" stroke="#4CAF50" strokeWidth="1.5">
-                    <ellipse cx="100" cy="130" rx="70" ry="90" />
-                    <ellipse cx="70" cy="115" rx="12" ry="8" />
-                    <ellipse cx="130" cy="115" rx="12" ry="8" />
-                    <ellipse cx="100" cy="145" rx="8" ry="10" />
-                    <path d="M85 175 Q100 185 115 175" />
-                  </svg>
+                  {/* 피부 정밀 측정 포커스 타겟 (부위별 접촉/초점 영역) */}
+                  <div className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${streamUrl && !streamError ? 'opacity-40' : 'opacity-60'}`}>
+                    <div className="relative w-44 h-44 border border-dashed border-emerald-400/60 rounded-2xl flex items-center justify-center">
+                      {/* 4개 모서리 브래킷 */}
+                      <div className="absolute -top-0.5 -left-0.5 w-4 h-4 border-t-2 border-l-2 border-emerald-400 rounded-tl-md" />
+                      <div className="absolute -top-0.5 -right-0.5 w-4 h-4 border-t-2 border-r-2 border-emerald-400 rounded-tr-md" />
+                      <div className="absolute -bottom-0.5 -left-0.5 w-4 h-4 border-b-2 border-l-2 border-emerald-400 rounded-bl-md" />
+                      <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 border-b-2 border-r-2 border-emerald-400 rounded-br-md" />
+                      {/* 중앙 십자선 타겟 */}
+                      <div className="w-5 h-0.5 bg-emerald-400/70" />
+                      <div className="h-5 w-0.5 bg-emerald-400/70 absolute" />
+                    </div>
+                  </div>
 
                   {scanStatus === 'scanning' && (
                     <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-green-400 to-transparent animate-scan-line z-10" />
@@ -434,7 +439,7 @@ const ScanPage = () => {
                       </div>
                     </div>
                   )}
-                  {scanStatus === 'ready' && !isStreamLoaded && (
+                  {scanStatus === 'ready' && (
                     <div className="absolute bottom-6 left-0 right-0 text-center pointer-events-none">
                       <p className="text-green-400/80 text-sm">[{selectedArea}] 부위를 중앙에 맞춰주세요</p>
                     </div>
