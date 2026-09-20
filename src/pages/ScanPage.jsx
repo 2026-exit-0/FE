@@ -184,91 +184,186 @@ const previewUrl = streamUrl
     setScanProgress(0);
   }, [scanStatus, countdown]);
 
-  // 스캔 진행 및 실제 촬영 완료 감지 (mock: 5초 타이머, real: getScanStatus 폴링 완료 감지)
-  useEffect(() => {
-    if (scanStatus !== 'scanning') return;
+// ========================================
+// 1. 스캔 진행률 처리
+// mock: 100%까지 자동 증가
+// real: 90%까지만 증가 후 하드웨어 완료 대기
+// ========================================
+useEffect(() => {
+  if (scanStatus !== 'scanning') return;
+  if (scanProgress >= 100) return;
 
-    let progressTimer = null;
-    let pollTimer = null;
-    let isCancelled = false;
+  const maxProgress = isDemo ? 100 : 90;
+  const delay = isDemo ? 100 : 200;
 
-    // 1. 시연용(Mock) 모드: 약 5초 동안 100%까지 증가
-    if (isDemo) {
-      if (scanProgress < 100) {
-        progressTimer = setTimeout(() => setScanProgress((p) => Math.min(p + 2, 100)), 100);
-        return () => clearTimeout(progressTimer);
+  if (scanProgress >= maxProgress) return;
+
+  const progressTimer = setTimeout(() => {
+    setScanProgress((prev) =>
+      Math.min(prev + 2, maxProgress)
+    );
+  }, delay);
+
+  return () => clearTimeout(progressTimer);
+}, [scanStatus, scanProgress, isDemo]);
+
+
+// ========================================
+// 2. 실제 AI 모드: ESP32 촬영 완료 감지
+// ========================================
+useEffect(() => {
+  if (scanStatus !== 'scanning' || isDemo) return;
+
+  let isCancelled = false;
+
+  const checkHardwareStatus = async () => {
+    try {
+      const data = await getScanStatus();
+
+      console.log(
+        '[ESP32] 스캔 상태 확인:',
+        data?.status
+      );
+
+      // 촬영이 끝나 ESP32가 idle로 돌아온 경우
+      if (data?.status === 'idle' && !isCancelled) {
+        setScanProgress((prev) => {
+          // 스캔 시작 직후 idle을 완료로 오인하지 않도록
+          // 최소 진행률 20% 이후에만 완료 처리
+          if (prev < 20 || prev >= 100) {
+            return prev;
+          }
+
+          console.log(
+            '[ESP32] 하드웨어 촬영 완료 감지 → 분석 요청 진행'
+          );
+
+          return 100;
+        });
       }
-    } else {
-      // 2. 실제 AI 모드:
-      // 프로그레스 바는 90%까지 서서히 상승하고, ESP32 완료(status: idle 복귀) 감지 시 100%로 도달
-      if (scanProgress < 90) {
-        progressTimer = setTimeout(() => setScanProgress((p) => Math.min(p + 2, 90)), 200);
-      }
+    } catch (err) {
+      console.warn(
+        '[ESP32] 상태 확인 실패:',
+        err
+      );
+    }
+  };
 
-      // 하드웨어 완료 상태(idle) 폴링 (1.2초 주기)
-      pollTimer = setInterval(async () => {
-        try {
-          const data = await getScanStatus();
-          // 스캔 완료 후 서버가 status를 'idle'로 리셋했거나 완료된 경우 (최소 2.5초 진행 후 감지)
-          if (data?.status === 'idle' && scanProgress >= 20) {
-            console.log('[ESP32] 하드웨어 촬영 완료 감지 (status: idle) -> 분석 요청 진행');
-            clearInterval(pollTimer);
-            if (!isCancelled) {
-              setScanProgress(100);
+  // 1.2초마다 ESP32 상태 확인
+  const pollTimer = setInterval(
+    checkHardwareStatus,
+    1200
+  );
+
+  // 최대 20초 대기 후 강제로 다음 단계 진행
+  const safetyTimeout = setTimeout(() => {
+    if (isCancelled) return;
+
+    console.warn(
+      '[ESP32] 20초 안전 타임아웃 → 분석 요청 진행'
+    );
+
+    setScanProgress(100);
+  }, 20000);
+
+  return () => {
+    isCancelled = true;
+
+    clearInterval(pollTimer);
+    clearTimeout(safetyTimeout);
+  };
+}, [scanStatus, isDemo]);
+
+
+// ========================================
+// 3. 진행률 100% → 백엔드 분석 요청
+// mock / real 공통
+// ========================================
+useEffect(() => {
+  if (
+    scanStatus !== 'scanning' ||
+    scanProgress < 100
+  ) {
+    return;
+  }
+
+  // 중복 API 요청 방지
+  if (isSubmittingRef.current) return;
+
+  isSubmittingRef.current = true;
+
+  const runAnalysis = async () => {
+    try {
+      console.log(
+        '[Scan] 촬영 완료 → AI 분석 요청 시작'
+      );
+
+      const fd = new FormData();
+
+      fd.append(
+        'region',
+        REGION_MAP[selectedArea] || 'PART_0'
+      );
+
+      // 자가진단 / 직접 입력 결과 첨부
+      if (userInputs) {
+        Object.entries(userInputs).forEach(
+          ([key, val]) => {
+            if (
+              val !== null &&
+              val !== undefined
+            ) {
+              fd.append(key, String(val));
             }
           }
-        } catch (_) {}
-      }, 1200);
+        );
+      }
 
-      // 최대 20초 안전 타임아웃 (서버 응답 지연 시에도 영구 정지 방지)
-      const safetyTimeout = setTimeout(() => {
-        console.warn('[ESP32] 안전 타임아웃 도달: 분석 요청 강제 진행');
-        if (!isCancelled) {
-          setScanProgress(100);
-        }
-      }, 20000);
+      const result = await measureWithScanner(fd);
 
-      return () => {
-        isCancelled = true;
-        clearTimeout(progressTimer);
-        clearInterval(pollTimer);
-        clearTimeout(safetyTimeout);
-      };
+      console.log(
+        '[Scan] AI 분석 완료:',
+        result
+      );
+
+      addScan(result);
+
+      setScanStatus('complete');
+
+      setTimeout(() => {
+        navigate('/analysis');
+      }, 2200);
+    } catch (err) {
+      console.error(
+        '[Scan] 측정 실패:',
+        err
+      );
+
+      const errorMsg =
+        err.code === 'ECONNABORTED' ||
+        err.message?.includes('timeout')
+          ? '측정 응답 시간이 초과되었습니다 (30초 제한). ESP32 스캐너 수신 상태를 확인해 주세요.'
+          : (
+              err.response?.data?.detail ||
+              '네트워크 연결이 불안정하거나 측정에 실패했습니다.'
+            );
+
+      setScanErrorMsg(errorMsg);
+      setScanStatus('error');
+    } finally {
+      isSubmittingRef.current = false;
     }
+  };
 
-    // 3. 진행바 완료(100%) → 백엔드 최종 분석 API 호출
-    if (scanProgress >= 100) {
-      if (isSubmittingRef.current) return;
-      isSubmittingRef.current = true;
-
-      const run = async () => {
-        try {
-          const fd = new FormData();
-          fd.append('region', REGION_MAP[selectedArea] || 'PART_0');
-          // 자가진단 / 직접 입력 결과 첨부
-          if (userInputs) {
-            Object.entries(userInputs).forEach(([key, val]) => {
-              if (val !== null && val !== undefined) fd.append(key, String(val));
-            });
-          }
-          const result = await measureWithScanner(fd);
-          addScan(result);
-          setScanStatus('complete');
-          setTimeout(() => navigate('/analysis'), 2200);
-        } catch (err) {
-          console.error('측정 실패:', err);
-          const errorMsg = err.code === 'ECONNABORTED' || err.message?.includes('timeout')
-            ? '측정 응답 시간이 초과되었습니다 (30초 제한). ESP32 스캐너 수신 상태를 확인해 주세요.'
-            : (err.response?.data?.detail || '네트워크 연결이 불안정하거나 측정에 실패했습니다.');
-          setScanErrorMsg(errorMsg);
-          setScanStatus('error');
-        } finally {
-          isSubmittingRef.current = false;
-        }
-      };
-      run();
-    }
-  }, [scanStatus, scanProgress, isDemo, navigate, selectedArea, addScan, userInputs]);
+  runAnalysis();
+}, [
+  scanStatus,
+  scanProgress,
+  navigate,
+  selectedArea,
+  addScan,
+  userInputs,
+]);
 
   const startScan = useCallback(async () => {
     if (scanStatus === 'scanning' || scanStatus === 'countdown' || isSubmittingRef.current) return;
