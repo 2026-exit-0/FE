@@ -25,29 +25,89 @@ const ScanPage = () => {
   const { addScan, initializeIfNeeded, userInputs } = useScanStore();
   const { mode, setMode } = useModeStore();
 
-  const [scanStatus, setScanStatus] = useState('ready');
-  const [scanErrorMsg, setScanErrorMsg] = useState('');
-  const [countdown, setCountdown] = useState(3);
-  const [scanProgress, setScanProgress] = useState(0);
-  const [selectedArea, setSelectedArea] = useState('이마');
-  const [scannerStatus, setScannerStatus] = useState('checking');
-  const [scannerMsg, setScannerMsg] = useState('스캐너 상태 확인 중...');
-  const [streamUrl, setStreamUrl] = useState(import.meta.env.VITE_SCANNER_STREAM_URL || '');
-  const [detectedIp, setDetectedIp] = useState(null);
-  const [streamError, setStreamError] = useState(false);
-  const [measurements, setMeasurements] = useState(
-    MEASUREMENT_ITEMS.reduce((acc, item) => ({ ...acc, [item.id]: item.default }), {})
+const [scanStatus, setScanStatus] = useState('ready');
+const [scanErrorMsg, setScanErrorMsg] = useState('');
+const [countdown, setCountdown] = useState(3);
+const [scanProgress, setScanProgress] = useState(0);
+const [selectedArea, setSelectedArea] = useState('이마');
+
+const [scannerStatus, setScannerStatus] = useState('checking');
+const [scannerMsg, setScannerMsg] = useState(
+  '스캐너 상태 확인 중...'
+);
+
+const [streamUrl, setStreamUrl] = useState(
+  import.meta.env.VITE_SCANNER_STREAM_URL || ''
+);
+
+const [detectedIp, setDetectedIp] = useState(null);
+
+// 스트림 연결 상태
+const [streamError, setStreamError] = useState(false);
+
+// 스트림을 강제로 다시 연결하기 위한 값
+const [streamRetryKey, setStreamRetryKey] = useState(0);
+
+const [measurements, setMeasurements] = useState(
+  MEASUREMENT_ITEMS.reduce(
+    (acc, item) => ({
+      ...acc,
+      [item.id]: item.default,
+    }),
+    {}
+  )
+);
+
+const isSubmittingRef = useRef(false);
+const scanOriginRef = useRef('software');
+
+// 새로운 스트림 URL이 들어오면 에러 상태 초기화
+useEffect(() => {
+  if (!streamUrl) return;
+
+  setStreamError(false);
+  setStreamRetryKey(0);
+
+  console.log(
+    '[ESP32 Stream] 스트리밍 URL 적용:',
+    streamUrl
+  );
+}, [streamUrl]);
+
+// 스트림이 끊기면 1.5초 후 자동 재접속
+useEffect(() => {
+  if (!streamError) return;
+
+  console.warn(
+    '[ESP32 Stream] 스트림 연결 실패 - 1.5초 후 재시도'
   );
 
-  const isSubmittingRef = useRef(false);
-  const scanOriginRef = useRef('software');
+  const retryTimer = setTimeout(() => {
+    setStreamError(false);
 
-  useEffect(() => {
-    if (streamUrl) {
-      setStreamError(false);
-      console.log('[ESP32 Stream] 스트리밍 URL 적용:', streamUrl);
-    }
-  }, [streamUrl]);
+    setStreamRetryKey((prev) => {
+      const next = prev + 1;
+
+      console.log(
+        `[ESP32 Stream] 재연결 시도 #${next}`
+      );
+
+      return next;
+    });
+  }, 1500);
+
+  return () => {
+    clearTimeout(retryTimer);
+  };
+}, [streamError]);
+
+// 동일한 URL이어도 브라우저가 새로운 요청을 보내도록
+// retry 값을 query parameter로 붙임
+const previewUrl = streamUrl
+  ? `${streamUrl}${
+      streamUrl.includes('?') ? '&' : '?'
+    }retry=${streamRetryKey}`
+  : '';
 
   const isDemo = mode === 'mock';
   const displayScannerStatus = isDemo ? 'ok' : scannerStatus;
@@ -265,11 +325,11 @@ const ScanPage = () => {
         <Sidebar />
 
         <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-36 desktop:pb-12">
-          <div className="grid grid-cols-1 desktop:grid-cols-12 gap-6">
+          <div className="grid grid-cols-1 gap-6 desktop:grid-cols-12">
 
             {/* 스캔 인터페이스 */}
-            <div className="desktop:col-span-7 space-y-6">
-              <div className="card overflow-hidden">
+            <div className="space-y-6 desktop:col-span-7">
+              <div className="overflow-hidden card">
                 {/* 스캐너 연결 상태 */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
@@ -284,7 +344,7 @@ const ScanPage = () => {
                         type="button"
                         onClick={checkScanner}
                         title="기기 재검색"
-                        className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                        className="p-1 text-gray-400 transition-colors rounded-full hover:text-gray-600 hover:bg-gray-100"
                       >
                         <RefreshCw size={13} className={scannerStatus === 'checking' ? 'animate-spin' : ''} />
                       </button>
@@ -308,23 +368,37 @@ const ScanPage = () => {
                 {/* 카메라 / 얼굴 가이드 */}
                 <div className="bg-gray-900 rounded-2xl aspect-[4/3] relative flex items-center justify-center mb-4 overflow-hidden shadow-inner">
                   {/* 하드웨어 실시간 MJPEG 스트림 (URL이 있고 에러 없을 시 즉시 표시) */}
-                  {streamUrl && !streamError && (
-                    <img
-                      src={streamUrl}
-                      alt="실시간 스캐너 화면"
-                      className="absolute inset-0 w-full h-full object-cover"
-                      onError={(e) => {
-                        console.warn('[ESP32 Stream] 이미지 로딩 실패 (Mixed Content 또는 네트워크 미접속):', streamUrl);
-                        setStreamError(true);
-                      }}
-                    />
-                  )}
+{/* 하드웨어 실시간 MJPEG 스트림 */}
+{streamUrl && (
+  <img
+    key={streamRetryKey}
+    src={previewUrl}
+    alt="실시간 스캐너 화면"
+    className="absolute inset-0 object-cover w-full h-full"
+    onLoad={() => {
+      console.log(
+        '[ESP32 Stream] 스트림 연결 성공:',
+        previewUrl
+      );
+
+      setStreamError(false);
+    }}
+    onError={() => {
+      console.warn(
+        '[ESP32 Stream] 스트림 연결 실패:',
+        previewUrl
+      );
+
+      setStreamError(true);
+    }}
+  />
+)}
 
                   {/* 스트림 상태 뱃지 (실시간 스트림 정상 출력 시) */}
                   {streamUrl && !streamError && (
                     <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2.5 py-1 bg-black/60 backdrop-blur-sm rounded-full text-[11px] text-white font-medium border border-white/10 shadow">
-                      <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-                      <span className="text-red-400 font-bold">LIVE</span>
+                      <span className="w-2 h-2 bg-red-500 rounded-full animate-ping" />
+                      <span className="font-bold text-red-400">LIVE</span>
                       <span className="text-gray-300">ESP32 스캐너 {detectedIp ? `(${detectedIp})` : ''}</span>
                     </div>
                   )}
@@ -342,12 +416,15 @@ const ScanPage = () => {
                           : 'ESP32와 동일한 Wi-Fi 네트워크에 접속되어 있는지 확인해 주세요.'}
                       </p>
                       <button
-                        type="button"
-                        onClick={() => window.open(streamUrl, '_blank')}
-                        className="mt-0.5 px-3 py-1 bg-white/15 hover:bg-white/25 text-white rounded text-[10px] font-medium transition-colors border border-white/10"
-                      >
-                        새 창에서 스트림 직접 열기 ({detectedIp || 'ESP32'}) ↗
-                      </button>
+                      type="button"
+  onClick={() => {
+    setStreamError(false);
+    setStreamRetryKey((prev) => prev + 1);
+  }}
+  className="mt-0.5 px-3 py-1 bg-white/15 hover:bg-white/25 text-white rounded text-[10px] font-medium transition-colors border border-white/10"
+>
+  스트림 다시 연결
+</button>
                     </div>
                   )}
 
@@ -357,13 +434,13 @@ const ScanPage = () => {
                       <div key={`h${i}`} className="absolute w-full h-px bg-green-400" style={{ top: `${i * 10}%` }} />
                     ))}
                     {[...Array(10)].map((_, i) => (
-                      <div key={`v${i}`} className="absolute h-full w-px bg-green-400" style={{ left: `${i * 10}%` }} />
+                      <div key={`v${i}`} className="absolute w-px h-full bg-green-400" style={{ left: `${i * 10}%` }} />
                     ))}
                   </div>
 
                   {/* 피부 정밀 측정 포커스 타겟 (부위별 접촉/초점 영역) */}
                   <div className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${streamUrl && !streamError ? 'opacity-40' : 'opacity-60'}`}>
-                    <div className="relative w-44 h-44 border border-dashed border-emerald-400/60 rounded-2xl flex items-center justify-center">
+                    <div className="relative flex items-center justify-center border border-dashed w-44 h-44 border-emerald-400/60 rounded-2xl">
                       {/* 4개 모서리 브래킷 */}
                       <div className="absolute -top-0.5 -left-0.5 w-4 h-4 border-t-2 border-l-2 border-emerald-400 rounded-tl-md" />
                       <div className="absolute -top-0.5 -right-0.5 w-4 h-4 border-t-2 border-r-2 border-emerald-400 rounded-tr-md" />
@@ -376,54 +453,54 @@ const ScanPage = () => {
                   </div>
 
                   {scanStatus === 'scanning' && (
-                    <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-green-400 to-transparent animate-scan-line z-10" />
+                    <div className="absolute left-0 right-0 z-10 h-1 bg-gradient-to-r from-transparent via-green-400 to-transparent animate-scan-line" />
                   )}
                   {scanStatus === 'countdown' && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-20">
+                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60">
                       <div className="text-center">
-                        <div className="text-7xl font-bold text-green-400 animate-pulse">{countdown}</div>
-                        <p className="text-green-300 text-sm mt-2">스캔 준비 중...</p>
+                        <div className="font-bold text-green-400 text-7xl animate-pulse">{countdown}</div>
+                        <p className="mt-2 text-sm text-green-300">스캔 준비 중...</p>
                       </div>
                     </div>
                   )}
                   {scanStatus === 'complete' && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/85 p-4 z-20 animate-fadeIn text-center">
+                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-4 text-center bg-black/85 animate-fadeIn">
                       <div className="flex items-center gap-2 mb-3 bg-emerald-500/20 text-emerald-300 px-3.5 py-1.5 rounded-full border border-emerald-400/30 shadow-sm">
                         <CheckCircle size={16} className="text-emerald-400 shrink-0" />
                         <span className="text-xs font-bold">스캔 및 듀얼 촬영 완료!</span>
                       </div>
-                      <div className="grid grid-cols-2 gap-3 w-full max-w-xs mb-3">
-                        <div className="rounded-xl overflow-hidden border border-emerald-400/40 relative shadow-lg bg-black/40">
+                      <div className="grid w-full max-w-xs grid-cols-2 gap-3 mb-3">
+                        <div className="relative overflow-hidden border shadow-lg rounded-xl border-emerald-400/40 bg-black/40">
                           <img
                             src="/assets/demo_white_light.jpg"
                             alt="White Light"
-                            className="w-full aspect-square object-cover"
+                            className="object-cover w-full aspect-square"
                           />
                           <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 bg-black/75 backdrop-blur-xs text-[10px] text-white rounded font-medium border border-white/10">
                             White 5500K
                           </span>
                         </div>
-                        <div className="rounded-xl overflow-hidden border border-purple-400/40 relative shadow-lg bg-black/40">
+                        <div className="relative overflow-hidden border shadow-lg rounded-xl border-purple-400/40 bg-black/40">
                           <img
                             src="/assets/demo_uv_light.jpg"
                             alt="UV Light"
-                            className="w-full aspect-square object-cover"
+                            className="object-cover w-full aspect-square"
                           />
                           <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 bg-black/75 backdrop-blur-xs text-[10px] text-purple-200 rounded font-medium border border-purple-400/20">
                             UV 395nm
                           </span>
                         </div>
                       </div>
-                      <p className="text-white text-sm font-bold tracking-tight">AI 12개 지표 정밀 분석 중...</p>
-                      <p className="text-emerald-400 text-xs mt-1 animate-pulse font-medium">분석 결과 페이지로 이동합니다</p>
+                      <p className="text-sm font-bold tracking-tight text-white">AI 12개 지표 정밀 분석 중...</p>
+                      <p className="mt-1 text-xs font-medium text-emerald-400 animate-pulse">분석 결과 페이지로 이동합니다</p>
                     </div>
                   )}
                   {scanStatus === 'error' && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-6 text-center z-30">
+                    <div className="absolute inset-0 z-30 flex items-center justify-center p-6 text-center bg-black/80">
                       <div>
-                        <AlertTriangle size={44} className="text-orange-400 mx-auto mb-3 animate-pulse" />
-                        <p className="text-white text-base font-semibold mb-1">측정에 실패했습니다</p>
-                        <p className="text-gray-300 text-xs mb-4 leading-relaxed max-w-xs">{scanErrorMsg}</p>
+                        <AlertTriangle size={44} className="mx-auto mb-3 text-orange-400 animate-pulse" />
+                        <p className="mb-1 text-base font-semibold text-white">측정에 실패했습니다</p>
+                        <p className="max-w-xs mb-4 text-xs leading-relaxed text-gray-300">{scanErrorMsg}</p>
                         <button
                           onClick={() => {
                             if (isScannerBlocked) {
@@ -432,7 +509,7 @@ const ScanPage = () => {
                               startScan();
                             }
                           }}
-                          className="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white text-xs font-semibold rounded-lg transition-colors shadow"
+                          className="px-4 py-2 text-xs font-semibold text-white transition-colors rounded-lg shadow bg-primary-500 hover:bg-primary-600"
                         >
                           {isScannerBlocked ? '스캐너 재연결 확인' : '다시 시도하기'}
                         </button>
@@ -440,8 +517,8 @@ const ScanPage = () => {
                     </div>
                   )}
                   {scanStatus === 'ready' && (
-                    <div className="absolute bottom-6 left-0 right-0 text-center pointer-events-none">
-                      <p className="text-green-400/80 text-sm">[{selectedArea}] 부위를 중앙에 맞춰주세요</p>
+                    <div className="absolute left-0 right-0 text-center pointer-events-none bottom-6">
+                      <p className="text-sm text-green-400/80">[{selectedArea}] 부위를 중앙에 맞춰주세요</p>
                     </div>
                   )}
                 </div>
@@ -449,17 +526,17 @@ const ScanPage = () => {
                 {/* 진행 바 */}
                 {scanStatus === 'scanning' && (
                   <div className="mb-4">
-                    <div className="flex justify-between text-xs text-text-secondary mb-1">
+                    <div className="flex justify-between mb-1 text-xs text-text-secondary">
                       <span>스캔 진행 중...</span>
                       <span>{scanProgress}%</span>
                     </div>
-                    <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div className="h-full bg-primary-500 rounded-full transition-all duration-100" style={{ width: `${scanProgress}%` }} />
+                    <div className="w-full h-2 overflow-hidden bg-gray-200 rounded-full">
+                      <div className="h-full transition-all duration-100 rounded-full bg-primary-500" style={{ width: `${scanProgress}%` }} />
                     </div>
                   </div>
                 )}
 
-                <div className="flex items-center justify-between text-sm text-text-secondary mb-4">
+                <div className="flex items-center justify-between mb-4 text-sm text-text-secondary">
                   <span>
                     {scanStatus === 'ready' && '스캔 준비 완료'}
                     {scanStatus === 'countdown' && '카운트다운...'}
@@ -492,7 +569,7 @@ const ScanPage = () => {
                     <AlertTriangle size={15} className="shrink-0 text-orange-500 mt-0.5" />
                     <div>
                       <p className="font-semibold mb-0.5">스캐너 연결 후 측정이 가능합니다</p>
-                      <p className="text-orange-600 leading-relaxed">
+                      <p className="leading-relaxed text-orange-600">
                         {scannerStatus === 'checking'
                           ? '스캐너 연결 상태를 확인하고 있습니다. 잠시만 기다려주세요.'
                           : 'ESP32 스캐너가 아직 연결되지 않았습니다. 같은 Wi-Fi에 연결되어 있는지 확인하거나, 우측 상단에서 [시연용] 모드로 전환하시면 바로 체험할 수 있습니다.'}
@@ -504,7 +581,7 @@ const ScanPage = () => {
 
               {/* 주의사항 */}
               <div className="card">
-                <h3 className="text-sm font-semibold text-text-primary mb-4">스캔 시 주의사항</h3>
+                <h3 className="mb-4 text-sm font-semibold text-text-primary">스캔 시 주의사항</h3>
                 <div className="space-y-3">
                   {checklist.map((item, idx) => {
                     const Icon = item.icon;
@@ -520,12 +597,12 @@ const ScanPage = () => {
             </div>
 
             {/* 설정 패널 */}
-            <div className="desktop:col-span-5 space-y-6">
+            <div className="space-y-6 desktop:col-span-5">
               <div className="card">
-                <h3 className="text-sm font-semibold text-text-primary mb-4">스캔 설정</h3>
+                <h3 className="mb-4 text-sm font-semibold text-text-primary">스캔 설정</h3>
 
                 {/* AI 분석 모드 토글 */}
-                <div className="mb-5 pb-4 border-b border-gray-100">
+                <div className="pb-4 mb-5 border-b border-gray-100">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-xs font-semibold text-text-primary">AI 분석 모드</p>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
@@ -536,7 +613,7 @@ const ScanPage = () => {
                       {mode === 'mock' ? '시연 모드 활성' : '실시간 AI 연동'}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 bg-gray-100 p-1 rounded-xl">
+                  <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-xl">
                     <button
                       type="button"
                       disabled={scanStatus === 'scanning' || scanStatus === 'countdown'}
@@ -574,7 +651,7 @@ const ScanPage = () => {
 
                 <div className="mb-5">
                   <p className="text-xs font-semibold text-text-primary mb-2.5">측정 부위</p>
-                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                     {SCAN_AREAS.map((area) => {
                       const isSelected = selectedArea === area;
                       return (
@@ -597,7 +674,7 @@ const ScanPage = () => {
                 </div>
 
                 <div>
-                  <p className="text-xs font-medium text-text-secondary mb-2">측정 항목</p>
+                  <p className="mb-2 text-xs font-medium text-text-secondary">측정 항목</p>
                   <div className="space-y-3">
                     {MEASUREMENT_ITEMS.map((item) => (
                       <div key={item.id} className="flex items-center justify-between">
@@ -621,7 +698,7 @@ const ScanPage = () => {
 
               {/* 스캐너 연결 카드 */}
               <div className="card">
-                <h3 className="text-sm font-semibold text-text-primary mb-3">스캐너 연결</h3>
+                <h3 className="mb-3 text-sm font-semibold text-text-primary">스캐너 연결</h3>
                 <div className={`rounded-xl p-4 flex items-center gap-3 ${
                   displayScannerStatus === 'ok' ? 'bg-primary-50' : 'bg-orange-50'
                 }`}>
