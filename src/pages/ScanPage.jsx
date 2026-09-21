@@ -74,12 +74,12 @@ useEffect(() => {
   );
 }, [streamUrl]);
 
-// 스트림이 끊기면 1.5초 후 자동 재접속
+// 스트림이 끊기면 3초 후 자동 재접속
 useEffect(() => {
   if (!streamError) return;
 
   console.warn(
-    '[ESP32 Stream] 스트림 연결 실패 - 1.5초 후 재시도'
+    '[ESP32 Stream] 스트림 연결 실패 - 3초 후 재시도'
   );
 
   const retryTimer = setTimeout(() => {
@@ -94,7 +94,7 @@ useEffect(() => {
 
       return next;
     });
-  }, 1500);
+  }, 3000);
 
   return () => {
     clearTimeout(retryTimer);
@@ -174,15 +174,42 @@ const previewUrl = streamUrl
   }, [scanStatus]);
 
   // 카운트다운
-  useEffect(() => {
-    if (scanStatus !== 'countdown') return;
-    if (countdown > 0) {
-      const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
-      return () => clearTimeout(t);
+useEffect(() => {
+  if (scanStatus !== 'countdown') return;
+
+  if (countdown > 0) {
+    const t = setTimeout(
+      () => setCountdown((c) => c - 1),
+      1000
+    );
+
+    return () => clearTimeout(t);
+  }
+
+  const beginScan = async () => {
+    // 카운트다운이 끝난 뒤 실제 하드웨어 촬영 시작
+    if (!isDemo) {
+      try {
+        await triggerScan();
+      } catch (err) {
+        console.error('[startScan] triggerScan 실패:', err);
+
+        setScanErrorMsg(
+          '스캐너 시작 신호(trigger) 전송에 실패했습니다. ESP32 전원 및 Wi-Fi 연결을 확인해 주세요.'
+        );
+
+        setScanStatus('error');
+        return;
+      }
     }
+
+    // 이제부터 실시간 미리보기도 꺼짐
     setScanStatus('scanning');
     setScanProgress(0);
-  }, [scanStatus, countdown]);
+  };
+
+  beginScan();
+}, [scanStatus, countdown, isDemo]);
 
 // ========================================
 // 1. 스캔 진행률 처리
@@ -365,28 +392,22 @@ useEffect(() => {
   userInputs,
 ]);
 
-  const startScan = useCallback(async () => {
-    if (scanStatus === 'scanning' || scanStatus === 'countdown' || isSubmittingRef.current) return;
-    if (isScannerBlocked) return;
-    isSubmittingRef.current = false;
-    scanOriginRef.current = 'software';
+  const startScan = useCallback(() => {
+  if (
+    scanStatus === 'scanning' ||
+    scanStatus === 'countdown' ||
+    isSubmittingRef.current
+  ) return;
 
-    // 실제 AI 모드: triggerScan() 호출하여 하드웨어에 스캔 시작 신호 전송
-    if (!isDemo) {
-      try {
-        await triggerScan();
-      } catch (err) {
-        console.error('[startScan] triggerScan 실패:', err);
-        setScanErrorMsg('스캐너 시작 신호(trigger) 전송에 실패했습니다. ESP32 전원 및 Wi-Fi 연결을 확인해 주세요.');
-        setScanStatus('error');
-        return;
-      }
-    }
+  if (isScannerBlocked) return;
 
-    setScanStatus('countdown');
-    setCountdown(3);
-    setScanProgress(0);
-  }, [scanStatus, isDemo, isScannerBlocked]);
+  isSubmittingRef.current = false;
+  scanOriginRef.current = 'software';
+
+  setScanStatus('countdown');
+  setCountdown(3);
+  setScanProgress(0);
+}, [scanStatus, isScannerBlocked]);
 
   // 하드웨어 버튼 감지용 폴링 (2초마다 상태 확인)
   useEffect(() => {
@@ -464,7 +485,7 @@ useEffect(() => {
                 <div className="bg-gray-900 rounded-2xl aspect-[4/3] relative flex items-center justify-center mb-4 overflow-hidden shadow-inner">
                   {/* 하드웨어 실시간 MJPEG 스트림 (URL이 있고 에러 없을 시 즉시 표시) */}
 {/* 하드웨어 실시간 MJPEG 스트림 */}
-{streamUrl && (
+{streamUrl && scanStatus !== 'scanning' && (
   <img
     key={streamRetryKey}
     src={previewUrl}
@@ -487,6 +508,14 @@ useEffect(() => {
       setStreamError(true);
     }}
   />
+)}
+
+{scanStatus === 'scanning' && (
+  <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+    <p className="font-medium text-white">
+      피부 촬영 중입니다...
+    </p>
+  </div>
 )}
 
                   {/* 스트림 상태 뱃지 (실시간 스트림 정상 출력 시) */}
