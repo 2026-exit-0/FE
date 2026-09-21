@@ -132,10 +132,50 @@ export async function getScannerHealth() {
 export async function measureWithScanner(formData) {
   const mode = getAiMode();
   const isDemo = mode === 'mock';
-  const region = formData?.get?.('region') || '얼굴 전체';
 
-  // 1. 세션 생성
+  // AI가 실패했을 때 시연용 결과로 넘어갈지 여부
+  const allowDemoFallback =
+    import.meta.env.VITE_ALLOW_DEMO_FALLBACK === 'true';
+
+  const region =
+    formData?.get?.('region') || '얼굴 전체';
+
+  // 시연용 fallback 결과 생성
+  const makeFallbackResult = (
+    stage,
+    error,
+    sessionId = null
+  ) => {
+    console.warn(
+      `[measureWithScanner] ${stage} 실패 → 시연용 결과 사용`,
+      error
+    );
+
+    const mock = buildMockResult(region);
+
+    return {
+      ...mock,
+
+      // 실제 세션이 만들어졌으면 유지
+      session_id: sessionId,
+
+      // 결과 페이지에서 시연 데이터임을 구분할 수 있게 표시
+      is_mock: true,
+      demo_fallback: true,
+      fallback_stage: stage,
+
+      meta: {
+        ...mock.meta,
+        fallback_stage: stage,
+      },
+    };
+  };
+
+  // ========================================
+  // 1. 스캔 세션 생성
+  // ========================================
   let sessionId = null;
+
   try {
     const session = await createScanSession({
       scan_area: region,
@@ -145,43 +185,71 @@ export async function measureWithScanner(formData) {
       melanin_on: true,
       elasticity_on: true,
     });
+
     sessionId = session?.session_id;
-  } catch (sessErr) {
-    console.warn('[measureWithScanner] 세션 생성 실패:', sessErr);
-    if (isDemo) {
-      await delay(1200);
-      return buildMockResult(region);
+
+    if (!sessionId) {
+      throw new Error('SCAN_SESSION_ID_MISSING');
     }
+  } catch (sessErr) {
+    console.warn(
+      '[measureWithScanner] 세션 생성 실패:',
+      sessErr
+    );
+
+    // mock 모드 또는 fallback 허용 상태면
+    // 백엔드가 죽어 있어도 로컬 mock 결과 반환
+    if (isDemo || allowDemoFallback) {
+      await delay(800);
+
+      return makeFallbackResult(
+        'session-create',
+        sessErr
+      );
+    }
+
     throw sessErr;
   }
 
-  // 2. 분석 호출 (POST /scans/{session_id}/analyze-scan?demo=true|false)
+  // ========================================
+  // 2. 실제 AI 분석 호출
+  // ========================================
   try {
-    const res = await client.post(`/scans/${sessionId}/analyze-scan?demo=${isDemo}`);
+    const res = await client.post(
+      `/scans/${sessionId}/analyze-scan?demo=${isDemo}`
+    );
+
     const data = res.data || {};
+
     return {
       ...data,
       session_id: sessionId,
-      is_mock: data.is_mock !== undefined ? Boolean(data.is_mock) : isDemo,
+
+      is_mock:
+        data.is_mock !== undefined
+          ? Boolean(data.is_mock)
+          : isDemo,
+
+      demo_fallback: false,
     };
   } catch (err) {
-    console.warn('[measureWithScanner] analyze-scan 호출 실패:', err);
+    console.warn(
+      '[measureWithScanner] analyze-scan 호출 실패:',
+      err
+    );
 
-    // 목업(데모) 모드일 때 Fallback: analyze-mock 시도 또는 buildMockResult
-    if (isDemo) {
-      try {
-        const fallbackRes = await client.post(`/scans/${sessionId}/analyze-mock`);
-        return {
-          ...fallbackRes.data,
-          session_id: sessionId,
-          is_mock: true,
-        };
-      } catch {
-        return buildMockResult(region);
-      }
+    // AI 서버 오류 / 503 / timeout / 네트워크 오류 발생 시
+    // 시연용 결과로 자동 전환
+    if (isDemo || allowDemoFallback) {
+      await delay(800);
+
+      return makeFallbackResult(
+        'analyze-scan',
+        err,
+        sessionId
+      );
     }
 
-    // 실제 AI 모드: 스캐너/AI 미연결 시 503 등 그대로 throw
     throw err;
   }
 }
