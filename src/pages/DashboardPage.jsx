@@ -231,11 +231,11 @@ const DashboardPage = () => {
                     DAMDA Dual-LED IoT Scanner v1.2
                   </h3>
                   <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-md border border-emerald-200">
-                    {mode === 'mock' ? '시연용' : '연동 준비 중'}
+                    {mode === 'mock' ? '시연용' : '기기 연결 확인 필요'}
                   </span>
                 </div>
                 <p className="text-xs text-text-secondary mt-0.5">
-                  {mode === 'mock' ? '기기 없이 예시 데이터로 화면을 체험합니다.' : '실제 기기 촬영 연동을 준비 중입니다. 스캔 화면에서 안내를 확인해 주세요.'}
+                  {mode === 'mock' ? '기기 없이 예시 데이터로 화면을 체험합니다.' : '스캔 화면에서 기기 등록 상태를 확인한 뒤 촬영할 수 있습니다.'}
                 </p>
               </div>
             </div>

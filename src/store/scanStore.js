@@ -85,6 +85,7 @@ export function parseApiResult(apiResult) {
   }
 
   return {
+    sessionId: apiResult.session_id,
     moisture: metrics.moisture ?? metrics['수분도'] ?? apiResult.moisture ?? 0,
     oil: metrics.oil ?? metrics['유분도'] ?? apiResult.oil ?? 0,
     elasticity: metrics.elasticity ?? metrics['탄력'] ?? apiResult.elasticity ?? 0,

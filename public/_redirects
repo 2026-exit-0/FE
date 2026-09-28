@@ -1,22 +1,23 @@
 # Netlify Backend SSL Proxy (HTTPS -> HTTP Mixed Content 우회)
+/device-api/*    http://52.79.241.24:8001/:splat           200
 /devices         http://52.79.241.24:8001/devices          200
 /stream-relay/*  http://52.79.241.24:8001/stream/:splat    200
 /stream-relay    http://52.79.241.24:8001/stream           200
-/auth/*          http://52.79.241.24:8000/auth/:splat      200
-/scanner/*   http://52.79.241.24:8000/scanner/:splat   200
-/weather     http://52.79.241.24:8000/weather          200
-/scans/*     http://52.79.241.24:8000/scans/:splat     200
-/scans       http://52.79.241.24:8000/scans            200
-/history     http://52.79.241.24:8000/history          200
-/result/*    http://52.79.241.24:8000/result/:splat    200
-/products/*  http://52.79.241.24:8000/products/:splat  200
-/products    http://52.79.241.24:8000/products         200
-/mypage      http://52.79.241.24:8000/mypage           200
-/surveys/*   http://52.79.241.24:8000/surveys/:splat   200
-/surveys     http://52.79.241.24:8000/surveys          200
-/wishlist/*  http://52.79.241.24:8000/wishlist/:splat  200
-/wishlist    http://52.79.241.24:8000/wishlist         200
-/report/*    http://52.79.241.24:8000/report/:splat    200
+/auth/*          https://api.damdads.kro.kr/auth/:splat      200
+/scanner/*       https://api.damdads.kro.kr/scanner/:splat   200
+/weather         https://api.damdads.kro.kr/weather          200
+/scans/*         https://api.damdads.kro.kr/scans/:splat     200
+/scans           https://api.damdads.kro.kr/scans            200
+/history         https://api.damdads.kro.kr/history          200
+/result/*        https://api.damdads.kro.kr/result/:splat    200
+/products/*      https://api.damdads.kro.kr/products/:splat  200
+/products        https://api.damdads.kro.kr/products         200
+/mypage          https://api.damdads.kro.kr/mypage           200
+/surveys/*       https://api.damdads.kro.kr/surveys/:splat   200
+/surveys         https://api.damdads.kro.kr/surveys          200
+/wishlist/*      https://api.damdads.kro.kr/wishlist/:splat  200
+/wishlist        https://api.damdads.kro.kr/wishlist         200
+/report/*        https://api.damdads.kro.kr/report/:splat    200
 
 # SPA 라우팅 Fallback
 /*           /index.html                               200

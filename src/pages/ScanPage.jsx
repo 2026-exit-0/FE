@@ -9,7 +9,6 @@ import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
 import { useModeStore } from '../store/modeStore';
 import { getScannerHealth, measureWithScanner } from '../api/scan';
-import { DEVICE_SCAN_UNAVAILABLE } from '../utils/scanSafety';
 import { SCAN_AREAS, MEASUREMENT_ITEMS } from '../utils/constants';
 
 const REGION_MAP = {
@@ -127,7 +126,7 @@ const previewUrl = streamUrl
   const isDemo = mode === 'mock';
   const displayScannerStatus = isDemo ? 'ok' : scannerStatus;
   const displayScannerMsg = isDemo ? '시연용 모드 · 실제 기기를 사용하지 않습니다' : scannerMsg;
-  const isScannerBlocked = !isDemo;
+  const isScannerBlocked = !isDemo && scannerStatus !== 'ok';
 
   useEffect(() => { initializeIfNeeded(); }, [initializeIfNeeded]);
 
@@ -205,11 +204,6 @@ useEffect(() => {
     return () => clearTimeout(t);
   }
 
-  if (!isDemo) {
-    setScanErrorMsg(DEVICE_SCAN_UNAVAILABLE);
-    setScanStatus('error');
-    return;
-  }
   setScanStatus('scanning');
   setScanProgress(0);
 }, [scanStatus, countdown, isDemo]);
@@ -243,10 +237,7 @@ useEffect(() => {
 // mock / real 공통
 // ========================================
 useEffect(() => {
-  if (
-    scanStatus !== 'scanning' ||
-    scanProgress < 100
-  ) {
+  if (scanStatus !== 'scanning' || (isDemo && scanProgress < 100)) {
     return;
   }
 
@@ -308,7 +299,7 @@ useEffect(() => {
       const errorMsg =
         err.code === 'ECONNABORTED' ||
         err.message?.includes('timeout')
-          ? '측정 응답 시간이 초과되었습니다 (30초 제한). ESP32 스캐너 수신 상태를 확인해 주세요.'
+          ? '측정 응답 시간이 초과되었습니다. ESP32 전원과 Wi-Fi 연결을 확인해 주세요.'
           : (
               err.response?.data?.detail || err.message ||
               '네트워크 연결이 불안정하거나 측정에 실패했습니다.'
@@ -329,6 +320,7 @@ useEffect(() => {
   selectedArea,
   addScan,
   userInputs,
+  isDemo,
 ]);
 
   const startScan = useCallback(() => {
@@ -513,9 +505,9 @@ useEffect(() => {
                     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-4 text-center bg-black/85 animate-fadeIn">
                       <div className="flex items-center gap-2 mb-3 bg-emerald-500/20 text-emerald-300 px-3.5 py-1.5 rounded-full border border-emerald-400/30 shadow-sm">
                         <CheckCircle size={16} className="text-emerald-400 shrink-0" />
-                        <span className="text-xs font-bold">시연 완료 · 예시 사진</span>
+                        <span className="text-xs font-bold">{isDemo ? '시연 완료 · 예시 사진' : '기기 촬영 및 저장 완료'}</span>
                       </div>
-                      <div className="grid w-full max-w-xs grid-cols-2 gap-3 mb-3">
+                      {isDemo && <div className="grid w-full max-w-xs grid-cols-2 gap-3 mb-3">
                         <div className="relative overflow-hidden border shadow-lg rounded-xl border-emerald-400/40 bg-black/40">
                           <img
                             src="/assets/demo_white_light.jpg"
@@ -536,8 +528,8 @@ useEffect(() => {
                             UV 395nm
                           </span>
                         </div>
-                      </div>
-                      <p className="text-sm font-bold tracking-tight text-white">예시 분석 결과를 표시합니다</p>
+                      </div>}
+                      <p className="text-sm font-bold tracking-tight text-white">{isDemo ? '예시 분석 결과를 표시합니다' : 'Supabase에 저장된 촬영 결과를 불러옵니다'}</p>
                       <p className="mt-1 text-xs font-medium text-emerald-400 animate-pulse">분석 결과 페이지로 이동합니다</p>
                     </div>
                   )}
@@ -584,7 +576,7 @@ useEffect(() => {
 
                 <div className="flex items-center justify-between mb-4 text-sm text-text-secondary">
                   <span>
-                    {scanStatus === 'ready' && (isDemo ? '시연 준비 완료' : '기기 촬영 연동 준비 중')}
+                    {scanStatus === 'ready' && (isDemo ? '시연 준비 완료' : '기기 촬영 준비 완료')}
                     {scanStatus === 'countdown' && '카운트다운...'}
                     {scanStatus === 'scanning' && '스캔 중 움직이지 마세요'}
                     {scanStatus === 'complete' && '스캔 완료!'}
@@ -604,7 +596,7 @@ useEffect(() => {
                 >
                   <ScanIcon size={20} />
                   {isScannerBlocked
-                    ? '기기 촬영 연동 준비 중'
+                    ? (scannerStatus === 'checking' ? '스캐너 확인 중...' : '스캐너 연결 후 스캔 가능')
                     : (scanStatus === 'ready' ? '스캔 시작하기' :
                        scanStatus === 'error' ? '다시 시도하기' :
                        scanStatus === 'complete' ? '다시 스캔하기' : '스캔 중...')}
@@ -614,9 +606,9 @@ useEffect(() => {
                   <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-xl flex items-start gap-2.5 text-xs text-orange-700 animate-fadeIn">
                     <AlertTriangle size={15} className="shrink-0 text-orange-500 mt-0.5" />
                     <div>
-                      <p className="font-semibold mb-0.5">현재 실제 기기 촬영은 사용할 수 없습니다</p>
+                      <p className="font-semibold mb-0.5">스캐너 연결 확인이 필요합니다</p>
                       <p className="leading-relaxed text-orange-600">
-                        {DEVICE_SCAN_UNAVAILABLE}
+                        기기 전원과 Wi-Fi를 확인한 뒤 재검색해 주세요. 등록 정보가 있어도 기기가 오프라인이면 스캔 요청은 시간 초과될 수 있습니다.
                       </p>
                     </div>
                   </div>
@@ -654,7 +646,7 @@ useEffect(() => {
                         ? 'bg-purple-50 text-purple-600 border-purple-200/60'
                         : 'bg-emerald-50 text-emerald-600 border-emerald-200/60'
                     }`}>
-                      {mode === 'mock' ? '시연 모드 활성' : '기기 연동 준비 중'}
+                      {mode === 'mock' ? '시연 모드 활성' : '실제 기기 촬영'}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-xl">
@@ -689,7 +681,7 @@ useEffect(() => {
                   <p className="text-[11px] text-text-secondary mt-1.5">
                     {mode === 'mock'
                       ? '⚡ 끊김 없는 시연 촬영을 위한 사전 큐레이션 데이터 모드입니다.'
-                      : '기기 촬영 연동을 준비 중입니다. 실제 촬영과 분석은 아직 시작되지 않습니다.'}
+                      : '스캔 버튼을 누르면 ESP32에 촬영 명령을 보내고 Supabase 저장 완료를 기다립니다.'}
                   </p>
                 </div>
 
@@ -756,7 +748,7 @@ useEffect(() => {
                   </div>
                   <div>
                     <p className={`text-sm font-medium ${displayScannerStatus === 'ok' ? 'text-primary-700' : 'text-orange-700'}`}>
-                      {isDemo ? '기기 없이 체험 중' : displayScannerStatus === 'ok' ? '스캐너 응답 확인됨' : '스캐너 연결 미확인'}
+                      {isDemo ? '기기 없이 체험 중' : displayScannerStatus === 'ok' ? '스캐너 등록 확인됨' : '스캐너 연결 미확인'}
                     </p>
                     <p className={`text-xs ${displayScannerStatus === 'ok' ? 'text-primary-500' : 'text-orange-500'}`}>
                       {displayScannerMsg}

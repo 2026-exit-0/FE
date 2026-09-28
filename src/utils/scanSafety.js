@@ -1,7 +1,3 @@
-// The deployed API creates a session but does not dispatch a device scan.
-// Enable real device scanning only after that contract is implemented and verified.
-export const DEVICE_SCAN_UNAVAILABLE = '기기 촬영 연동을 준비 중입니다. 지금은 시연용 모드에서 화면을 체험할 수 있습니다.';
-
 export function safeStreamUrl(value, pageUrl = globalThis.location?.href || 'https://localhost/') {
   if (!value || typeof value !== 'string') return null;
   try {
