@@ -15,7 +15,7 @@ const LandingPage = () => {
     {
       step: '01',
       title: 'IoT 듀얼 LED 정밀 촬영',
-      desc: '백색광(5500K) 반사 측정과 395nm UV 형광 촬영으로 표면 피부결과 잠재 색소침착을 4초 만에 자동 측정합니다.',
+      desc: '백색광(5500K) 반사 측정과 395nm UV 형광 촬영으로 표면 피부결과 잠재 색소침착을 7초 만에 자동 측정합니다.',
       icon: Camera,
       tag: 'ESP32-CAM 듀얼광',
     },
@@ -226,7 +226,7 @@ const LandingPage = () => {
               <p className="text-xs text-text-secondary mt-1 font-medium">회귀·분류 멀티태스크 AI</p>
             </div>
             <div>
-              <p className="text-2xl tablet:text-3xl font-black text-primary-600">4초</p>
+              <p className="text-2xl tablet:text-3xl font-black text-primary-600">7초</p>
               <p className="text-xs text-text-secondary mt-1 font-medium">듀얼 LED 자동 스캔 시퀀스</p>
             </div>
             <div>

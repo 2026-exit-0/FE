@@ -137,7 +137,7 @@ const CareGuidePage = () => {
       <div className="flex">
         <Sidebar />
 
-        <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-24 desktop:pb-8 max-w-5xl">
+        <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-28 desktop:pb-8 max-w-5xl">
           {/* 타이틀 및 케어 팁 */}
           <div className="flex flex-col tablet:flex-row items-start justify-between gap-4 mb-6">
             <div>

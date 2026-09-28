@@ -35,7 +35,7 @@ const DashboardPage = () => {
     {
       icon: Scan,
       title: '정밀 피부 스캔',
-      desc: '4초 듀얼 LED 수분·유분·모공 측정',
+      desc: '7초 듀얼 LED 수분·유분·모공 측정',
       tag: 'NEW 듀얼광',
       path: '/skin-check',
       color: 'text-emerald-600',
@@ -161,7 +161,7 @@ const DashboardPage = () => {
                     className="inline-flex items-center gap-2 bg-white text-emerald-900 hover:bg-emerald-50 px-6 py-3 rounded-2xl font-bold text-sm shadow-lg hover:shadow-xl transition-all group"
                   >
                     <Scan size={18} className="text-emerald-700 group-hover:rotate-12 transition-transform" />
-                    지금 4초 정밀 스캔하기
+                    지금 7초 정밀 스캔하기
                     <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                   </Link>
 
