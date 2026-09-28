@@ -8,7 +8,8 @@ import Button from '../components/common/Button';
 import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
 import { useModeStore } from '../store/modeStore';
-import { getScannerHealth, measureWithScanner, triggerScan, getScanStatus } from '../api/scan';
+import { getScannerHealth, measureWithScanner } from '../api/scan';
+import { DEVICE_SCAN_UNAVAILABLE } from '../utils/scanSafety';
 import { SCAN_AREAS, MEASUREMENT_ITEMS } from '../utils/constants';
 
 const REGION_MAP = {
@@ -36,9 +37,7 @@ const [scannerMsg, setScannerMsg] = useState(
   '스캐너 상태 확인 중...'
 );
 
-const [streamUrl, setStreamUrl] = useState(
-  import.meta.env.VITE_SCANNER_STREAM_URL || ''
-);
+const [streamUrl, setStreamUrl] = useState('');
 
 const [detectedIp, setDetectedIp] = useState(null);
 
@@ -59,7 +58,23 @@ const [measurements, setMeasurements] = useState(
 );
 
 const isSubmittingRef = useRef(false);
-const scanOriginRef = useRef('software');
+const scannerRequestRef = useRef(0);
+const scanGenerationRef = useRef(0);
+const navigationTimerRef = useRef(null);
+
+useEffect(() => {
+  scanGenerationRef.current++;
+  isSubmittingRef.current = false;
+  setScanStatus('ready');
+  setCountdown(3);
+  setScanProgress(0);
+  setScanErrorMsg('');
+  return () => {
+    scanGenerationRef.current++;
+    clearTimeout(navigationTimerRef.current);
+  };
+}, [mode]);
+
 
 // 새로운 스트림 URL이 들어오면 에러 상태 초기화
 useEffect(() => {
@@ -76,7 +91,7 @@ useEffect(() => {
 
 // 스트림이 끊기면 3초 후 자동 재접속
 useEffect(() => {
-  if (!streamError) return;
+  if (!streamError || streamRetryKey >= 3) return;
 
   console.warn(
     '[ESP32 Stream] 스트림 연결 실패 - 3초 후 재시도'
@@ -99,7 +114,7 @@ useEffect(() => {
   return () => {
     clearTimeout(retryTimer);
   };
-}, [streamError]);
+}, [streamError, streamRetryKey]);
 
 // 동일한 URL이어도 브라우저가 새로운 요청을 보내도록
 // retry 값을 query parameter로 붙임
@@ -111,16 +126,19 @@ const previewUrl = streamUrl
 
   const isDemo = mode === 'mock';
   const displayScannerStatus = isDemo ? 'ok' : scannerStatus;
-  const displayScannerMsg = isDemo ? '스캐너 연결됨 (상태: 대기 중)' : scannerMsg;
-  const isScannerBlocked = !isDemo && scannerStatus !== 'ok';
+  const displayScannerMsg = isDemo ? '시연용 모드 · 실제 기기를 사용하지 않습니다' : scannerMsg;
+  const isScannerBlocked = !isDemo;
 
   useEffect(() => { initializeIfNeeded(); }, [initializeIfNeeded]);
 
   // 스캐너 상태 및 ESP32 스트리밍 URL 확인
   const checkScanner = useCallback(async () => {
+    const requestId = ++scannerRequestRef.current;
     if (mode === 'mock') {
       setScannerStatus('ok');
-      setScannerMsg('스캐너 연결됨 (상태: 대기 중)');
+      setScannerMsg('시연용 모드 · 실제 기기를 사용하지 않습니다');
+      setStreamUrl('');
+      setDetectedIp(null);
       return;
     }
 
@@ -128,9 +146,11 @@ const previewUrl = streamUrl
     setScannerMsg('스캐너 상태 확인 중...');
     try {
       const data = await getScannerHealth();
+      if (requestId !== scannerRequestRef.current) return;
       if (data.status === 'ok') {
         setScannerStatus('ok');
         setScannerMsg(data.message || '스캐너 연결됨');
+        setStreamUrl(data.streamUrl || '');
         if (data.streamUrl) {
           setStreamUrl(data.streamUrl);
           setDetectedIp(data.ip || null);
@@ -138,12 +158,11 @@ const previewUrl = streamUrl
       } else {
         setScannerStatus('unreachable');
         setScannerMsg(data.message || '스캐너 미연결 — Wi-Fi 확인');
-        if (!import.meta.env.VITE_SCANNER_STREAM_URL) {
-          setStreamUrl('');
-          setDetectedIp(null);
-        }
+        setStreamUrl('');
+        setDetectedIp(null);
       }
     } catch {
+      if (requestId !== scannerRequestRef.current) return;
       setScannerStatus('unreachable');
       setScannerMsg('서버 응답 없음');
     }
@@ -154,7 +173,7 @@ const previewUrl = streamUrl
     // 실제 AI 모드일 때 10초마다 기기 등록 상태 확인
     if (mode !== 'mock') {
       const timer = setInterval(checkScanner, 10000);
-      return () => clearInterval(timer);
+      return () => { clearInterval(timer); scannerRequestRef.current++; };
     }
   }, [checkScanner, mode]);
 
@@ -186,29 +205,13 @@ useEffect(() => {
     return () => clearTimeout(t);
   }
 
-  const beginScan = async () => {
-    // 카운트다운이 끝난 뒤 실제 하드웨어 촬영 시작
-    if (!isDemo) {
-      try {
-        await triggerScan();
-      } catch (err) {
-        console.error('[startScan] triggerScan 실패:', err);
-
-        setScanErrorMsg(
-          '스캐너 시작 신호(trigger) 전송에 실패했습니다. ESP32 전원 및 Wi-Fi 연결을 확인해 주세요.'
-        );
-
-        setScanStatus('error');
-        return;
-      }
-    }
-
-    // 이제부터 실시간 미리보기도 꺼짐
-    setScanStatus('scanning');
-    setScanProgress(0);
-  };
-
-  beginScan();
+  if (!isDemo) {
+    setScanErrorMsg(DEVICE_SCAN_UNAVAILABLE);
+    setScanStatus('error');
+    return;
+  }
+  setScanStatus('scanning');
+  setScanProgress(0);
 }, [scanStatus, countdown, isDemo]);
 
 // ========================================
@@ -236,73 +239,6 @@ useEffect(() => {
 
 
 // ========================================
-// 2. 실제 AI 모드: ESP32 촬영 완료 감지
-// ========================================
-useEffect(() => {
-  if (scanStatus !== 'scanning' || isDemo) return;
-
-  let isCancelled = false;
-
-  const checkHardwareStatus = async () => {
-    try {
-      const data = await getScanStatus();
-
-      console.log(
-        '[ESP32] 스캔 상태 확인:',
-        data?.status
-      );
-
-      // 촬영이 끝나 ESP32가 idle로 돌아온 경우
-      if (data?.status === 'idle' && !isCancelled) {
-        setScanProgress((prev) => {
-          // 스캔 시작 직후 idle을 완료로 오인하지 않도록
-          // 최소 진행률 20% 이후에만 완료 처리
-          if (prev < 20 || prev >= 100) {
-            return prev;
-          }
-
-          console.log(
-            '[ESP32] 하드웨어 촬영 완료 감지 → 분석 요청 진행'
-          );
-
-          return 100;
-        });
-      }
-    } catch (err) {
-      console.warn(
-        '[ESP32] 상태 확인 실패:',
-        err
-      );
-    }
-  };
-
-  // 1.2초마다 ESP32 상태 확인
-  const pollTimer = setInterval(
-    checkHardwareStatus,
-    1200
-  );
-
-  // 최대 20초 대기 후 강제로 다음 단계 진행
-  const safetyTimeout = setTimeout(() => {
-    if (isCancelled) return;
-
-    console.warn(
-      '[ESP32] 20초 안전 타임아웃 → 분석 요청 진행'
-    );
-
-    setScanProgress(100);
-  }, 20000);
-
-  return () => {
-    isCancelled = true;
-
-    clearInterval(pollTimer);
-    clearTimeout(safetyTimeout);
-  };
-}, [scanStatus, isDemo]);
-
-
-// ========================================
 // 3. 진행률 100% → 백엔드 분석 요청
 // mock / real 공통
 // ========================================
@@ -320,6 +256,7 @@ useEffect(() => {
   isSubmittingRef.current = true;
 
   const runAnalysis = async () => {
+    const generation = scanGenerationRef.current;
     try {
       console.log(
         '[Scan] 촬영 완료 → AI 분석 요청 시작'
@@ -347,6 +284,7 @@ useEffect(() => {
       }
 
       const result = await measureWithScanner(fd);
+      if (generation !== scanGenerationRef.current) return;
 
       console.log(
         '[Scan] AI 분석 완료:',
@@ -357,10 +295,11 @@ useEffect(() => {
 
       setScanStatus('complete');
 
-      setTimeout(() => {
+      navigationTimerRef.current = setTimeout(() => {
         navigate('/analysis');
       }, 2200);
     } catch (err) {
+      if (generation !== scanGenerationRef.current) return;
       console.error(
         '[Scan] 측정 실패:',
         err
@@ -371,14 +310,14 @@ useEffect(() => {
         err.message?.includes('timeout')
           ? '측정 응답 시간이 초과되었습니다 (30초 제한). ESP32 스캐너 수신 상태를 확인해 주세요.'
           : (
-              err.response?.data?.detail ||
+              err.response?.data?.detail || err.message ||
               '네트워크 연결이 불안정하거나 측정에 실패했습니다.'
             );
 
       setScanErrorMsg(errorMsg);
       setScanStatus('error');
     } finally {
-      isSubmittingRef.current = false;
+      if (generation === scanGenerationRef.current) isSubmittingRef.current = false;
     }
   };
 
@@ -402,29 +341,12 @@ useEffect(() => {
   if (isScannerBlocked) return;
 
   isSubmittingRef.current = false;
-  scanOriginRef.current = 'software';
+
 
   setScanStatus('countdown');
   setCountdown(3);
   setScanProgress(0);
 }, [scanStatus, isScannerBlocked]);
-
-  // 하드웨어 버튼 감지용 폴링 (2초마다 상태 확인)
-  useEffect(() => {
-    if (scanStatus !== 'ready' || isDemo) return;
-    const poll = setInterval(async () => {
-      try {
-        const data = await getScanStatus();
-        if (data?.status === 'scanning') {
-          console.log('[ESP32] 하드웨어 물리 버튼 감지 -> 스캔 시작');
-          scanOriginRef.current = 'hardware';
-          setScanStatus('scanning');
-          setScanProgress(0);
-        }
-      } catch (_) {}
-    }, 2000);
-    return () => clearInterval(poll);
-  }, [scanStatus, isDemo]);
 
   const checklist = [
     { icon: CheckCircle, text: '밝은 환경에서 측정하세요', type: 'ok' },
@@ -513,7 +435,7 @@ useEffect(() => {
 {scanStatus === 'scanning' && (
   <div className="absolute inset-0 flex items-center justify-center bg-black/40">
     <p className="font-medium text-white">
-      피부 촬영 중입니다...
+      예시 스캔을 진행하고 있습니다...
     </p>
   </div>
 )}
@@ -591,7 +513,7 @@ useEffect(() => {
                     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-4 text-center bg-black/85 animate-fadeIn">
                       <div className="flex items-center gap-2 mb-3 bg-emerald-500/20 text-emerald-300 px-3.5 py-1.5 rounded-full border border-emerald-400/30 shadow-sm">
                         <CheckCircle size={16} className="text-emerald-400 shrink-0" />
-                        <span className="text-xs font-bold">스캔 및 듀얼 촬영 완료!</span>
+                        <span className="text-xs font-bold">시연 완료 · 예시 사진</span>
                       </div>
                       <div className="grid w-full max-w-xs grid-cols-2 gap-3 mb-3">
                         <div className="relative overflow-hidden border shadow-lg rounded-xl border-emerald-400/40 bg-black/40">
@@ -615,7 +537,7 @@ useEffect(() => {
                           </span>
                         </div>
                       </div>
-                      <p className="text-sm font-bold tracking-tight text-white">AI 12개 지표 정밀 분석 중...</p>
+                      <p className="text-sm font-bold tracking-tight text-white">예시 분석 결과를 표시합니다</p>
                       <p className="mt-1 text-xs font-medium text-emerald-400 animate-pulse">분석 결과 페이지로 이동합니다</p>
                     </div>
                   )}
@@ -662,7 +584,7 @@ useEffect(() => {
 
                 <div className="flex items-center justify-between mb-4 text-sm text-text-secondary">
                   <span>
-                    {scanStatus === 'ready' && '스캔 준비 완료'}
+                    {scanStatus === 'ready' && (isDemo ? '시연 준비 완료' : '기기 촬영 연동 준비 중')}
                     {scanStatus === 'countdown' && '카운트다운...'}
                     {scanStatus === 'scanning' && '스캔 중 움직이지 마세요'}
                     {scanStatus === 'complete' && '스캔 완료!'}
@@ -682,7 +604,7 @@ useEffect(() => {
                 >
                   <ScanIcon size={20} />
                   {isScannerBlocked
-                    ? (scannerStatus === 'checking' ? '스캐너 확인 중...' : '스캐너 연결 후 스캔 가능')
+                    ? '기기 촬영 연동 준비 중'
                     : (scanStatus === 'ready' ? '스캔 시작하기' :
                        scanStatus === 'error' ? '다시 시도하기' :
                        scanStatus === 'complete' ? '다시 스캔하기' : '스캔 중...')}
@@ -692,11 +614,9 @@ useEffect(() => {
                   <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-xl flex items-start gap-2.5 text-xs text-orange-700 animate-fadeIn">
                     <AlertTriangle size={15} className="shrink-0 text-orange-500 mt-0.5" />
                     <div>
-                      <p className="font-semibold mb-0.5">스캐너 연결 후 측정이 가능합니다</p>
+                      <p className="font-semibold mb-0.5">현재 실제 기기 촬영은 사용할 수 없습니다</p>
                       <p className="leading-relaxed text-orange-600">
-                        {scannerStatus === 'checking'
-                          ? '스캐너 연결 상태를 확인하고 있습니다. 잠시만 기다려주세요.'
-                          : 'ESP32 스캐너가 아직 연결되지 않았습니다. 같은 Wi-Fi에 연결되어 있는지 확인하거나, 우측 상단에서 [시연용] 모드로 전환하시면 바로 체험할 수 있습니다.'}
+                        {DEVICE_SCAN_UNAVAILABLE}
                       </p>
                     </div>
                   </div>
@@ -734,7 +654,7 @@ useEffect(() => {
                         ? 'bg-purple-50 text-purple-600 border-purple-200/60'
                         : 'bg-emerald-50 text-emerald-600 border-emerald-200/60'
                     }`}>
-                      {mode === 'mock' ? '시연 모드 활성' : '실시간 AI 연동'}
+                      {mode === 'mock' ? '시연 모드 활성' : '기기 연동 준비 중'}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-xl">
@@ -769,7 +689,7 @@ useEffect(() => {
                   <p className="text-[11px] text-text-secondary mt-1.5">
                     {mode === 'mock'
                       ? '⚡ 끊김 없는 시연 촬영을 위한 사전 큐레이션 데이터 모드입니다.'
-                      : '🔬 ESP32 스캐너 및 백엔드 AI 모델을 호출하여 실시간 분석합니다.'}
+                      : '기기 촬영 연동을 준비 중입니다. 실제 촬영과 분석은 아직 시작되지 않습니다.'}
                   </p>
                 </div>
 
@@ -836,7 +756,7 @@ useEffect(() => {
                   </div>
                   <div>
                     <p className={`text-sm font-medium ${displayScannerStatus === 'ok' ? 'text-primary-700' : 'text-orange-700'}`}>
-                      {displayScannerStatus === 'ok' ? '스캐너 연결됨' : '스캐너 미연결'}
+                      {isDemo ? '기기 없이 체험 중' : displayScannerStatus === 'ok' ? '스캐너 응답 확인됨' : '스캐너 연결 미확인'}
                     </p>
                     <p className={`text-xs ${displayScannerStatus === 'ok' ? 'text-primary-500' : 'text-orange-500'}`}>
                       {displayScannerMsg}

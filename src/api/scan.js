@@ -1,6 +1,7 @@
 import client, { isMock } from './client';
 import { mockAnalysis, mockScanHistory } from '../utils/mockData';
 import { getAiMode } from '../store/modeStore';
+import { DEVICE_SCAN_UNAVAILABLE, safeStreamUrl, scannerStatus } from '../utils/scanSafety';
 
 // ── 신규 BE 스캔 세션 생성 (POST /scans) ────────────────────
 export async function createScanSession(data = {}) {
@@ -24,13 +25,6 @@ export async function createScanSession(data = {}) {
   const res = await client.post('/scans', payload);
   return res.data; // { session_id }
 }
-
-// ── 하드웨어 스캔 트리거 및 상태 확인 (HW 버튼 / 프론트 버튼 연동) ────
-export const triggerScan = (deviceId = 'ESP32_1') =>
-  client.post('/scans/trigger', { status: 'scanning', device_id: deviceId }).then((r) => r.data);
-
-export const getScanStatus = () =>
-  client.get('/scans/status').then((r) => r.data);
 
 // ── 신규 BE 스캔 분석 (POST /scans/{id}/analyze-mock) ────────
 export async function analyzeScanMock(sessionId) {
@@ -71,7 +65,7 @@ export async function getEsp32StreamInfo(deviceId = 'ESP32_1') {
   if (import.meta.env.VITE_SCANNER_STREAM_URL) {
     return {
       ip: 'custom',
-      streamUrl: import.meta.env.VITE_SCANNER_STREAM_URL,
+      streamUrl: safeStreamUrl(import.meta.env.VITE_SCANNER_STREAM_URL),
       devices: {},
     };
   }
@@ -79,179 +73,32 @@ export async function getEsp32StreamInfo(deviceId = 'ESP32_1') {
   const ip = devices?.[deviceId] || Object.values(devices || {})[0] || null;
   return {
     ip,
-    streamUrl: ip ? `http://${ip}/stream` : null,
+    streamUrl: ip ? safeStreamUrl(`http://${ip}/stream`) : null,
     devices: devices || {},
   };
 }
 
 // ── 스캐너 상태 확인 ─────────────────────────────────────
 export async function getScannerHealth() {
-  const mode = getAiMode();
-  if (mode === 'mock') {
-    await delay(150);
-    return {
-      status: 'ok',
-      message: '스캐너 연결됨 (상태: 대기 중)',
-      esp32_data: { state: '대기 중' },
-      streamUrl: null,
-      ip: null,
-    };
+  if (getAiMode() === 'mock') {
+    return { status: 'demo', message: '시연용 모드 · 실제 기기를 사용하지 않습니다', streamUrl: null, ip: null };
   }
-
-  // 1. EC2 포트 8001 /devices 에서 ESP32 등록 여부 확인
   try {
-    const { ip, streamUrl } = await getEsp32StreamInfo();
-    if (ip) {
-      return {
-        status: 'ok',
-        message: `스캐너 연결됨 (IP: ${ip})`,
-        ip,
-        streamUrl,
-        esp32_data: { state: '대기 중', ip },
-      };
-    }
+    const { data } = await client.get('/scanner/status', { timeout: 5000 });
+    const health = scannerStatus(data);
+    if (!health.connected) return { ...health, streamUrl: null, ip: null };
+    const stream = await getEsp32StreamInfo();
+    return { ...health, ...stream };
   } catch {
-    // continue
-  }
-
-  // 2. 백엔드 /scanner/health 폴백 시도
-  try {
-    const res = await client.get('/scanner/health');
-    return res.data;
-  } catch {
-    return {
-      status: 'unreachable',
-      message: '스캐너 미연결 — ESP32 Wi-Fi 확인',
-      ip: null,
-      streamUrl: null,
-    };
+    return { status: 'unreachable', message: '스캐너 연결을 확인할 수 없습니다. 잠시 후 다시 확인해 주세요.', streamUrl: null, ip: null };
   }
 }
 
-// ── ESP32-CAM 스캐너 측정 ─────────────────────────────────
+// Until the server can dispatch and correlate captures, never fabricate a successful scan.
 export async function measureWithScanner(formData) {
-  const mode = getAiMode();
-  const isDemo = mode === 'mock';
-
-  // AI가 실패했을 때 시연용 결과로 넘어갈지 여부
-  const allowDemoFallback =
-    import.meta.env.VITE_ALLOW_DEMO_FALLBACK === 'true';
-
-  const region =
-    formData?.get?.('region') || '얼굴 전체';
-
-  // 시연용 fallback 결과 생성
-  const makeFallbackResult = (
-    stage,
-    error,
-    sessionId = null
-  ) => {
-    console.warn(
-      `[measureWithScanner] ${stage} 실패 → 시연용 결과 사용`,
-      error
-    );
-
-    const mock = buildMockResult(region);
-
-    return {
-      ...mock,
-
-      // 실제 세션이 만들어졌으면 유지
-      session_id: sessionId,
-
-      // 결과 페이지에서 시연 데이터임을 구분할 수 있게 표시
-      is_mock: true,
-      demo_fallback: true,
-      fallback_stage: stage,
-
-      meta: {
-        ...mock.meta,
-        fallback_stage: stage,
-      },
-    };
-  };
-
-  // ========================================
-  // 1. 스캔 세션 생성
-  // ========================================
-  let sessionId = null;
-
-  try {
-    const session = await createScanSession({
-      scan_area: region,
-      uv_mode: true,
-      moisture_on: true,
-      pore_on: true,
-      melanin_on: true,
-      elasticity_on: true,
-    });
-
-    sessionId = session?.session_id;
-
-    if (!sessionId) {
-      throw new Error('SCAN_SESSION_ID_MISSING');
-    }
-  } catch (sessErr) {
-    console.warn(
-      '[measureWithScanner] 세션 생성 실패:',
-      sessErr
-    );
-
-    // mock 모드 또는 fallback 허용 상태면
-    // 백엔드가 죽어 있어도 로컬 mock 결과 반환
-    if (isDemo || allowDemoFallback) {
-      await delay(800);
-
-      return makeFallbackResult(
-        'session-create',
-        sessErr
-      );
-    }
-
-    throw sessErr;
-  }
-
-  // ========================================
-  // 2. 실제 AI 분석 호출
-  // ========================================
-  try {
-    const res = await client.post(
-      `/scans/${sessionId}/analyze-scan?demo=${isDemo}`
-    );
-
-    const data = res.data || {};
-
-    return {
-      ...data,
-      session_id: sessionId,
-
-      is_mock:
-        data.is_mock !== undefined
-          ? Boolean(data.is_mock)
-          : isDemo,
-
-      demo_fallback: false,
-    };
-  } catch (err) {
-    console.warn(
-      '[measureWithScanner] analyze-scan 호출 실패:',
-      err
-    );
-
-    // AI 서버 오류 / 503 / timeout / 네트워크 오류 발생 시
-    // 시연용 결과로 자동 전환
-    if (isDemo || allowDemoFallback) {
-      await delay(800);
-
-      return makeFallbackResult(
-        'analyze-scan',
-        err,
-        sessionId
-      );
-    }
-
-    throw err;
-  }
+  if (getAiMode() !== 'mock') throw new Error(DEVICE_SCAN_UNAVAILABLE);
+  await delay(800);
+  return buildMockResult(formData?.get?.('region') || '얼굴 전체');
 }
 
 // ── 사진 업로드 분석 ─────────────────────────────────────
