@@ -13,8 +13,10 @@ import useAuth from '../hooks/useAuth';
 import useWeather from '../hooks/useWeather';
 import useScanStore from '../store/scanStore';
 import { UV_LEVELS } from '../utils/constants';
+import { useModeStore } from '../store/modeStore';
 
 const DashboardPage = () => {
+  const { mode } = useModeStore();
   const { user } = useAuth(true);
   const { weather } = useWeather();
   const { scans, currentScan, initializeIfNeeded } = useScanStore();
@@ -224,16 +226,16 @@ const DashboardPage = () => {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-gray-400" />
                   <h3 className="text-sm font-bold text-text-primary">
                     DAMDA Dual-LED IoT Scanner v1.2
                   </h3>
                   <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-md border border-emerald-200">
-                    연결됨 (Online)
+                    {mode === 'mock' ? '시연용' : '기기 연결 확인 필요'}
                   </span>
                 </div>
                 <p className="text-xs text-text-secondary mt-0.5">
-                  피부 측정을 위한 IoT 스캐너가 정상 연결되었습니다.
+                  {mode === 'mock' ? '기기 없이 예시 데이터로 화면을 체험합니다.' : '스캔 화면에서 기기 등록 상태를 확인한 뒤 촬영할 수 있습니다.'}
                 </p>
               </div>
             </div>

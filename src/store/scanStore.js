@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { getScanHistory } from '../api/scan';
 import { mockDemoScanHistory } from '../utils/mockData';
 import { getAiMode } from '../store/modeStore';
+import { scanImages } from '../utils/scanSafety';
 
 // 백엔드 narrative / result 응답을 flat 구조로 변환 (차트/UI 호환)
 export function parseApiResult(apiResult) {
@@ -58,8 +59,7 @@ export function parseApiResult(apiResult) {
         tips: tipsList.length > 0 ? tipsList : ['하루 1.5L 이상 수분 섭취와 자외선 차단을 권장합니다.'],
       },
       recommendedProducts: apiResult.recommended_products || [],
-      white_image_url: apiResult.white_image_url || apiResult.image_url || '/assets/demo_white_light.jpg',
-      uv_image_url: apiResult.uv_image_url || '/assets/demo_uv_light.jpg',
+      ...scanImages(apiResult),
       meta: apiResult.meta || {},
       _raw: apiResult,
     };
@@ -85,6 +85,7 @@ export function parseApiResult(apiResult) {
   }
 
   return {
+    sessionId: apiResult.session_id,
     moisture: metrics.moisture ?? metrics['수분도'] ?? apiResult.moisture ?? 0,
     oil: metrics.oil ?? metrics['유분도'] ?? apiResult.oil ?? 0,
     elasticity: metrics.elasticity ?? metrics['탄력'] ?? apiResult.elasticity ?? 0,
@@ -97,8 +98,7 @@ export function parseApiResult(apiResult) {
     is_mock: Boolean(apiResult.is_mock ?? apiResult._raw?.is_mock ?? false),
     narrative: n,
     recommendedProducts: apiResult.recommended_products || [],
-    white_image_url: apiResult.white_image_url || apiResult.image_url || '/assets/demo_white_light.jpg',
-    uv_image_url: apiResult.uv_image_url || '/assets/demo_uv_light.jpg',
+    ...scanImages(apiResult),
     meta: apiResult.meta || {},
     _raw: apiResult,
   };

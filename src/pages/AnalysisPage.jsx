@@ -15,6 +15,7 @@ import Button from '../components/common/Button';
 import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
 import { downloadReportPdf } from '../api/scan';
+import { scanImages } from '../utils/scanSafety';
 
 // ─── 지표 색상 매핑 ───
 const statusColorMap = {
@@ -84,9 +85,10 @@ const ScoreCircle = ({ score }) => {
 
 // ─── 듀얼 라이트(일반광 vs UV 395nm) 촬영 비교 뷰 ───
 const DualLightViewer = ({ analysis }) => {
-  // 백엔드 실제 사진 URL 또는 데모 기본 사진
-  const whiteImg = analysis?.white_image_url || analysis?.image_url || '/assets/demo_white_light.jpg';
-  const uvImg = analysis?.uv_image_url || '/assets/demo_uv_light.jpg';
+  const { white_image_url: whiteImg, uv_image_url: uvImg } = scanImages(analysis);
+  const [failedWhite, setFailedWhite] = useState(null);
+  const [failedUv, setFailedUv] = useState(null);
+  const isDemo = analysis?.is_mock === true;
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
@@ -100,7 +102,7 @@ const DualLightViewer = ({ analysis }) => {
               스캔 촬영 정밀 비교 (Dual-Light Spectrum)
             </h3>
             <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
-              ESP32 듀얼 LED 촬영
+              {isDemo ? '예시 사진' : '촬영 사진'}
             </span>
           </div>
           <p className="text-xs text-text-secondary mt-1">
@@ -122,16 +124,10 @@ const DualLightViewer = ({ analysis }) => {
           </div>
 
           <div className="aspect-[4/3] relative bg-[#f8ede3] flex items-center justify-center overflow-hidden">
-            {whiteImg ? (
-              <img src={whiteImg} alt="일반광 피부 촬영" className="w-full h-full object-cover" />
+            {whiteImg && failedWhite !== whiteImg ? (
+              <img onError={() => setFailedWhite(whiteImg)} src={whiteImg} alt="일반광 피부 촬영" className="w-full h-full object-cover" />
             ) : (
-              /* 정밀 피부 표면 텍스처 시뮬레이션 뷰 */
-              <div className="absolute inset-0 bg-gradient-to-br from-[#fbf1e8] via-[#f4dfcf] to-[#e8cfbe] flex items-center justify-center p-4">
-                <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#a36846_1px,transparent_1px)] [background-size:8px_8px]" />
-                <div className="w-32 h-32 rounded-full border-2 border-amber-400/40 border-dashed flex items-center justify-center">
-                  <div className="w-20 h-20 rounded-full border border-amber-500/30" />
-                </div>
-              </div>
+              <p className="p-6 text-center text-sm text-gray-600">일반광 사진을 불러올 수 없습니다.</p>
             )}
 
             <div className="absolute bottom-2 left-2 z-10 px-2 py-0.5 rounded bg-black/60 text-[10px] text-white backdrop-blur-sm font-medium">
@@ -140,8 +136,8 @@ const DualLightViewer = ({ analysis }) => {
           </div>
 
           <div className="p-3 bg-white border-t border-gray-100 text-xs text-text-secondary flex items-center justify-between">
-            <span>표면 거칠기: <strong className="text-text-primary">양호 (매끄러움)</strong></span>
-            <span>평균 반사율: <strong className="text-emerald-600 font-bold">78.4%</strong></span>
+            <span>표면 거칠기: <strong className="text-text-primary">{isDemo ? '양호 (예시)' : '측정값 없음'}</strong></span>
+            <span>평균 반사율: <strong className="text-emerald-600 font-bold">{isDemo ? '78.4% (예시)' : '측정값 없음'}</strong></span>
           </div>
         </div>
 
@@ -156,22 +152,10 @@ const DualLightViewer = ({ analysis }) => {
           </div>
 
           <div className="aspect-[4/3] relative bg-[#090614] flex items-center justify-center overflow-hidden">
-            {uvImg ? (
-              <img src={uvImg} alt="UV 형광 피부 촬영" className="w-full h-full object-cover" />
+            {uvImg && failedUv !== uvImg ? (
+              <img onError={() => setFailedUv(uvImg)} src={uvImg} alt="UV 형광 피부 촬영" className="w-full h-full object-cover" />
             ) : (
-              /* 정밀 UV 395nm 형광 시뮬레이션 뷰 */
-              <div className="absolute inset-0 bg-gradient-to-br from-[#0c081a] via-[#120924] to-[#1a0c33] flex items-center justify-center p-4">
-                <div className="absolute top-[35%] left-[38%] w-5 h-5 rounded-full bg-orange-500/60 blur-sm animate-pulse" />
-                <div className="absolute top-[40%] left-[45%] w-3 h-3 rounded-full bg-orange-400/70 blur-[2px]" />
-                <div className="absolute bottom-[35%] right-[32%] w-4 h-4 rounded-full bg-orange-500/50 blur-[3px]" />
-
-                <div className="absolute top-[25%] right-[28%] w-7 h-6 rounded-full bg-purple-900/80 blur-[2px] border border-purple-700/30" />
-                <div className="absolute bottom-[30%] left-[30%] w-6 h-5 rounded-full bg-purple-950/90 blur-[2px]" />
-
-                <div className="w-32 h-32 rounded-full border-2 border-purple-500/30 border-dashed flex items-center justify-center">
-                  <div className="w-20 h-20 rounded-full border border-purple-400/20" />
-                </div>
-              </div>
+              <p className="p-6 text-center text-sm text-purple-200">UV 사진을 불러올 수 없습니다.</p>
             )}
 
             <div className="absolute bottom-2 left-2 z-10 px-2 py-0.5 rounded bg-purple-900/80 text-[10px] text-purple-200 border border-purple-700/50 backdrop-blur-sm font-medium">
@@ -180,7 +164,7 @@ const DualLightViewer = ({ analysis }) => {
           </div>
 
           <div className="p-3 bg-white border-t border-gray-100 text-xs text-text-secondary flex items-center justify-between">
-            <span>피지 포르피린: <strong className="text-orange-500 font-bold">보통 (T존)</strong></span>
+            <span>피지 포르피린: <strong className="text-orange-500 font-bold">{isDemo ? '보통 (예시)' : '측정값 없음'}</strong></span>
             <span>색소 침착도: <strong className="text-purple-600 font-bold">{analysis?.pigmentation ?? 55}%</strong></span>
           </div>
         </div>

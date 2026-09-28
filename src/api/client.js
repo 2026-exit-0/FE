@@ -2,11 +2,9 @@ import axios from 'axios';
 
 const isMock = false;
 
-// 배포: Netlify proxy 사용
-// 로컬: 백엔드 직접 접근
 const baseURL = import.meta.env.PROD
-  ? ''
-  : (import.meta.env.VITE_API_BASE || 'http://52.79.241.24:8000');
+  ? 'https://api.damdads.kro.kr'
+  : (import.meta.env.VITE_API_BASE?.trim() || 'http://localhost:8000');
 
 const client = axios.create({
   baseURL,

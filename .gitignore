@@ -35,3 +35,7 @@ Thumbs.db
 
 # Local BE
 BE/
+
+# Local verification cache
+.npm-cache/
+.pnpm-store/
