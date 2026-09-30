@@ -10,7 +10,7 @@ import useScanStore from '../store/scanStore';
 import { useModeStore } from '../store/modeStore';
 import { getScannerHealth, measureWithScanner, scannerSession } from '../api/scan';
 import { isScanRunning, scanErrorMessage } from '../api/scannerSession';
-import { SCAN_AREAS, MEASUREMENT_ITEMS } from '../utils/constants';
+import { SCAN_AREAS } from '../utils/constants';
 
 const REGION_MAP = {
   '이마': 'FOREHEAD',
@@ -53,16 +53,6 @@ const [streamError, setStreamError] = useState(false);
 
 // 스트림을 강제로 다시 연결하기 위한 값
 const [streamRetryKey, setStreamRetryKey] = useState(0);
-
-const [measurements, setMeasurements] = useState(
-  MEASUREMENT_ITEMS.reduce(
-    (acc, item) => ({
-      ...acc,
-      [item.id]: item.default,
-    }),
-    {}
-  )
-);
 
 const isSubmittingRef = useRef(false);
 const scannerRequestRef = useRef(0);
@@ -207,7 +197,7 @@ const previewUrl = streamUrl
 
 
   // 스캐너 상태 및 ESP32 스트리밍 URL 확인
-  const checkScanner = useCallback(async () => {
+  const checkScanner = useCallback(async (background = false) => {
     const requestId = ++scannerRequestRef.current;
     if (mode === 'mock') {
       setScannerStatus('ok');
@@ -217,8 +207,10 @@ const previewUrl = streamUrl
       return;
     }
 
-    setScannerStatus('checking');
-    setScannerMsg('스캐너 상태 확인 중...');
+    if (background !== true) {
+      setScannerStatus('checking');
+      setScannerMsg('스캐너 상태 확인 중...');
+    }
     try {
       const data = await getScannerHealth();
       if (requestId !== scannerRequestRef.current) return;
@@ -247,12 +239,11 @@ const previewUrl = streamUrl
     checkScanner();
     // 실제 기기 모드에서 등록 상태와 미리보기 주소 확인
     if (mode !== 'mock') {
-      const timer = setInterval(checkScanner, 10000);
+      const timer = setInterval(() => checkScanner(true), 10000);
       return () => { clearInterval(timer); scannerRequestRef.current++; };
     }
   }, [checkScanner, mode]);
 
-  const toggleMeasurement = (id) => setMeasurements((prev) => ({ ...prev, [id]: !prev[id] }));
 
   // 스캔 진행 중 브라우저 탭 닫기/새로고침 이탈 방어
   useEffect(() => {
@@ -715,15 +706,6 @@ useEffect(() => {
               <div className="card">
                 <h3 className="mb-4 text-sm font-semibold text-text-primary">스캔 설정</h3>
 
-                {!isDemo && (
-                  <div className="mb-5 rounded-xl border border-gray-200 p-4">
-                    <p className="text-sm font-semibold">기기 연결 · {scannerSession.deviceId}</p>
-                    <p className="my-2 text-xs text-text-secondary" role="status">{linkMessage}</p>
-                    <Button onClick={connectDevice} disabled={deviceLinked || linkBusy || scanStatus === 'scanning' || scanStatus === 'countdown'}>
-                      {deviceLinked ? '내 계정에 연결됨' : linkBusy ? '연결 중...' : '이 기기로 측정하기'}
-                    </Button>
-                  </div>
-                )}
                 {/* AI 분석 모드 토글 */}
                 <div className="pb-4 mb-5 border-b border-gray-100">
                   <div className="flex items-center justify-between mb-2">
@@ -796,31 +778,8 @@ useEffect(() => {
                   </div>
                 </div>
 
-                <div>
-                  <p className="mb-2 text-xs font-medium text-text-secondary">측정 항목</p>
-                  <div className="space-y-3">
-                    {MEASUREMENT_ITEMS.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between">
-                        <span className="text-sm text-text-primary">{item.label}</span>
-                        <button
-                          disabled={scanStatus === 'scanning' || scanStatus === 'countdown'}
-                          onClick={() => toggleMeasurement(item.id)}
-                          className={`relative w-11 h-6 rounded-full transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed ${
-                            measurements[item.id] ? 'bg-primary-500' : 'bg-gray-200'
-                          }`}
-                        >
-                          <span className={`inline-block w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                            measurements[item.id] ? 'translate-x-[22px]' : 'translate-x-[2px]'
-                          }`} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
               {/* 스캐너 연결 카드 */}
-              <div className="card">
+              <div className="border-t border-gray-100 pt-5">
                 <h3 className="mb-3 text-sm font-semibold text-text-primary">스캐너 연결</h3>
                 <div className={`rounded-xl p-4 flex items-center gap-3 ${
                   displayScannerStatus === 'ok' ? 'bg-primary-50' : 'bg-orange-50'
@@ -842,7 +801,18 @@ useEffect(() => {
                     </p>
                   </div>
                 </div>
+                {!isDemo && (
+                  <div className="mt-4 rounded-xl border border-gray-200 p-4">
+                    <p className="text-sm font-semibold">기기 연결 · {scannerSession.deviceId}</p>
+                    <p className="my-2 text-xs text-text-secondary" role="status">{linkMessage}</p>
+                    <Button onClick={connectDevice} disabled={deviceLinked || linkBusy || scanStatus === 'scanning' || scanStatus === 'countdown'}>
+                      {deviceLinked ? '내 계정에 연결됨' : linkBusy ? '연결 중...' : '이 기기로 측정하기'}
+                    </Button>
+                  </div>
+                )}
               </div>
+              </div>
+
             </div>
           </div>
         </main>
