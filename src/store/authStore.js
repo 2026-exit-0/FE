@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import * as authApi from '../api/auth';
+import { scannerSession } from '../api/scan';
+import { isScanRunning, scanErrorMessage } from '../api/scannerSession';
 import useScanStore from './scanStore';
 
 const TOKEN_KEY = 'damda_token';
@@ -163,12 +165,36 @@ const useAuthStore = create((set, get) => ({
   },
 
   // ── 로그아웃 ──────────────────────────────────────────
-  logout: () => {
+  logout: async () => {
+    if (get().loggingOut) return;
+    set({ loggingOut: true });
+    try {
+      if (useScanStore.getState().scannerStatus === 'scanning') {
+        throw new Error('촬영과 저장이 끝난 뒤 로그아웃해 주세요.');
+      }
+      const token = localStorage.getItem(TOKEN_KEY);
+      if (token && token !== 'demo_access_token') {
+        const link = await scannerSession.getLink();
+        if (link.user_id && link.user_id === get().user?.user_id) {
+          const current = await scannerSession.status();
+          if (current?.device_id === scannerSession.deviceId && isScanRunning(current.status)) {
+            throw new Error('촬영과 저장이 끝난 뒤 로그아웃해 주세요.');
+          }
+          await scannerSession.unlink();
+        }
+      }
+    } catch (error) {
+      const message = scanErrorMessage(error);
+      set({ loggingOut: false, error: message });
+      window.alert(message);
+      return { success: false };
+    }
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem('damda_survey');
     useScanStore.getState().clearAll();
-    set({ isLoggedIn: false, user: null, survey: null, wishlist: [], error: null });
+    set({ isLoggedIn: false, user: null, survey: null, wishlist: [], error: null, loggingOut: false });
+    return { success: true };
   },
 
   // ── 마이페이지 프로필 수정 (PATCH /mypage) ────────────
