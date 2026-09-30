@@ -8,7 +8,8 @@ import Button from '../components/common/Button';
 import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
 import { useModeStore } from '../store/modeStore';
-import { getScannerHealth, measureWithScanner } from '../api/scan';
+import { getScannerHealth, measureWithScanner, scannerSession } from '../api/scan';
+import { isScanRunning, scanErrorMessage } from '../api/scannerSession';
 import { SCAN_AREAS, MEASUREMENT_ITEMS } from '../utils/constants';
 
 const REGION_MAP = {
@@ -21,11 +22,18 @@ const REGION_MAP = {
 
 const ScanPage = () => {
   const navigate = useNavigate();
-  useAuth(true);
+  const { user } = useAuth(true);
   const { addScan, initializeIfNeeded, userInputs } = useScanStore();
   const { mode, setMode } = useModeStore();
 
 const [scanStatus, setScanStatus] = useState('ready');
+const [deviceLinked, setDeviceLinked] = useState(false);
+const [linkBusy, setLinkBusy] = useState(false);
+const [linkMessage, setLinkMessage] = useState('기기를 계정에 연결해 주세요.');
+const sessionToResumeRef = useRef(null);
+const seenSessionRef = useRef(undefined);
+const scanAbortRef = useRef(null);
+const busyRef = useRef(false);
 const [scanErrorMsg, setScanErrorMsg] = useState('');
 const [countdown, setCountdown] = useState(3);
 const [scanProgress, setScanProgress] = useState(0);
@@ -63,6 +71,10 @@ const navigationTimerRef = useRef(null);
 
 useEffect(() => {
   scanGenerationRef.current++;
+  scanAbortRef.current?.abort();
+  sessionToResumeRef.current = null;
+  seenSessionRef.current = undefined;
+  busyRef.current = false;
   isSubmittingRef.current = false;
   setScanStatus('ready');
   setCountdown(3);
@@ -70,6 +82,8 @@ useEffect(() => {
   setScanErrorMsg('');
   return () => {
     scanGenerationRef.current++;
+    scanAbortRef.current?.abort();
+    useScanStore.getState().setScannerStatus('unknown');
     clearTimeout(navigationTimerRef.current);
   };
 }, [mode]);
@@ -126,9 +140,71 @@ const previewUrl = streamUrl
   const isDemo = mode === 'mock';
   const displayScannerStatus = isDemo ? 'ok' : scannerStatus;
   const displayScannerMsg = isDemo ? '시연용 모드 · 실제 기기를 사용하지 않습니다' : scannerMsg;
-  const isScannerBlocked = !isDemo && scannerStatus !== 'ok';
+  const isScannerBlocked = !isDemo && (!deviceLinked || linkBusy);
 
   useEffect(() => { initializeIfNeeded(); }, [initializeIfNeeded]);
+
+  const connectDevice = async () => {
+    setLinkBusy(true);
+    try {
+      const link = await scannerSession.link();
+      const owned = Boolean(user?.user_id && link.user_id === user.user_id);
+      setDeviceLinked(owned);
+      setLinkMessage(owned ? '내 계정에 연결됨 · 물리 버튼으로도 촬영할 수 있어요.' : '기기 연결 사용자를 확인해 주세요.');
+    } catch (error) {
+      setLinkMessage(scanErrorMessage(error));
+    } finally {
+      setLinkBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isDemo || !user?.user_id) return;
+    let stopped = false;
+    let timer;
+    const poll = async () => {
+      try {
+        const link = await scannerSession.getLink();
+        if (stopped) return;
+        const owned = link.user_id === user.user_id;
+        setDeviceLinked(owned);
+        if (!owned) {
+          setLinkMessage(link.user_id ? '다른 계정에 연결되어 있습니다. 사용을 마친 계정에서 연결을 해제해 주세요.' : '기기를 계정에 연결해 주세요.');
+          seenSessionRef.current = undefined;
+          return;
+        }
+        setLinkMessage('내 계정에 연결됨 · 물리 버튼으로도 촬영할 수 있어요.');
+        if (busyRef.current) return;
+        const current = await scannerSession.status();
+        if (stopped || busyRef.current) return;
+        const previous = seenSessionRef.current;
+        seenSessionRef.current = current?.session_id ?? null;
+        if (!current || current.device_id !== scannerSession.deviceId) return;
+        const running = isScanRunning(current.status);
+        const justFinished = previous !== undefined && previous !== current.session_id && current.status === 'done';
+        if ((running && previous !== current.session_id) || justFinished) {
+          sessionToResumeRef.current = current.session_id;
+          busyRef.current = true;
+          setScanErrorMsg('');
+          setScanProgress(0);
+          setScanStatus('scanning');
+        }
+      } catch (error) {
+        if (!stopped) setLinkMessage(`연결 상태 확인 실패: ${scanErrorMessage(error)}`);
+      } finally {
+        if (!stopped) timer = setTimeout(poll, 2000);
+      }
+    };
+    poll();
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [isDemo, user?.user_id]);
+
+  useEffect(() => {
+    const busy = scanStatus === 'countdown' || scanStatus === 'scanning';
+    busyRef.current = busy || scanStatus === 'complete';
+    useScanStore.getState().setScannerStatus(busy ? 'scanning' : 'idle');
+  }, [scanStatus]);
+
 
   // 스캐너 상태 및 ESP32 스트리밍 URL 확인
   const checkScanner = useCallback(async () => {
@@ -169,7 +245,7 @@ const previewUrl = streamUrl
 
   useEffect(() => {
     checkScanner();
-    // 실제 AI 모드일 때 10초마다 기기 등록 상태 확인
+    // 실제 기기 모드에서 등록 상태와 미리보기 주소 확인
     if (mode !== 'mock') {
       const timer = setInterval(checkScanner, 10000);
       return () => { clearInterval(timer); scannerRequestRef.current++; };
@@ -233,8 +309,7 @@ useEffect(() => {
 
 
 // ========================================
-// 3. 진행률 100% → 백엔드 분석 요청
-// mock / real 공통
+// 시연 모드는 진행률 완료 후, 실제 기기는 서버 세션 완료 후 결과 조회
 // ========================================
 useEffect(() => {
   if (scanStatus !== 'scanning' || (isDemo && scanProgress < 100)) {
@@ -250,7 +325,7 @@ useEffect(() => {
     const generation = scanGenerationRef.current;
     try {
       console.log(
-        '[Scan] 촬영 완료 → AI 분석 요청 시작'
+        '[Scan] 촬영 세션 처리 시작'
       );
 
       const fd = new FormData();
@@ -274,14 +349,21 @@ useEffect(() => {
         );
       }
 
-      const result = await measureWithScanner(fd);
+      const controller = new AbortController();
+      scanAbortRef.current = controller;
+      const result = await measureWithScanner(fd, {
+        sessionId: sessionToResumeRef.current,
+        signal: controller.signal,
+      });
       if (generation !== scanGenerationRef.current) return;
 
       console.log(
-        '[Scan] AI 분석 완료:',
+        '[Scan] 촬영 결과 조회 완료:',
         result
       );
 
+      seenSessionRef.current = result.session_id;
+      sessionToResumeRef.current = null;
       addScan(result);
 
       setScanStatus('complete');
@@ -296,14 +378,7 @@ useEffect(() => {
         err
       );
 
-      const errorMsg =
-        err.code === 'ECONNABORTED' ||
-        err.message?.includes('timeout')
-          ? '측정 응답 시간이 초과되었습니다. ESP32 전원과 Wi-Fi 연결을 확인해 주세요.'
-          : (
-              err.response?.data?.detail || err.message ||
-              '네트워크 연결이 불안정하거나 측정에 실패했습니다.'
-            );
+      const errorMsg = scanErrorMessage(err);
 
       setScanErrorMsg(errorMsg);
       setScanStatus('error');
@@ -332,6 +407,9 @@ useEffect(() => {
 
   if (isScannerBlocked) return;
 
+  clearTimeout(navigationTimerRef.current);
+  sessionToResumeRef.current = null;
+  busyRef.current = true;
   isSubmittingRef.current = false;
 
 
@@ -389,7 +467,7 @@ useEffect(() => {
                         ? 'bg-purple-50 text-purple-600 border-purple-200/70'
                         : 'bg-emerald-50 text-emerald-600 border-emerald-200/70'
                     }`}>
-                      {mode === 'mock' ? '시연용' : '실제 AI'}
+                      {mode === 'mock' ? '시연용' : '실제 기기'}
                     </span>
                     <span className="text-xs text-text-secondary">UV 모드</span>
                   </div>
@@ -399,7 +477,7 @@ useEffect(() => {
                 <div className="bg-gray-900 rounded-2xl aspect-[4/3] relative flex items-center justify-center mb-4 overflow-hidden shadow-inner">
                   {/* 하드웨어 실시간 MJPEG 스트림 (URL이 있고 에러 없을 시 즉시 표시) */}
 {/* 하드웨어 실시간 MJPEG 스트림 */}
-{streamUrl && scanStatus !== 'scanning' && (
+{streamUrl && scanStatus !== 'scanning' && scanStatus !== 'countdown' && (
   <img
     key={streamRetryKey}
     src={previewUrl}
@@ -596,7 +674,7 @@ useEffect(() => {
                 >
                   <ScanIcon size={20} />
                   {isScannerBlocked
-                    ? (scannerStatus === 'checking' ? '스캐너 확인 중...' : '스캐너 연결 후 스캔 가능')
+                    ? (linkBusy ? '기기 연결 중...' : '내 계정에 기기를 연결해 주세요')
                     : (scanStatus === 'ready' ? '스캔 시작하기' :
                        scanStatus === 'error' ? '다시 시도하기' :
                        scanStatus === 'complete' ? '다시 스캔하기' : '스캔 중...')}
@@ -608,7 +686,7 @@ useEffect(() => {
                     <div>
                       <p className="font-semibold mb-0.5">스캐너 연결 확인이 필요합니다</p>
                       <p className="leading-relaxed text-orange-600">
-                        기기 전원과 Wi-Fi를 확인한 뒤 재검색해 주세요. 등록 정보가 있어도 기기가 오프라인이면 스캔 요청은 시간 초과될 수 있습니다.
+                        아래 기기 연결 버튼으로 내 계정에 연결해 주세요. 계정 연결과 별도로 기기 전원과 Wi-Fi도 켜져 있어야 합니다.
                       </p>
                     </div>
                   </div>
@@ -637,10 +715,19 @@ useEffect(() => {
               <div className="card">
                 <h3 className="mb-4 text-sm font-semibold text-text-primary">스캔 설정</h3>
 
+                {!isDemo && (
+                  <div className="mb-5 rounded-xl border border-gray-200 p-4">
+                    <p className="text-sm font-semibold">기기 연결 · {scannerSession.deviceId}</p>
+                    <p className="my-2 text-xs text-text-secondary" role="status">{linkMessage}</p>
+                    <Button onClick={connectDevice} disabled={deviceLinked || linkBusy || scanStatus === 'scanning' || scanStatus === 'countdown'}>
+                      {deviceLinked ? '내 계정에 연결됨' : linkBusy ? '연결 중...' : '이 기기로 측정하기'}
+                    </Button>
+                  </div>
+                )}
                 {/* AI 분석 모드 토글 */}
                 <div className="pb-4 mb-5 border-b border-gray-100">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-semibold text-text-primary">AI 분석 모드</p>
+                    <p className="text-xs font-semibold text-text-primary">촬영 모드</p>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                       mode === 'mock'
                         ? 'bg-purple-50 text-purple-600 border-purple-200/60'
@@ -675,7 +762,7 @@ useEffect(() => {
                           : 'text-text-secondary hover:text-text-primary'
                       }`}
                     >
-                      실제 AI
+                      실제 기기
                     </button>
                   </div>
                   <p className="text-[11px] text-text-secondary mt-1.5">
