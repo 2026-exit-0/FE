@@ -669,22 +669,22 @@ const AnalysisPage = () => {
             {/* 본문 레이아웃 */}
             <div className="flex flex-col desktop:flex-row gap-6">
               {/* 사이드 탭 가로 이동식 (모바일/태블릿) & 세로형 (데스크톱) */}
-              <div className="w-full desktop:w-44 flex-shrink-0">
-                <nav className="flex desktop:flex-col overflow-x-auto pb-2 desktop:pb-0 gap-1 border-b desktop:border-b-0 desktop:border-r border-gray-200 pr-0 desktop:pr-4 scrollbar-hide">
+              <div className="w-full desktop:w-64 flex-shrink-0">
+                <nav className="flex desktop:flex-col overflow-x-auto desktop:overflow-x-visible pb-2 desktop:pb-0 gap-1 border-b desktop:border-b-0 desktop:border-r border-gray-200 pr-0 desktop:pr-4 scrollbar-hide">
                   {sideMenuItems.map((item) => {
                     const Icon = item.icon;
                     return (
                       <button
                         key={item.id}
                         onClick={() => setActiveMenu(item.id)}
-                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left whitespace-nowrap ${
+                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left whitespace-nowrap desktop:whitespace-normal ${
                           activeMenu === item.id
                             ? 'bg-primary-500 text-white shadow-sm font-bold'
                             : 'text-text-secondary hover:bg-white hover:text-text-primary'
                         }`}
                       >
-                        <Icon size={16} />
-                        {item.label}
+                        <Icon size={16} className="shrink-0" />
+                        <span>{item.label}</span>
                       </button>
                     );
                   })}
