@@ -67,7 +67,13 @@ export function parseApiResult(apiResult) {
 
   // 2. 기존 narrative / mock 구조
   const n = apiResult.narrative;
-  if (!n) return apiResult; // 이미 flat 구조면 그대로 반환
+  if (!n) return {
+    ...apiResult,
+    sessionId: apiResult.session_id || apiResult.sessionId,
+    oil: apiResult.sebum ?? apiResult.oil,
+    spots: apiResult.pore ?? apiResult.spots,
+    ...scanImages(apiResult),
+  };
 
   const metrics = {};
   n.per_metric?.forEach((m) => {

@@ -7,7 +7,7 @@ const json = (data, status = 200) => new Response(JSON.stringify(data), {
   headers: { 'Content-Type': 'application/json' },
 });
 
-test('real scan dispatches one device command and returns the matching Supabase row', async () => {
+test('real scan uses the BE session and existing result API', async () => {
   const values = new Map([['damda_ai_mode', 'real']]);
   const oldStorage = globalThis.localStorage;
   const oldFetch = globalThis.fetch;
@@ -18,27 +18,7 @@ test('real scan dispatches one device command and returns the matching Supabase 
   };
 
   const calls = [];
-  let requestedMember = null;
-  globalThis.fetch = async (url, options = {}) => {
-    const request = { url: String(url), method: options.method || 'GET', body: options.body };
-    calls.push(request);
-    if (request.url.endsWith('/devices')) return json({ ESP32_1: '172.25.98.23' });
-    if (request.url.endsWith('/scan-command')) {
-      requestedMember = JSON.parse(request.body).member;
-      return json({ status: 'ok' });
-    }
-    if (requestedMember && request.url.endsWith(`/scans/${requestedMember}`)) {
-      return json([{
-        id: 11,
-        timestamp: '20260928_120000',
-        moisture: 72,
-        oil: 41,
-        white_img: 'https://storage.example/white.jpg',
-        uv_img: 'https://storage.example/uv.jpg',
-      }]);
-    }
-    throw new Error(`Unexpected request: ${url}`);
-  };
+  globalThis.fetch = async () => json({ ESP32_1: '172.25.98.23' });
 
   const server = await createServer({
     configFile: false,
@@ -48,27 +28,26 @@ test('real scan dispatches one device command and returns the matching Supabase 
   });
   try {
     const api = await server.ssrLoadModule('/src/api/scan.js');
-    const health = await api.getScannerHealth();
-    assert.equal(health.status, 'ok');
-    assert.match(health.message, /기기 등록 확인됨/);
-
+    const { default: client } = await server.ssrLoadModule('/src/api/client.js');
+    client.defaults.adapter = async config => {
+      calls.push(config);
+      let data;
+      if (config.url === '/scans/trigger') data = { session_id: 'server-session', status: 'processing' };
+      else if (config.url === '/scans/status') data = { session_id: 'server-session', status: 'done' };
+      else if (config.url === '/result/server-session') data = { moisture: 72, sebum: 41 };
+      else throw new Error(`Unexpected request: ${config.url}`);
+      return { data, status: 200, statusText: 'OK', headers: {}, config };
+    };
     const form = new FormData();
     form.set('region', 'FOREHEAD');
     const result = await api.measureWithScanner(form);
-    assert.equal(result.is_mock, false);
+    assert.equal(result.session_id, 'server-session');
     assert.equal(result.moisture, 72);
-    assert.equal(result.oil, 41);
-    assert.equal(result.white_image_url, 'https://storage.example/white.jpg');
-    assert.equal(result.uv_image_url, 'https://storage.example/uv.jpg');
-    assert.equal(result.meta.member, requestedMember);
-
-    const command = calls.find(call => call.url.endsWith('/scan-command'));
-    assert.ok(command);
-    assert.equal(command.method, 'POST');
-    const body = JSON.parse(command.body);
-    assert.equal(body.device_id, 'ESP32_1');
-    assert.equal(body.part, 'FOREHEAD');
-    assert.match(body.member, /^M1_WEB_[A-Z0-9]+$/);
+    assert.deepEqual(JSON.parse(calls[0].data), { device_id: 'ESP32_1', part: 'FOREHEAD' });
+    assert.equal(calls.filter(call => call.method === 'post').length, 1);
+    calls.length = 0;
+    await api.measureWithScanner(form, { sessionId: 'server-session' });
+    assert.equal(calls.filter(call => call.method === 'post').length, 0);
   } finally {
     await server.close();
     globalThis.fetch = oldFetch;

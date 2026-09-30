@@ -2,11 +2,11 @@ import client, { isMock } from './client';
 import { mockAnalysis, mockScanHistory } from '../utils/mockData';
 import { getAiMode } from '../store/modeStore';
 import { safeStreamUrl } from '../utils/scanSafety';
+import { createScannerSessionApi } from './scannerSession';
 
 const DEVICE_API_BASE = import.meta.env.VITE_DEVICE_API_BASE || '/device-api';
 const DEFAULT_DEVICE_ID = import.meta.env.VITE_SCANNER_DEVICE_ID || 'ESP32_1';
-const DEFAULT_MEMBER = import.meta.env.VITE_SCANNER_MEMBER || 'M1';
-const SCAN_TIMEOUT_MS = 45000;
+export const scannerSession = createScannerSessionApi(client, DEFAULT_DEVICE_ID);
 
 // ── 신규 BE 스캔 세션 생성 (POST /scans) ────────────────────
 export async function createScanSession(data = {}) {
@@ -103,85 +103,16 @@ export async function getScannerHealth() {
   };
 }
 
-export async function getLatestDeviceScan(member = DEFAULT_MEMBER) {
-  const scans = await deviceRequest(`/scans/${encodeURIComponent(member)}`);
-  return Array.isArray(scans) && scans.length > 0 ? scans[0] : null;
-}
-
-export async function triggerDeviceScan({
-  deviceId = DEFAULT_DEVICE_ID,
-  member = DEFAULT_MEMBER,
-  part = 'FOREHEAD',
-} = {}) {
-  return deviceRequest('/scan-command', {
-    method: 'POST',
-    body: JSON.stringify({ device_id: deviceId, member, part }),
-  });
-}
-
-function scanIdentity(scan) {
-  return scan?.id ?? `${scan?.timestamp || ''}:${scan?.white_img || ''}:${scan?.uv_img || ''}`;
-}
-
-export async function waitForDeviceScan({
-  member = DEFAULT_MEMBER,
-  previousScan = null,
-  timeoutMs = SCAN_TIMEOUT_MS,
-} = {}) {
-  const previousIdentity = scanIdentity(previousScan);
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    await delay(1500);
-    const latest = await getLatestDeviceScan(member);
-    if (latest && scanIdentity(latest) !== previousIdentity && latest.white_img && latest.uv_img) {
-      return latest;
-    }
-  }
-  throw new Error('기기의 촬영 완료 응답이 없습니다. 전원과 Wi-Fi를 확인한 뒤 다시 시도해 주세요.');
-}
-
-function deviceScanResult(scan, region, member) {
-  const moisture = Number(scan.moisture ?? 0);
-  const oil = Number(scan.oil ?? 0);
-  const overall = Math.round((moisture + Math.max(0, 100 - oil)) / 2);
-  return {
-    session_id: `device-${scan.id ?? scan.timestamp ?? Date.now()}`,
-    status: 'done',
-    is_mock: false,
-    moisture,
-    oil,
-    overallScore: overall,
-    skinType: '기기 측정 결과',
-    date: scan.created_at || scan.timestamp,
-    area: region,
-    white_image_url: scan.white_img,
-    uv_image_url: scan.uv_img,
-    narrative: {
-      overall_score: overall,
-      summary: '기기에서 측정한 수분·유분 값과 촬영 사진입니다. 나머지 AI 지표는 분석 서버 연동 후 제공됩니다.',
-      per_metric: [
-        { name: '수분도', value: `${moisture}%`, rating_text: moisture >= 60 ? '정상' : '주의' },
-        { name: '유분도', value: `${oil}%`, rating_text: oil <= 55 ? '보통' : '주의' },
-      ],
-      tips: ['촬영 사진과 수분·유분 측정값이 Supabase에 저장되었습니다.'],
-    },
-    meta: { source: 'esp32', device_id: DEFAULT_DEVICE_ID, member },
-  };
-}
-
-export async function measureWithScanner(formData) {
+export async function measureWithScanner(formData, { sessionId, signal } = {}) {
   const region = formData?.get?.('region') || 'FOREHEAD';
   if (getAiMode() === 'mock') {
     await delay(800);
     return buildMockResult(region);
   }
-
-  // Each browser request gets its own member key so simultaneous scans cannot
-  // pick up another user's Supabase row.
-  const member = `${DEFAULT_MEMBER}_WEB_${Date.now().toString(36).toUpperCase()}`;
-  await triggerDeviceScan({ member, part: region });
-  const scan = await waitForDeviceScan({ member });
-  return deviceScanResult(scan, region, member);
+  const session = sessionId
+    ? { session_id: sessionId }
+    : await scannerSession.start(region, { signal });
+  return scannerSession.wait(session.session_id, { signal });
 }
 
 // ── 사진 업로드 분석 ─────────────────────────────────────
