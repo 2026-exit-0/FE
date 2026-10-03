@@ -67,3 +67,64 @@ test('unlink accepts already removed links but preserves authorization failures'
   const denied = createScannerSessionApi({ delete: async () => { throw failure(403); } }, 'ESP32_1');
   await assert.rejects(denied.unlink());
 });
+
+test('transient status and result failures recover without a new scan command', async () => {
+  let statusCalls = 0;
+  let resultCalls = 0;
+  const api = createScannerSessionApi({
+    post: async () => assert.fail('must not trigger another scan'),
+    get: async path => {
+      if (path === '/scans/status') {
+        statusCalls++;
+        if (statusCalls === 1) throw Object.assign(new Error('offline'), { code: 'ERR_NETWORK' });
+        if (statusCalls === 2) throw failure(503);
+        return { data: { session_id: 'physical', status: 'done' } };
+      }
+      assert.equal(path, '/result/physical');
+      if (++resultCalls === 1) throw failure(502);
+      return { data: { moisture: 72 } };
+    },
+  }, 'ESP32_1');
+  const result = await api.wait('physical', { intervalMs: 0 });
+  assert.equal(result.session_id, 'physical');
+  assert.equal(result.moisture, 72);
+  assert.equal(resultCalls, 2);
+});
+
+test('authorization failures are not retried', async () => {
+  let calls = 0;
+  const api = createScannerSessionApi({ get: async () => { calls++; throw failure(403); } }, 'ESP32_1');
+  await assert.rejects(api.wait('physical', { intervalMs: 0 }));
+  assert.equal(calls, 1);
+});
+
+test('an offline wait stops at its deadline and can resume the same session', async () => {
+  let offline = true;
+  const api = createScannerSessionApi({ get: async path => {
+    if (offline) throw failure(503);
+    return { data: path === '/scans/status' ? { session_id: 'physical', status: 'done' } : { moisture: 60 } };
+  } }, 'ESP32_1');
+  await assert.rejects(api.wait('physical', { intervalMs: 1, timeoutMs: 10 }), { code: 'SCAN_WAIT_TIMEOUT' });
+  offline = false;
+  assert.equal((await api.wait('physical')).session_id, 'physical');
+});
+
+test('cancellation also stops a wait during a network failure', async () => {
+  const controller = new AbortController();
+  const api = createScannerSessionApi({ get: async () => {
+    controller.abort();
+    throw failure(503);
+  } }, 'ESP32_1');
+  await assert.rejects(api.wait('physical', { signal: controller.signal }), { name: 'AbortError' });
+});
+
+test('a seen session can finish after timeout, but completed and historical results are ignored', async () => {
+  const { shouldResumeScan } = await import('../src/api/scannerSession.js');
+  const done = { session_id: 'physical', device_id: 'ESP32_1', status: 'done' };
+  const context = { deviceId: 'ESP32_1', previousId: 'physical', activeId: 'physical', completedId: null };
+  assert.equal(shouldResumeScan(done, context), true);
+  assert.equal(shouldResumeScan(done, { ...context, completedId: 'physical' }), false);
+  assert.equal(shouldResumeScan(done, { ...context, activeId: null, previousId: undefined }), false);
+  assert.equal(shouldResumeScan(done, { ...context, deviceId: 'another-device' }), false);
+  assert.equal(shouldResumeScan({ ...done, status: 'failed' }, context), false);
+});

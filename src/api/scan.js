@@ -103,7 +103,7 @@ export async function getScannerHealth() {
   };
 }
 
-export async function measureWithScanner(formData, { sessionId, signal } = {}) {
+export async function measureWithScanner(formData, { sessionId, signal, onSession } = {}) {
   const region = formData?.get?.('region') || 'FOREHEAD';
   if (getAiMode() === 'mock') {
     await delay(800);
@@ -112,6 +112,7 @@ export async function measureWithScanner(formData, { sessionId, signal } = {}) {
   const session = sessionId
     ? { session_id: sessionId }
     : await scannerSession.start(region, { signal });
+  onSession?.(session.session_id);
   return scannerSession.wait(session.session_id, { signal });
 }
 

@@ -9,7 +9,7 @@ import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
 import { useModeStore } from '../store/modeStore';
 import { getScannerHealth, measureWithScanner, scannerSession } from '../api/scan';
-import { isScanRunning, scanErrorMessage } from '../api/scannerSession';
+import { shouldResumeScan, scanErrorMessage } from '../api/scannerSession';
 import { SCAN_AREAS } from '../utils/constants';
 
 const REGION_MAP = {
@@ -32,6 +32,7 @@ const [linkBusy, setLinkBusy] = useState(false);
 const [linkMessage, setLinkMessage] = useState('기기를 계정에 연결해 주세요.');
 const sessionToResumeRef = useRef(null);
 const seenSessionRef = useRef(undefined);
+const completedSessionRef = useRef(null);
 const scanAbortRef = useRef(null);
 const busyRef = useRef(false);
 const [scanErrorMsg, setScanErrorMsg] = useState('');
@@ -64,6 +65,7 @@ useEffect(() => {
   scanAbortRef.current?.abort();
   sessionToResumeRef.current = null;
   seenSessionRef.current = undefined;
+  completedSessionRef.current = null;
   busyRef.current = false;
   isSubmittingRef.current = false;
   setScanStatus('ready');
@@ -170,9 +172,12 @@ const previewUrl = streamUrl
         const previous = seenSessionRef.current;
         seenSessionRef.current = current?.session_id ?? null;
         if (!current || current.device_id !== scannerSession.deviceId) return;
-        const running = isScanRunning(current.status);
-        const justFinished = previous !== undefined && previous !== current.session_id && current.status === 'done';
-        if ((running && previous !== current.session_id) || justFinished) {
+        if (shouldResumeScan(current, {
+          deviceId: scannerSession.deviceId,
+          previousId: previous,
+          activeId: sessionToResumeRef.current,
+          completedId: completedSessionRef.current,
+        })) {
           sessionToResumeRef.current = current.session_id;
           busyRef.current = true;
           setScanErrorMsg('');
@@ -345,6 +350,11 @@ useEffect(() => {
       const result = await measureWithScanner(fd, {
         sessionId: sessionToResumeRef.current,
         signal: controller.signal,
+        onSession: (sessionId) => {
+          if (generation !== scanGenerationRef.current) return;
+          sessionToResumeRef.current = sessionId;
+          seenSessionRef.current = sessionId;
+        },
       });
       if (generation !== scanGenerationRef.current) return;
 
@@ -353,6 +363,7 @@ useEffect(() => {
         result
       );
 
+      completedSessionRef.current = result.session_id;
       seenSessionRef.current = result.session_id;
       sessionToResumeRef.current = null;
       addScan(result);
@@ -369,6 +380,7 @@ useEffect(() => {
         err
       );
 
+      if (err.code !== 'SCAN_WAIT_TIMEOUT') sessionToResumeRef.current = null;
       const errorMsg = scanErrorMessage(err);
 
       setScanErrorMsg(errorMsg);
@@ -399,12 +411,11 @@ useEffect(() => {
   if (isScannerBlocked) return;
 
   clearTimeout(navigationTimerRef.current);
-  sessionToResumeRef.current = null;
   busyRef.current = true;
   isSubmittingRef.current = false;
 
 
-  setScanStatus('countdown');
+  setScanStatus(sessionToResumeRef.current ? 'scanning' : 'countdown');
   setCountdown(3);
   setScanProgress(0);
 }, [scanStatus, isScannerBlocked]);

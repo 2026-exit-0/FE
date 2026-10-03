@@ -1,5 +1,19 @@
 export const isScanRunning = (status) => ['pending', 'processing'].includes(status);
 
+export function isRetryableScanError(error) {
+  if (error?.code === 'ERR_CANCELED' || error?.name === 'AbortError') return false;
+  const status = error?.response?.status;
+  return status === 408 || status === 429 || status >= 500 ||
+    (!error?.response && (error?.isAxiosError === true || ['ERR_NETWORK', 'ECONNABORTED', 'ETIMEDOUT'].includes(error?.code)));
+}
+
+export function shouldResumeScan(current, { deviceId, previousId, activeId, completedId }) {
+  if (!current?.session_id || current.device_id !== deviceId || current.session_id === completedId) return false;
+  if (isScanRunning(current.status)) return current.session_id !== previousId;
+  return current.status === 'done' && (current.session_id === activeId ||
+    (previousId !== undefined && current.session_id !== previousId));
+}
+
 export function scanErrorMessage(error) {
   const detail = error.response?.data?.detail;
   return typeof detail === 'string' ? detail : error.message || '요청을 처리하지 못했습니다.';
@@ -53,23 +67,30 @@ export function createScannerSessionApi(client, deviceId) {
       const deadline = Date.now() + timeoutMs;
       while (Date.now() < deadline) {
         signal?.throwIfAborted();
-        const current = await this.status({ signal });
-        if (current?.session_id === sessionId) {
-          if (current.status === 'failed') throw new Error('촬영 또는 저장에 실패했습니다. 기기 상태를 확인해 주세요.');
-          if (current.status === 'done') {
-            const { data } = await client.get(`/result/${encodeURIComponent(sessionId)}`, { signal });
-            return { ...data, session_id: sessionId };
+        try {
+          const current = await this.status({ signal });
+          if (current?.session_id === sessionId) {
+            if (current.status === 'failed') throw new Error('촬영 또는 저장에 실패했습니다. 기기 상태를 확인해 주세요.');
+            if (current.status === 'done') {
+              const { data } = await client.get(`/result/${encodeURIComponent(sessionId)}`, { signal });
+              return { ...data, session_id: sessionId };
+            }
+          } else if (current?.session_id) {
+            throw new Error('다른 촬영 세션이 감지됐습니다. 촬영 기록을 확인해 주세요.');
           }
-        } else if (current?.session_id) {
-          throw new Error('다른 촬영 세션이 감지됐습니다. 촬영 기록을 확인해 주세요.');
+        } catch (error) {
+          signal?.throwIfAborted();
+          if (!isRetryableScanError(error)) throw error;
+          // 일시적인 조회 실패는 새 촬영 없이 같은 세션으로 재시도한다.
         }
+        signal?.throwIfAborted();
         await new Promise((resolve, reject) => {
           const abort = () => { clearTimeout(timer); reject(signal.reason); };
           const timer = setTimeout(() => { signal?.removeEventListener('abort', abort); resolve(); }, intervalMs);
           signal?.addEventListener('abort', abort, { once: true });
         });
       }
-      throw new Error('촬영 완료를 아직 확인하지 못했습니다. 기기와 촬영 기록을 확인한 뒤 다시 시도해 주세요.');
+      throw Object.assign(new Error('촬영 완료를 아직 확인하지 못했습니다. 다시 시도하면 같은 촬영의 결과를 확인합니다.'), { code: 'SCAN_WAIT_TIMEOUT' });
     },
   };
 }
