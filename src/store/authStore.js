@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { readWishlist, writeWishlist } from '../utils/accountStorage';
 import * as authApi from '../api/auth';
 import { scannerSession } from '../api/scan';
 import { isScanRunning, scanErrorMessage } from '../api/scannerSession';
@@ -18,9 +19,7 @@ const useAuthStore = create((set, get) => ({
   // ── 앱 시작 시 토큰 및 찜 목록 검증 ───────────────────
   checkAuth: async () => {
     const token = localStorage.getItem(TOKEN_KEY);
-    // 찜 목록 로컬스토리지 로드
-    const localWishlist = JSON.parse(localStorage.getItem('damda_wishlist') || '[]');
-    set({ wishlist: localWishlist });
+    set({ wishlist: [], survey: null });
 
     if (token === 'demo_access_token') {
       const storedUser = JSON.parse(localStorage.getItem(USER_KEY) || 'null') || {
@@ -31,7 +30,7 @@ const useAuthStore = create((set, get) => ({
         notify_analysis: true,
         notify_recommend: true,
       };
-      set({ isLoggedIn: true, user: storedUser });
+      set({ isLoggedIn: true, user: storedUser, wishlist: readWishlist(storedUser.user_id), survey: null });
       return true;
     }
 
@@ -39,7 +38,7 @@ const useAuthStore = create((set, get) => ({
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
       useScanStore.getState().clearAll();
-      set({ isLoggedIn: false, user: null });
+      set({ isLoggedIn: false, user: null, wishlist: [], survey: null });
       return false;
     }
 
@@ -53,14 +52,14 @@ const useAuthStore = create((set, get) => ({
         useScanStore.getState().clearAll();
       }
 
-      set({ isLoggedIn: true, user });
+      set({ isLoggedIn: true, user, wishlist: readWishlist(user.user_id), survey: null });
       localStorage.setItem(USER_KEY, JSON.stringify(user));
       return true;
     } catch {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
       useScanStore.getState().clearAll();
-      set({ isLoggedIn: false, user: null });
+      set({ isLoggedIn: false, user: null, wishlist: [], survey: null });
       return false;
     }
   },
@@ -78,8 +77,8 @@ const useAuthStore = create((set, get) => ({
       // 토큰 저장 후 내 정보 조회 (GET /mypage)
       const user = await authApi.getMe();
       localStorage.setItem(USER_KEY, JSON.stringify(user));
-      const localWishlist = JSON.parse(localStorage.getItem('damda_wishlist') || '[]');
-      set({ isLoggedIn: true, user, wishlist: localWishlist, loading: false });
+      const localWishlist = readWishlist(user.user_id);
+      set({ isLoggedIn: true, user, wishlist: localWishlist, survey: null, loading: false });
       return { success: true };
     } catch (err) {
       const message = err.response?.data?.detail || err.message || '로그인에 실패했습니다.';
@@ -97,8 +96,8 @@ const useAuthStore = create((set, get) => ({
       useScanStore.getState().clearAll();
       const user = await authApi.getMe();
       localStorage.setItem(USER_KEY, JSON.stringify(user));
-      const localWishlist = JSON.parse(localStorage.getItem('damda_wishlist') || '[]');
-      set({ isLoggedIn: true, user, wishlist: localWishlist, loading: false });
+      const localWishlist = readWishlist(user.user_id);
+      set({ isLoggedIn: true, user, wishlist: localWishlist, survey: null, loading: false });
       return { success: true };
     } catch (err) {
       const message = err.response?.data?.detail || err.message || '카카오 로그인에 실패했습니다.';
@@ -116,8 +115,8 @@ const useAuthStore = create((set, get) => ({
       useScanStore.getState().clearAll();
       const user = await authApi.getMe();
       localStorage.setItem(USER_KEY, JSON.stringify(user));
-      const localWishlist = JSON.parse(localStorage.getItem('damda_wishlist') || '[]');
-      set({ isLoggedIn: true, user, wishlist: localWishlist, loading: false });
+      const localWishlist = readWishlist(user.user_id);
+      set({ isLoggedIn: true, user, wishlist: localWishlist, survey: null, loading: false });
       return { success: true };
     } catch (err) {
       const message = err.response?.data?.detail || err.message || '구글 로그인에 실패했습니다.';
@@ -139,8 +138,8 @@ const useAuthStore = create((set, get) => ({
     localStorage.setItem(TOKEN_KEY, 'demo_access_token');
     localStorage.setItem(USER_KEY, JSON.stringify(demoUser));
     useScanStore.getState().clearAll();
-    const localWishlist = JSON.parse(localStorage.getItem('damda_wishlist') || '[]');
-    set({ isLoggedIn: true, user: demoUser, wishlist: localWishlist, loading: false, error: null });
+    const localWishlist = readWishlist(demoUser.user_id);
+    set({ isLoggedIn: true, user: demoUser, wishlist: localWishlist, survey: null, loading: false, error: null });
     return { success: true };
   },
 
@@ -155,7 +154,7 @@ const useAuthStore = create((set, get) => ({
       // 가입 후 내 정보 조회
       const user = await authApi.getMe();
       localStorage.setItem(USER_KEY, JSON.stringify(user));
-      set({ isLoggedIn: true, user, loading: false });
+      set({ isLoggedIn: true, user, wishlist: readWishlist(user.user_id), survey: null, loading: false });
       return { success: true };
     } catch (err) {
       const message = err.response?.data?.detail || err.message || '회원가입에 실패했습니다.';
@@ -193,7 +192,7 @@ const useAuthStore = create((set, get) => ({
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem('damda_survey');
     useScanStore.getState().clearAll();
-    set({ isLoggedIn: false, user: null, survey: null, wishlist: [], error: null, loggingOut: false });
+    set({ isLoggedIn: false, user: null, survey: null, wishlist: [], error: null, loading: false, loggingOut: false });
     return { success: true };
   },
 
@@ -228,8 +227,11 @@ const useAuthStore = create((set, get) => ({
 
   // ── 피부 설문 조회 (GET /surveys/me) ─────────────────
   fetchSurvey: async () => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    const userId = get().user?.user_id;
     try {
       const survey = await authApi.getSurvey();
+      if (token !== localStorage.getItem(TOKEN_KEY) || userId !== get().user?.user_id) return null;
       set({ survey });
       return survey;
     } catch {
@@ -239,12 +241,16 @@ const useAuthStore = create((set, get) => ({
 
   // ── 피부 설문 저장 (PUT /surveys/me) ─────────────────
   saveSurvey: async (data) => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    const userId = get().user?.user_id;
     set({ loading: true });
     try {
       const survey = await authApi.saveSurvey(data);
+      if (token !== localStorage.getItem(TOKEN_KEY) || userId !== get().user?.user_id) return { success: false };
       set({ survey, loading: false });
       return { success: true, survey };
     } catch (err) {
+      if (token !== localStorage.getItem(TOKEN_KEY) || userId !== get().user?.user_id) return { success: false };
       const message = err.response?.data?.detail || err.message;
       set({ loading: false });
       return { success: false, message };
@@ -253,6 +259,7 @@ const useAuthStore = create((set, get) => ({
 
   // ── 찜 목록 토글 액션 (localStorage + State 동기화) ───
   toggleWish: (product) => {
+    if (!get().user?.user_id) return false;
     const list = get().wishlist;
     const isExisted = list.some((p) => p.id === product.id);
     let nextList;
@@ -262,14 +269,14 @@ const useAuthStore = create((set, get) => ({
       nextList = [...list, product];
     }
     set({ wishlist: nextList });
-    localStorage.setItem('damda_wishlist', JSON.stringify(nextList));
+    writeWishlist(get().user?.user_id, nextList);
     return !isExisted; // 추가됐으면 true, 제거됐으면 false 반환
   },
 
   // 찜 목록 직접 저장 (되돌리기 복원용)
   setWishlist: (list) => {
     set({ wishlist: list });
-    localStorage.setItem('damda_wishlist', JSON.stringify(list));
+    writeWishlist(get().user?.user_id, list);
   },
 
   // ── 프로필 이미지 (profile_image_url) ────────────────

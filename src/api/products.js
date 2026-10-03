@@ -1,32 +1,24 @@
+import { getAiMode } from '../store/modeStore';
 import client, { isMock } from './client';
 import { mockProducts, calculateCompatibility } from '../utils/mockData';
 
 // ── 제품 추천 (POST /scans/{id}/recommend 또는 GET /products) ────────
 export async function getRecommendations(body = {}, sessionId) {
-  const isDemo = localStorage.getItem('damda_token') === 'demo_access_token';
-  if (isMock) {
-    await delay(500);
-    return buildMockRecommendations(body);
-  }
+  const isDemo = getAiMode() === 'mock' || localStorage.getItem('damda_token') === 'demo_access_token';
+  if (isMock || isDemo) return { ...buildMockRecommendations(body), source: 'demo' };
 
-  try {
-    // 1. BE 세션 기반 추천: POST /scans/{id}/recommend
-    if (sessionId && !String(sessionId).startsWith('mock_')) {
-      const res = await client.post(`/scans/${sessionId}/recommend`);
+  if (sessionId && !String(sessionId).startsWith('mock_')) {
+    try {
+      const res = await client.post(`/scans/${encodeURIComponent(sessionId)}/recommend`);
       const items = Array.isArray(res.data) ? res.data : (res.data?.recommended_products || res.data?.products || []);
-      if (items.length > 0) return { recommended_products: items };
+      if (items.length > 0) return { recommended_products: items, source: 'personalized' };
+    } catch (error) {
+      if ([401, 403].includes(error.response?.status)) throw error;
     }
-
-    // 2. 세션 ID가 없거나 실패 시 신규 제품 목록 API 호출 (GET /products)
-    const res = await client.get('/products');
-    const items = Array.isArray(res.data) ? res.data : (res.data?.products || []);
-    if (items.length > 0) return { recommended_products: items };
-    if (isDemo) return buildMockRecommendations(body);
-    return { recommended_products: [] };
-  } catch {
-    if (isDemo) return buildMockRecommendations(body);
-    return { recommended_products: [] };
   }
+  const res = await client.get('/products');
+  const items = Array.isArray(res.data) ? res.data : (res.data?.products || []);
+  return { recommended_products: items, source: 'catalog' };
 }
 
 // ── 제품 목록 조회 (GET /products) ──────────────────────

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getScanHistory } from '../api/scan';
 import { mockDemoScanHistory } from '../utils/mockData';
-import { getAiMode } from '../store/modeStore';
+import { getAiMode, useModeStore } from '../store/modeStore';
 import { scanImages } from '../utils/scanSafety';
 
 // 백엔드 narrative / result 응답을 flat 구조로 변환 (차트/UI 호환)
@@ -120,6 +120,7 @@ const metricKeyMap = {
 
 // 계정 초기화 이전에 시작한 기록 요청은 더 이상 반영하지 않는다.
 let historyGeneration = 0;
+const modeHistory = new Map();
 
 const useScanStore = create(
   persist(
@@ -137,9 +138,10 @@ const useScanStore = create(
       fetchHistory: async () => {
         const generation = historyGeneration;
         const token = localStorage.getItem('damda_token');
+        const mode = getAiMode();
         try {
           const history = await getScanHistory();
-          if (generation !== historyGeneration || token !== localStorage.getItem('damda_token')) {
+          if (generation !== historyGeneration || token !== localStorage.getItem('damda_token') || mode !== getAiMode()) {
             return [];
           }
           const parsed = Array.isArray(history) ? history.map((s) => parseApiResult(s)) : [];
@@ -156,16 +158,10 @@ const useScanStore = create(
       initializeIfNeeded: async () => {
         const state = get();
         const mode = getAiMode();
-        // 시연용(mock) 모드일 때 스캔 기록이 2건 미만이면 풍성한 목업 히스토리를 채워줌
-        if (mode === 'mock' && state.scans.length < 2) {
-          const parsedMocks = mockDemoScanHistory.map((s) => parseApiResult(s));
-          const userScans = state.scans.filter((s) => !String(s.id).startsWith('10'));
-          const combined = [...userScans, ...parsedMocks];
-          set({
-            scans: combined,
-            currentScan: state.currentScan || combined[0],
-          });
-          return combined;
+        if (mode === 'mock' && state.scans.length === 0) {
+          const scans = mockDemoScanHistory.map(parseApiResult);
+          set({ scans, currentScan: scans[0] || null });
+          return scans;
         }
 
         if (state.currentScan || state.scans.length > 0) return;
@@ -201,7 +197,8 @@ const useScanStore = create(
 
       clearAll: () => {
         historyGeneration++;
-        set({ scans: [], currentScan: null });
+        modeHistory.clear();
+        set({ scans: [], currentScan: null, userInputs: null, loading: false, scannerStatus: 'unknown' });
       },
     }),
     {
@@ -210,5 +207,20 @@ const useScanStore = create(
     }
   )
 );
+
+useModeStore.subscribe((state, previous) => {
+  if (state.mode === previous.mode) return;
+  historyGeneration++;
+  const current = useScanStore.getState();
+  const belongsTo = (scan, mode) => Boolean(scan?.is_mock || scan?._raw?.is_mock) === (mode === 'mock');
+  const scans = current.scans.filter(scan => belongsTo(scan, previous.mode));
+  modeHistory.set(previous.mode, {
+    scans,
+    currentScan: current.currentScan && belongsTo(current.currentScan, previous.mode) ? current.currentScan : scans[0] || null,
+  });
+  const restored = modeHistory.get(state.mode) || { scans: [], currentScan: null };
+  useScanStore.setState({ ...restored, loading: false });
+  useScanStore.getState().initializeIfNeeded();
+});
 
 export default useScanStore;

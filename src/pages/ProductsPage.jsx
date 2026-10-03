@@ -256,6 +256,9 @@ const ProductsPage = () => {
   const { currentScan, initializeIfNeeded } = useScanStore();
 
   const [products, setProducts] = useState([]);
+  const [recommendationSource, setRecommendationSource] = useState(null);
+  const [recommendationError, setRecommendationError] = useState('');
+  const requestGeneration = useRef(0);
   const [loading, setLoading] = useState(false);
   const [activeFilters, setActiveFilters] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -273,7 +276,11 @@ const ProductsPage = () => {
   ), [currentScan]);
 
   const fetchProducts = useCallback(async ({ filters = [], seed = null, isRefresh = false } = {}) => {
+    const generation = ++requestGeneration.current;
+    const token = localStorage.getItem('damda_token');
+    const isCurrent = () => generation === requestGeneration.current && token === localStorage.getItem('damda_token');
     setLoading(true);
+    setRecommendationError('');
     try {
       // 리프레시 시 이미 많이 본 경우 shownIds를 리셋하여 빈 결과 방지
       if (isRefresh && shownIds.current.size >= 15) {
@@ -292,7 +299,9 @@ const ProductsPage = () => {
       if (seed != null) body.seed = seed;
       if (excludeIds.length > 0) body.exclude_ids = excludeIds;
 
-      const data = await getRecommendations(body);
+      const data = await getRecommendations(body, currentScan?.is_mock ? undefined : currentScan?.sessionId);
+      if (!isCurrent()) return;
+      setRecommendationSource(data.source);
       let list = (data.recommended_products || []).map((p) => ({
         ...p,
         id: p.id || p.product_id,
@@ -303,7 +312,9 @@ const ProductsPage = () => {
       if (list.length === 0 && excludeIds.length > 0) {
         shownIds.current.clear();
         delete body.exclude_ids;
-        const retryData = await getRecommendations(body);
+        const retryData = await getRecommendations(body, currentScan?.is_mock ? undefined : currentScan?.sessionId);
+        if (!isCurrent()) return;
+        setRecommendationSource(retryData.source);
         list = (retryData.recommended_products || []).map((p) => ({
           ...p,
           id: p.id || p.product_id,
@@ -314,9 +325,12 @@ const ProductsPage = () => {
       list.forEach((p) => p.id && shownIds.current.add(p.id));
       setProducts(list);
     } catch (err) {
-      console.error('추천 로드 실패:', err);
+      if (!isCurrent()) return;
+      setProducts([]);
+      setRecommendationSource(null);
+      setRecommendationError('제품을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   }, [currentScan, userInputs]);
 
@@ -325,8 +339,12 @@ const ProductsPage = () => {
   }, [initializeIfNeeded]);
 
   useEffect(() => {
+    shownIds.current.clear();
+    setProducts([]);
+    setRecommendationSource(null);
     if (hasScanData) fetchProducts();
-  }, [hasScanData]);
+    return () => { requestGeneration.current++; };
+  }, [hasScanData, fetchProducts]);
 
   // 클라이언트 사이드: 카테고리 + 검색 + 가격대 + 정렬
   const filteredProducts = useMemo(() => {
@@ -434,7 +452,10 @@ const ProductsPage = () => {
               <div className="flex items-start gap-3">
                 <Sparkles size={18} className="text-primary-500 mt-0.5 flex-shrink-0" />
                 <p className="text-sm text-primary-700 leading-relaxed">
-                  오늘 측정 결과를 분석해 선별한 제품이에요. 카드를 누르면 상세 정보를 볼 수 있어요.
+                  {recommendationError || (loading ? '제품을 불러오는 중이에요.' :
+                    recommendationSource === 'catalog' ? '맞춤 추천을 불러오지 못해 일반 제품 목록을 보여드려요.' :
+                    recommendationSource === 'demo' ? '시연용 예시 추천입니다. 카드를 누르면 상세 정보를 볼 수 있어요.' :
+                    '선택한 측정 결과를 바탕으로 추천한 제품이에요. 카드를 누르면 상세 정보를 볼 수 있어요.')}
                 </p>
               </div>
             </div>
