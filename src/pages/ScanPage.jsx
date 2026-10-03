@@ -10,6 +10,7 @@ import useScanStore from '../store/scanStore';
 import { useModeStore } from '../store/modeStore';
 import { getScannerHealth, measureWithScanner, scannerSession } from '../api/scan';
 import { shouldResumeScan, scanErrorMessage } from '../api/scannerSession';
+import { safeStreamUrl } from '../utils/scanSafety';
 import { SCAN_AREAS } from '../utils/constants';
 
 const REGION_MAP = {
@@ -45,9 +46,20 @@ const [scannerMsg, setScannerMsg] = useState(
   '스캐너 상태 확인 중...'
 );
 
-const [streamUrl, setStreamUrl] = useState('');
+const [serverStreamUrl, setStreamUrl] = useState('');
+const [localPreview, setLocalPreview] = useState(() => sessionStorage.getItem('damda_local_preview') === 'true');
+const [localStreamInput, setLocalStreamInput] = useState(() => sessionStorage.getItem('damda_local_stream') || '');
 
 const [detectedIp, setDetectedIp] = useState(null);
+const localCandidate = localStreamInput.trim() || (detectedIp && detectedIp !== 'custom' ? `http://${detectedIp}/stream` : '');
+const localStreamUrl = safeStreamUrl(localCandidate, undefined, { allowLocalHttp: true });
+const streamUrl = mode === 'mock' ? '' : (localPreview ? localStreamUrl || '' : serverStreamUrl);
+const previewActive = Boolean(streamUrl) && !['scanning', 'countdown', 'complete'].includes(scanStatus);
+
+useEffect(() => {
+  sessionStorage.setItem('damda_local_preview', String(localPreview));
+  sessionStorage.setItem('damda_local_stream', localStreamInput);
+}, [localPreview, localStreamInput]);
 
 // 스트림 연결 상태
 const [streamError, setStreamError] = useState(false);
@@ -96,7 +108,7 @@ useEffect(() => {
 
 // 스트림이 끊기면 3초 후 자동 재접속
 useEffect(() => {
-  if (!streamError || streamRetryKey >= 3) return;
+  if (!previewActive || !streamError || streamRetryKey >= 3) return;
 
   console.warn(
     '[ESP32 Stream] 스트림 연결 실패 - 3초 후 재시도'
@@ -119,7 +131,7 @@ useEffect(() => {
   return () => {
     clearTimeout(retryTimer);
   };
-}, [streamError, streamRetryKey]);
+}, [streamError, streamRetryKey, previewActive]);
 
 // 동일한 URL이어도 브라우저가 새로운 요청을 보내도록
 // retry 값을 query parameter로 붙임
@@ -223,10 +235,7 @@ const previewUrl = streamUrl
         setScannerStatus('ok');
         setScannerMsg(data.message || '스캐너 연결됨');
         setStreamUrl(data.streamUrl || '');
-        if (data.streamUrl) {
-          setStreamUrl(data.streamUrl);
-          setDetectedIp(data.ip || null);
-        }
+        setDetectedIp(data.ip || null);
       } else {
         setScannerStatus('unreachable');
         setScannerMsg(data.message || '스캐너 미연결 — Wi-Fi 확인');
@@ -475,11 +484,43 @@ useEffect(() => {
                   </div>
                 </div>
 
+                {mode !== 'mock' && (
+                  <details className="mb-4 rounded-xl border border-gray-200 p-3 text-sm">
+                    <summary className="cursor-pointer font-medium">시연용 로컬 영상 설정</summary>
+                    <label className="mt-3 flex items-center gap-2">
+                      <input type="checkbox" checked={localPreview}
+                        disabled={['scanning', 'countdown', 'complete'].includes(scanStatus)}
+                        onChange={event => setLocalPreview(event.target.checked)} />
+                      같은 Wi-Fi의 기기 영상 직접 연결
+                    </label>
+                    <p className="mt-2 text-xs text-text-secondary">
+                      이 탭에서만 사용하는 옵션입니다. HTTP 영상은 암호화되지 않습니다.
+                      로컬 네트워크 접근을 요청하면 허용해 주세요. 계속 차단되면 이 사이트 설정의
+                      ‘안전하지 않은 콘텐츠’를 허용하고 새로고침해 주세요. 시연 후 변경한 권한을 원래대로 돌려주세요.
+                    </p>
+                    {localPreview && (
+                      <div className="mt-3 space-y-2">
+                        <label className="block text-xs" htmlFor="local-stream-url">영상 주소 (비워두면 등록된 기기 IP 사용)</label>
+                        <input id="local-stream-url" type="url" value={localStreamInput}
+                          disabled={['scanning', 'countdown', 'complete'].includes(scanStatus)}
+                          onChange={event => setLocalStreamInput(event.target.value)}
+                          placeholder="http://192.168.4.1/stream"
+                          className="w-full rounded-lg border border-gray-300 p-2 text-sm" />
+                        <p className="break-all text-xs text-text-secondary">
+                          {localStreamUrl ? `연결 주소: ${localStreamUrl}` : localCandidate
+                            ? '주소를 확인해 주세요. HTTP는 내부 IP 주소만 사용할 수 있습니다.'
+                            : '등록된 기기 주소가 없습니다. 영상이 나오는 주소를 입력해 주세요.'}
+                        </p>
+                      </div>
+                    )}
+                  </details>
+                )}
+
                 {/* 카메라 / 얼굴 가이드 */}
                 <div className="bg-gray-900 rounded-2xl aspect-[4/3] relative flex items-center justify-center mb-4 overflow-hidden shadow-inner">
                   {/* 하드웨어 실시간 MJPEG 스트림 (URL이 있고 에러 없을 시 즉시 표시) */}
 {/* 하드웨어 실시간 MJPEG 스트림 */}
-{streamUrl && scanStatus !== 'scanning' && scanStatus !== 'countdown' && (
+{previewActive && (
   <img
     key={streamRetryKey}
     src={previewUrl}
@@ -507,13 +548,13 @@ useEffect(() => {
 {scanStatus === 'scanning' && (
   <div className="absolute inset-0 flex items-center justify-center bg-black/40">
     <p className="font-medium text-white">
-      예시 스캔을 진행하고 있습니다...
+      {isDemo ? '예시 스캔을 진행하고 있습니다...' : '측정 중에는 미리보기를 중단합니다.'}
     </p>
   </div>
 )}
 
                   {/* 스트림 상태 뱃지 (실시간 스트림 정상 출력 시) */}
-                  {streamUrl && !streamError && (
+                  {previewActive && !streamError && (
                     <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2.5 py-1 bg-black/60 backdrop-blur-sm rounded-full text-[11px] text-white font-medium border border-white/10 shadow">
                       <span className="w-2 h-2 bg-red-500 rounded-full animate-ping" />
                       <span className="font-bold text-red-400">LIVE</span>
@@ -522,7 +563,7 @@ useEffect(() => {
                   )}
 
                   {/* 동일 WiFi 연결 가이드 & Mixed Content 우회 옵션 (스트림 로딩 실패 시) */}
-                  {streamError && streamUrl && mode !== 'mock' && (
+                  {streamError && previewActive && mode !== 'mock' && (
                     <div className="absolute bottom-3 inset-x-3 z-10 flex flex-col items-center justify-center gap-1 p-2.5 bg-black/85 backdrop-blur-sm rounded-xl text-[11px] text-gray-200 border border-white/10 text-center">
                       <div className="flex items-center gap-1.5 text-amber-300 font-semibold">
                         <Wifi size={13} className="shrink-0" />
@@ -530,7 +571,7 @@ useEffect(() => {
                       </div>
                       <p className="text-[10px] text-gray-400 leading-relaxed max-w-sm">
                         {typeof window !== 'undefined' && window.location.protocol === 'https:'
-                          ? 'HTTPS 환경에서는 브라우저 보안으로 로컬 HTTP 스트림이 차단될 수 있습니다. 로컬(http://localhost:3000)에서 실행하거나 아래 버튼으로 열어보세요.'
+                          ? '같은 Wi-Fi인지 확인하고, 로컬 영상 설정을 켠 경우 이 사이트의 안전하지 않은 콘텐츠 및 로컬 네트워크 접근 권한을 확인해 주세요. 브라우저 정책에 따라 연결이 제한될 수 있습니다.'
                           : 'ESP32와 동일한 Wi-Fi 네트워크에 접속되어 있는지 확인해 주세요.'}
                       </p>
                       <button

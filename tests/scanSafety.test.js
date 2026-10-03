@@ -43,3 +43,19 @@ test('only positive boolean health reports a connected scanner', () => {
   assert.equal(scannerStatus({connected:true,status:'ok'}).status,'ok');
   assert.equal(scannerStatus({connected:true,status:'unreachable'}).status,'unreachable');
 });
+
+
+test('local preview opt-in permits private HTTP streams only', () => {
+  const page = 'https://damdads.netlify.app/scan';
+  const options = { allowLocalHttp: true };
+  for (const ip of ['192.168.4.1', '10.0.0.2', '172.16.0.2', '172.31.255.1']) {
+    const url = `http://${ip}/stream`;
+    assert.equal(safeStreamUrl(url, page), null);
+    assert.equal(safeStreamUrl(url, page, options), url);
+  }
+  for (const url of ['http://52.79.241.24/stream', 'http://172.32.0.1/stream',
+    'http://camera.example/stream', 'http://user:password@192.168.4.1/stream',
+    'javascript:alert(1)', 'http://192.168.999.1/stream']) {
+    assert.equal(safeStreamUrl(url, page, options), null);
+  }
+});

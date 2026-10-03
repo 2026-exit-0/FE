@@ -1,10 +1,16 @@
-export function safeStreamUrl(value, pageUrl = globalThis.location?.href || 'https://localhost/') {
+export function safeStreamUrl(value, pageUrl = globalThis.location?.href || 'https://localhost/', { allowLocalHttp = false } = {}) {
   if (!value || typeof value !== 'string') return null;
   try {
     const page = new URL(pageUrl);
     const url = new URL(value, page);
     if (!['http:', 'https:'].includes(url.protocol)) return null;
-    if (page.protocol === 'https:' && url.protocol !== 'https:') return null;
+    if (url.username || url.password) return null;
+    const parts = url.hostname.split('.').map(Number);
+    const privateIp = /^\d+\.\d+\.\d+\.\d+$/.test(url.hostname) &&
+      parts.every(n => n >= 0 && n <= 255) &&
+      (parts[0] === 10 || (parts[0] === 192 && parts[1] === 168) ||
+        (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31));
+    if (page.protocol === 'https:' && url.protocol !== 'https:' && !(allowLocalHttp && privateIp)) return null;
     return url.href;
   } catch {
     return null;
