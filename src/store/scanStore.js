@@ -118,6 +118,9 @@ const metricKeyMap = {
   '색소침착': 'pigmentation',
 };
 
+// 계정 초기화 이전에 시작한 기록 요청은 더 이상 반영하지 않는다.
+let historyGeneration = 0;
+
 const useScanStore = create(
   persist(
     (set, get) => ({
@@ -132,8 +135,13 @@ const useScanStore = create(
       clearUserInputs: () => set({ userInputs: null }),
 
       fetchHistory: async () => {
+        const generation = historyGeneration;
+        const token = localStorage.getItem('damda_token');
         try {
           const history = await getScanHistory();
+          if (generation !== historyGeneration || token !== localStorage.getItem('damda_token')) {
+            return [];
+          }
           const parsed = Array.isArray(history) ? history.map((s) => parseApiResult(s)) : [];
           set((state) => ({
             scans: parsed.length > 0 ? parsed : state.scans,
@@ -191,7 +199,10 @@ const useScanStore = create(
       setScannerStatus: (status) => set({ scannerStatus: status }),
       setLoading: (loading) => set({ loading }),
 
-      clearAll: () => set({ scans: [], currentScan: null }),
+      clearAll: () => {
+        historyGeneration++;
+        set({ scans: [], currentScan: null });
+      },
     }),
     {
       name: 'skinlab_scan_store',
