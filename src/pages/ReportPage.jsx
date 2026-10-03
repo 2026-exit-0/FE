@@ -14,14 +14,15 @@ import Button from '../components/common/Button';
 import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
 import { useModeStore } from '../store/modeStore';
+import { selectReportScans, filterReportPeriod, reportChart, reportChange, metricValue, reportDate } from '../utils/reportData';
 import { mockDemoScanHistory } from '../utils/mockData';
-import { downloadReportPdf, getScanHistory } from '../api/scan';
+import { downloadReportPdf } from '../api/scan';
 
 // ─── 기간 필터 ──────────────────────────────────────────
 const periodFilters = [
-  { id: 'week', label: '주간' },
-  { id: 'month', label: '월간' },
-  { id: '3month', label: '3개월' },
+  { id: 'week', label: '최근 7일' },
+  { id: 'month', label: '최근 30일' },
+  { id: '3month', label: '최근 90일' },
   { id: 'all', label: '전체' },
 ];
 
@@ -35,7 +36,7 @@ const metricFilters = [
 
 // ─── 요약 카드 컴포넌트 ──────────────────────────────────
 const SummaryCard = ({ title, value, isPositive, subtitle }) => {
-  const isNeutral = value === '0%' || value === '-';
+  const isNeutral = value === '0점' || value === '-' || isPositive == null;
   const colorClass = isNeutral
     ? 'text-text-secondary'
     : isPositive
@@ -157,76 +158,27 @@ const ReportPage = () => {
   const navigate = useNavigate();
   useAuth(true);
   const { mode } = useModeStore();
-  const { currentScan, scans, setCurrentScan, initializeIfNeeded } = useScanStore();
+  const { currentScan, scans, setCurrentScan, fetchHistory } = useScanStore();
   const [period, setPeriod] = useState('month');
   const [metric, setMetric] = useState('moisture');
 
-  // 백엔드에서 측정 기록 가져오기
   useEffect(() => {
-    initializeIfNeeded();
-  }, [initializeIfNeeded]);
+    if (mode === 'real') fetchHistory();
+  }, [mode, fetchHistory]);
 
-  // 시연용(mock) 모드이거나 스캔 기록이 2회 미만인 경우, 목업 히스토리를 병합하여 항상 풍성한 리포트 제공
+  const availableScans = useMemo(() => selectReportScans(
+    mode === 'mock' ? mockDemoScanHistory : [...scans, ...(currentScan ? [currentScan] : [])],
+    mode,
+  ), [mode, scans, currentScan]);
   const displayScans = useMemo(() => {
-    if (mode === 'mock' || scans.length < 2) {
-      const userScans = scans.filter((s) => !String(s.id).startsWith('10'));
-      return [...userScans, ...mockDemoScanHistory];
-    }
-    return scans;
-  }, [mode, scans]);
-
-  const hasScanData = displayScans.length > 0 || !!currentScan;
-  const scanCount = displayScans.length;
-  const hasEnoughScans = scanCount >= 2;
-
-  // 동적 차트 데이터 제네레이터
-  const getChartData = (m, p) => {
-    const baseData = {
-      moisture: [68, 71, 74, 76],
-      oil: [55, 50, 48, 43],
-      pore: [60, 61, 63, 66],
-      elasticity: [35, 36, 38, 41]
-    };
-
-    const scores = baseData[m] || baseData.moisture;
-
-    if (p === 'week') {
-      return [
-        { week: '1주차', score: scores[0] },
-        { week: '2주차', score: scores[1] },
-        { week: '3주차', score: scores[2] },
-        { week: '4주차', score: scores[3] },
-      ];
-    } else if (p === 'month') {
-      return [
-        { week: '1월', score: Math.max(scores[0] - 8, 0) },
-        { week: '2월', score: Math.max(scores[1] - 4, 0) },
-        { week: '3월', score: scores[2] },
-        { week: '4월', score: scores[3] },
-      ];
-    } else if (p === '3month') {
-      return [
-        { week: '2월 1주', score: Math.max(scores[0] - 6, 0) },
-        { week: '2월 3주', score: Math.max(scores[0] - 3, 0) },
-        { week: '3월 1주', score: Math.max(scores[1] - 4, 0) },
-        { week: '3월 3주', score: scores[1] },
-        { week: '4월 1주', score: Math.max(scores[2] - 2, 0) },
-        { week: '4월 3주', score: scores[3] },
-      ];
-    } else { // all
-      return [
-        { week: '11월', score: 55 },
-        { week: '12월', score: 58 },
-        { week: '1월', score: scores[0] },
-        { week: '2월', score: scores[1] },
-        { week: '3월', score: scores[2] },
-        { week: '4월', score: scores[3] },
-      ];
-    }
-  };
-
-  const chartData = getChartData(metric, period);
+    // 예시 기록은 마지막 예시 촬영일을 기준으로 기간을 보여준다.
+    const reference = mode === 'mock' ? reportDate(availableScans[0] || {}) : new Date();
+    return filterReportPeriod(availableScans, period, reference || new Date());
+  }, [availableScans, period, mode]);
+  const hasScanData = availableScans.length > 0;
+  const chartData = reportChart(displayScans, metric);
   const metricLabel = metricFilters.find((item) => item.id === metric)?.label || '수분도';
+  const summaryMetrics = [{ id: 'moisture', label: '수분' }, { id: 'oil', label: '유분' }, { id: 'pore', label: '모공' }];
 
   // PDF 내보내기 핸들러 (분석 결과 화면 내보내기로 자연스럽게 연결)
   const handleExportPDF = async () => {
@@ -365,24 +317,12 @@ const ReportPage = () => {
               <div className="flex-1 min-w-0 space-y-6">
                 {/* ── 요약 카드 3개 ────────────────────── */}
                 <div className="grid grid-cols-1 tablet:grid-cols-3 gap-4">
-                  <SummaryCard
-                    title="수분 변화"
-                    value="+8%"
-                    isPositive={true}
-                    subtitle="지난달 대비"
-                  />
-                  <SummaryCard
-                    title="유분 변화"
-                    value="-5%"
-                    isPositive={false}
-                    subtitle="개선됨"
-                  />
-                  <SummaryCard
-                    title="모공 변화"
-                    value="+3%"
-                    isPositive={true}
-                    subtitle="경미 향상"
-                  />
+                  {summaryMetrics.map(({ id, label }) => {
+                    const change = reportChange(displayScans, id);
+                    return <SummaryCard key={id} title={`${label} 변화`}
+                      value={change === null ? '-' : `${change > 0 ? '+' : ''}${change}점`}
+                      subtitle={change === null ? '기간 내 비교 가능한 기록 부족' : '선택 기간의 첫 측정 대비 최근 측정'} />;
+                  })}
                 </div>
 
                 {/* ── 차트 + 히스토리 (가로 배치) ──────── */}
@@ -392,7 +332,7 @@ const ReportPage = () => {
                     <h3 className="text-sm font-semibold text-text-primary mb-4">
                       {metricLabel} 변화 추이
                     </h3>
-                    {hasEnoughScans ? (
+                    {chartData.length > 0 ? (
                       <div className="h-52">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={chartData} barCategoryGap="30%">
@@ -432,7 +372,7 @@ const ReportPage = () => {
                           <BarChart3 size={24} className="text-gray-300" />
                         </div>
                         <p className="text-sm text-text-secondary">
-                          최소 2회 스캔 후 비교 가능합니다
+                          선택한 기간에 해당 지표의 측정 기록이 없습니다
                         </p>
                       </div>
                     )}
@@ -462,10 +402,11 @@ const ReportPage = () => {
                           </tr>
                         </thead>
                         <tbody>
+                          {displayScans.length === 0 && <tr><td colSpan={4} className="py-8 text-center text-text-secondary">선택한 기간에 측정 기록이 없습니다.</td></tr>}
                           {displayScans.map((item, index) => {
-                            const score = item.overallScore ?? item.total_score ?? item.score ?? 70;
-                            const prevScore = displayScans[index + 1]?.overallScore ?? displayScans[index + 1]?.total_score ?? null;
-                            const diff = prevScore !== null ? score - prevScore : null;
+                            const score = metricValue(item, 'overall');
+                            const prevScore = metricValue(displayScans[index + 1] || {}, 'overall');
+                            const diff = score !== null && prevScore !== null ? score - prevScore : null;
                             const changeText = diff !== null ? (diff > 0 ? `+${diff}` : `${diff}`) : '-';
                             const trend = diff !== null ? (diff > 0 ? 'up' : diff < 0 ? 'down' : 'same') : 'same';
 
@@ -480,17 +421,17 @@ const ReportPage = () => {
                                 title="클릭하여 상세 분석 결과 보기"
                               >
                                 <td className="py-3.5 pr-3 text-text-primary font-medium group-hover:text-primary-600 transition-colors">
-                                  {item.date || '최근'}
+                                  {reportDate(item)?.toLocaleDateString('ko-KR') || '날짜 없음'}
                                 </td>
                                 <td className="py-3.5 pr-3 text-text-secondary">
-                                  {item.skinType || '복합성 피부'}
+                                  {item.skinType || '-'}
                                 </td>
                                 <td className="py-3.5 pr-3 font-bold text-text-primary">
-                                  {score}점
+                                  {score === null ? '-' : `${score}점`}
                                 </td>
                                 <td className="py-3.5">
                                   <div className="flex items-center gap-2">
-                                    <ProgressBar value={score} />
+                                    {score !== null && <ProgressBar value={score} />}
                                     {changeText !== '-' && (
                                       <span
                                         className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
