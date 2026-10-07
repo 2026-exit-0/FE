@@ -587,30 +587,6 @@ useEffect(() => {
                     </div>
                   )}
 
-                  {/* 격자 및 가이드 라인 오버레이 */}
-                  <div className={`absolute inset-0 transition-opacity duration-300 ${streamUrl && !streamError ? 'opacity-20 pointer-events-none' : 'opacity-10'}`}>
-                    {[...Array(10)].map((_, i) => (
-                      <div key={`h${i}`} className="absolute w-full h-px bg-green-400" style={{ top: `${i * 10}%` }} />
-                    ))}
-                    {[...Array(10)].map((_, i) => (
-                      <div key={`v${i}`} className="absolute w-px h-full bg-green-400" style={{ left: `${i * 10}%` }} />
-                    ))}
-                  </div>
-
-                  {/* 피부 정밀 측정 포커스 타겟 (부위별 접촉/초점 영역) */}
-                  <div className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${streamUrl && !streamError ? 'opacity-40' : 'opacity-60'}`}>
-                    <div className="relative flex items-center justify-center border border-dashed w-44 h-44 border-emerald-400/60 rounded-2xl">
-                      {/* 4개 모서리 브래킷 */}
-                      <div className="absolute -top-0.5 -left-0.5 w-4 h-4 border-t-2 border-l-2 border-emerald-400 rounded-tl-md" />
-                      <div className="absolute -top-0.5 -right-0.5 w-4 h-4 border-t-2 border-r-2 border-emerald-400 rounded-tr-md" />
-                      <div className="absolute -bottom-0.5 -left-0.5 w-4 h-4 border-b-2 border-l-2 border-emerald-400 rounded-bl-md" />
-                      <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 border-b-2 border-r-2 border-emerald-400 rounded-br-md" />
-                      {/* 중앙 십자선 타겟 */}
-                      <div className="w-5 h-0.5 bg-emerald-400/70" />
-                      <div className="h-5 w-0.5 bg-emerald-400/70 absolute" />
-                    </div>
-                  </div>
-
                   {scanStatus === 'scanning' && (
                     <div className="absolute left-0 right-0 z-10 h-1 bg-gradient-to-r from-transparent via-green-400 to-transparent animate-scan-line" />
                   )}
