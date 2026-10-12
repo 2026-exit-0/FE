@@ -147,7 +147,7 @@ const useScanStore = create(
           const parsed = Array.isArray(history) ? history.map((s) => parseApiResult(s)) : [];
           set((state) => ({
             scans: parsed.length > 0 ? parsed : state.scans,
-            currentScan: parsed.length > 0 ? parsed[0] : state.currentScan,
+            currentScan: state.currentScan || parsed[0] || null,
           }));
           return parsed;
         } catch {

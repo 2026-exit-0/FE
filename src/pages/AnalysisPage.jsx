@@ -15,7 +15,7 @@ import Button from '../components/common/Button';
 import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
 import { downloadReportPdf } from '../api/scan';
-import { loadAnalysisDetail } from '../api/analysisDetail';
+import { loadAnalysisDetail, loadAnalysisCare } from '../api/analysisDetail';
 import { scanImages } from '../utils/scanSafety';
 
 // ─── 지표 색상 매핑 ───
@@ -206,7 +206,14 @@ const AnalysisPage = () => {
       return;
     }
     loadAnalysisDetail(sessionId, selected, controller.signal).then(data => {
-      if (active && token === localStorage.getItem('damda_token')) setDetail({ key: requestKey, data });
+      if (!active || token !== localStorage.getItem('damda_token')) return;
+      setDetail({ key: requestKey, data });
+      loadAnalysisCare(sessionId, controller.signal).then(care => {
+        if (active && token === localStorage.getItem('damda_token')) {
+          setDetail(previous => previous?.key === requestKey && previous.data
+            ? { ...previous, data: { ...previous.data, ...care } } : previous);
+        }
+      }).catch(() => { /* 화면을 벗어난 뒤 취소된 요청은 반영하지 않는다. */ });
     }).catch(() => {
       if (active && token === localStorage.getItem('damda_token')) setDetail({ key: requestKey, error: '촬영 결과를 불러오지 못했습니다. 다시 시도해 주세요.' });
     });

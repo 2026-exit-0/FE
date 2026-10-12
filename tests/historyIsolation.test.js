@@ -27,6 +27,23 @@ test('history responses belong to the authentication session that requested them
     };
     const row = session_id => [{ session_id, moisture: 60 }];
 
+    await t.test('late history refresh preserves the selected older session', async () => {
+      values.set('damda_token', 'A');
+      store.getState().clearAll();
+      const pending = await startRequest();
+      store.getState().setCurrentScan({ sessionId: 'older', moisture: 45 });
+      pending.respond([...row('newest'), ...row('older')]);
+      await pending.result;
+      assert.equal(store.getState().currentScan.sessionId, 'older');
+      assert.equal(store.getState().scans[0].sessionId, 'newest');
+      assert.equal(JSON.parse(values.get('skinlab_scan_store')).state.currentScan.sessionId, 'older');
+      store.getState().clearAll();
+      const initial = await startRequest();
+      initial.respond(row('newest'));
+      await initial.result;
+      assert.equal(store.getState().currentScan.sessionId, 'newest');
+    });
+
     await t.test('late A response cannot overwrite B history or persisted state', async () => {
       values.set('damda_token', 'A');
       store.getState().clearAll();

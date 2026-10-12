@@ -8,7 +8,7 @@ test('history detail fetches matching result and optional care', async () => {
   const server = await createServer({ configFile: false, appType: 'custom', optimizeDeps: { noDiscovery: true }, server: { middlewareMode: true, hmr: false, watch: null } });
   try {
     const { default: client } = await server.ssrLoadModule('/src/api/client.js');
-    const { loadAnalysisDetail } = await server.ssrLoadModule('/src/api/analysisDetail.js');
+    const { loadAnalysisDetail, loadAnalysisCare } = await server.ssrLoadModule('/src/api/analysisDetail.js');
     const calls = [];
     let careMissing = false;
     let resultFailed = false;
@@ -22,17 +22,28 @@ test('history detail fetches matching result and optional care', async () => {
         : { summary: 'care summary', morning_routine: 'morning', lifestyle_tips: 'tips' } };
     };
     const data = await loadAnalysisDetail('s1', { narrative: { per_metric: [{ value: '0%' }] }, created_at: '2026-10-11T12:00:00Z' });
-    assert.deepEqual(calls.sort(), ['/care/s1', '/result/s1']);
+    assert.deepEqual(calls, ['/result/s1']);
     assert.equal(data.moisture, 63);
     assert.equal(data.oil, 0);
     assert.equal(data.spots, null);
     assert.equal(data.overallScore, null);
     assert.equal(data.white_image_url, 'https://example.com/white.jpg');
     assert.equal(data.narrative.per_metric, undefined);
-    assert.deepEqual(data.narrative.tips, ['morning', 'tips']);
+    assert.deepEqual((await loadAnalysisCare('s1')).narrative.tips, ['morning', 'tips']);
     careMissing = true;
     assert.equal((await loadAnalysisDetail('s1')).moisture, 63);
-    assert.ok((await loadAnalysisDetail('s1')).careMessage);
+    assert.ok((await loadAnalysisCare('s1')).careMessage);
+    let finishCare;
+    const adapter = client.defaults.adapter;
+    client.defaults.adapter = config => config.url.includes('/care/')
+      ? new Promise(resolve => { finishCare = () => resolve({ config, status: 200, headers: {}, data: { summary: 'late care' } }); })
+      : adapter(config);
+    const pendingCare = loadAnalysisCare('s1');
+    const immediateResult = await loadAnalysisDetail('s1');
+    assert.equal(immediateResult.moisture, 63);
+    finishCare();
+    assert.equal((await pendingCare).narrative.summary, 'late care');
+    client.defaults.adapter = adapter;
     resultFailed = true;
     await assert.rejects(loadAnalysisDetail('s1'));
   } finally {
