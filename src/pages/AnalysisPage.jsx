@@ -15,6 +15,7 @@ import Button from '../components/common/Button';
 import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
 import { downloadReportPdf } from '../api/scan';
+import { loadAnalysisDetail } from '../api/analysisDetail';
 import { scanImages } from '../utils/scanSafety';
 
 // ─── 지표 색상 매핑 ───
@@ -61,7 +62,7 @@ function extractMetrics(scan) {
 const ScoreCircle = ({ score }) => {
   const color = score >= 70 ? '#4CAF50' : score >= 50 ? '#EAB308' : '#F97316';
   const circumference = 2 * Math.PI * 52;
-  const offset = circumference - (score / 100) * circumference;
+  const offset = circumference - ((score ?? 0) / 100) * circumference;
 
   return (
     <div className="relative w-28 h-28">
@@ -76,7 +77,7 @@ const ScoreCircle = ({ score }) => {
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-[10px] text-text-secondary">종합 피부 점수</span>
-        <span className="text-4xl font-bold" style={{ color }}>{score}</span>
+        <span className="text-4xl font-bold" style={{ color }}>{score ?? '—'}</span>
         <span className="text-[10px] text-text-secondary">/100</span>
       </div>
     </div>
@@ -174,7 +175,7 @@ const DualLightViewer = ({ analysis }) => {
 };
 
 const AnalysisPage = () => {
-  useAuth(true);
+  const { user } = useAuth(true);
   const { currentScan, scans, initializeIfNeeded } = useScanStore();
   const [activeMenu, setActiveMenu] = useState('overview'); // overview, heatmap, ai-care, products, export
 
@@ -187,8 +188,43 @@ const AnalysisPage = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [activeMenu]);
 
-  const analysis = currentScan || scans[0] || null;
-  const hasScanData = !!analysis;
+  const selected = currentScan || scans[0] || null;
+  const sessionId = selected?.sessionId || selected?.session_id;
+  const demo = selected?.is_mock === true;
+  const token = localStorage.getItem('damda_token');
+  const requestKey = JSON.stringify([user?.user_id, token, sessionId, demo]);
+  const [detail, setDetail] = useState(null);
+  const [retry, setRetry] = useState(0);
+
+  useEffect(() => {
+    if (!selected || demo) return;
+    const controller = new AbortController();
+    let active = true;
+    setDetail({ key: requestKey, loading: true });
+    if (!sessionId) {
+      setDetail({ key: requestKey, error: '촬영 ID가 없어 결과를 조회할 수 없습니다. 기록 목록을 다시 불러와 주세요.' });
+      return;
+    }
+    loadAnalysisDetail(sessionId, selected, controller.signal).then(data => {
+      if (active && token === localStorage.getItem('damda_token')) setDetail({ key: requestKey, data });
+    }).catch(() => {
+      if (active && token === localStorage.getItem('damda_token')) setDetail({ key: requestKey, error: '촬영 결과를 불러오지 못했습니다. 다시 시도해 주세요.' });
+    });
+    return () => { active = false; controller.abort(); };
+  }, [requestKey, retry]);
+
+  const currentDetail = detail?.key === requestKey ? detail : null;
+  const analysis = demo ? selected : currentDetail?.data;
+  const hasScanData = !!selected;
+  if (hasScanData && !demo && !analysis) {
+    return <div className="min-h-screen bg-background-gray">
+      <Header variant="dashboard" />
+      <main className="p-8 text-center" role="status">
+        <p>{currentDetail?.error || '촬영 결과를 불러오는 중입니다.'}</p>
+        {currentDetail?.error && <button className="btn-primary mt-4" onClick={() => setRetry(n => n + 1)}>다시 시도</button>}
+      </main><BottomNav />
+    </div>;
+  }
 
   if (!hasScanData) {
     return (
@@ -212,8 +248,11 @@ const AnalysisPage = () => {
     );
   }
 
-  const metrics = extractMetrics(analysis);
-  const overallScore = analysis.narrative?.overall_score ?? analysis.overallScore ?? 70;
+  const metrics = extractMetrics(analysis).map(metric => {
+    const key = { '수분도': 'moisture', '유분도': 'oil', '탄력': 'elasticity', '모공': 'spots', '색소침착': 'pigmentation' }[metric.label];
+    return !demo && analysis[key] == null ? { ...metric, value: null, status: '데이터 없음', statusColor: 'yellow' } : metric;
+  });
+  const overallScore = analysis.narrative?.overall_score ?? analysis.overallScore ?? null;
   const skinType = analysis.skinType || analysis.narrative?.skin_type || '복합성 피부';
 
   // 백엔드 원본 summary / advice만 추출 (임의 더미 텍스트 제외)
@@ -230,7 +269,7 @@ const AnalysisPage = () => {
   const radarData = metrics.map((m, i) => ({
     subject: m.label,
     current: m.value,
-    previous: Math.max(m.value - (i % 2 === 0 ? 8 : -5), 25),
+    previous: demo ? Math.max(m.value - (i % 2 === 0 ? 8 : -5), 25) : null,
   }));
 
   // PDF 출력 핸들러 (백엔드 PDF API 연동 + FE Fallback)
@@ -465,7 +504,7 @@ const AnalysisPage = () => {
             </div>
             <div class="score-badge">
               <span class="score-title">종합 피부 점수</span>
-              <span class="score-num">${overallScore}점</span>
+              <span class="score-num">${overallScore ?? '—'}점</span>
             </div>
           </div>
 
@@ -487,7 +526,7 @@ const AnalysisPage = () => {
                 return `
                   <tr>
                     <td><strong>${m.label}</strong></td>
-                    <td><strong>${m.value}%</strong></td>
+                    <td><strong>${m.value == null ? '—' : `${m.value}%`}</strong></td>
                     <td><span class="status-tag ${tagClass}">${m.status}</span></td>
                     <td style="color: #4b5563;">${m.description}</td>
                   </tr>
@@ -561,7 +600,7 @@ const AnalysisPage = () => {
     // 점수 드로잉
     ctx.fillStyle = '#4CAF50';
     ctx.font = 'bold 48px sans-serif';
-    ctx.fillText(`${overallScore}`, 460, 90);
+    ctx.fillText(`${overallScore ?? '—'}`, 460, 90);
     ctx.fillStyle = '#9CA3AF';
     ctx.font = '16px sans-serif';
     ctx.fillText('/100 점', 530, 85);
@@ -597,7 +636,7 @@ const AnalysisPage = () => {
 
       // 상태 텍스트
       ctx.font = 'bold 14px sans-serif';
-      ctx.fillText(`${m.value}% (${m.status})`, 460, y);
+      ctx.fillText(`${m.value == null ? '—' : `${m.value}%`} (${m.status})`, 460, y);
     });
 
     // 다운로드 트리거
@@ -652,7 +691,7 @@ const AnalysisPage = () => {
                   const style = statusColorMap[m.statusColor];
                   return (
                     <div key={m.label} className={`flex flex-col items-center px-4 py-3 rounded-xl border ${style.bg} min-w-[90px] flex-1`}>
-                      <span className={`text-xl font-bold ${style.text}`}>{m.value}%</span>
+                      <span className={`text-xl font-bold ${style.text}`}>{m.value == null ? '—' : `${m.value}%`}</span>
                       <span className="text-[10px] text-text-secondary mt-0.5">{m.label}</span>
                       <span className={`text-[9px] font-bold mt-1 px-2 py-0.5 rounded-full ${style.bg} ${style.text}`}>
                         {m.status}
@@ -740,10 +779,10 @@ const AnalysisPage = () => {
                                   <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
                                     <div
                                       className="h-full rounded-full transition-all duration-1000 ease-out"
-                                      style={{ width: `${m.value}%`, backgroundColor: style.color }}
+                                      style={{ width: `${m.value ?? 0}%`, backgroundColor: style.color }}
                                     />
                                   </div>
-                                  <span className="text-sm font-bold text-text-primary w-10 text-right">{m.value}%</span>
+                                  <span className="text-sm font-bold text-text-primary w-10 text-right">{m.value == null ? '—' : `${m.value}%`}</span>
                                 </div>
                                 <div className="flex items-center gap-2 ml-[68px]">
                                   <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${style.bg} ${style.text}`}>
@@ -881,6 +920,7 @@ const AnalysisPage = () => {
                 {/* 3. AI 케어 조언 (H.5.3) */}
                 {activeMenu === 'ai-care' && (
                   <div className="space-y-6 animate-fadeIn">
+                    {analysis.careMessage && <p role="status" className="mb-4 text-sm text-text-secondary">{analysis.careMessage}</p>}
                     {summary || tips.length > 0 ? (
                       <>
                         {/* AI 종합 분석 카드 */}
