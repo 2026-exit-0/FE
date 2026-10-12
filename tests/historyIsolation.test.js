@@ -44,6 +44,28 @@ test('history responses belong to the authentication session that requested them
       assert.equal(store.getState().currentScan.sessionId, 'newest');
     });
 
+    await t.test('empty success clears records, but failed or invalid responses preserve them', async () => {
+      store.getState().clearAll();
+      const initial = await startRequest();
+      initial.respond(row('old'));
+      await initial.result;
+      const invalid = await startRequest();
+      invalid.respond({ detail: 'unexpected shape' });
+      await invalid.result;
+      assert.equal(store.getState().currentScan.sessionId, 'old');
+      const adapter = client.defaults.adapter;
+      client.defaults.adapter = async () => { throw new Error('offline'); };
+      await store.getState().fetchHistory();
+      assert.equal(store.getState().scans.length, 1);
+      client.defaults.adapter = adapter;
+      const empty = await startRequest();
+      empty.respond([]);
+      await empty.result;
+      assert.deepEqual(store.getState().scans, []);
+      assert.equal(store.getState().currentScan, null);
+      assert.equal(JSON.parse(values.get('skinlab_scan_store')).state.currentScan, null);
+    });
+
     await t.test('late A response cannot overwrite B history or persisted state', async () => {
       values.set('damda_token', 'A');
       store.getState().clearAll();

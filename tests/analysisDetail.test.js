@@ -30,6 +30,11 @@ test('history detail fetches matching result and optional care', async () => {
     assert.equal(data.white_image_url, 'https://example.com/white.jpg');
     assert.equal(data.narrative.per_metric, undefined);
     assert.deepEqual((await loadAnalysisCare('s1')).narrative.tips, ['morning', 'tips']);
+    assert.equal((await loadAnalysisDetail('s1', { sessionId: 's1', overallScore: 82 })).overallScore, 82);
+    assert.equal((await loadAnalysisDetail('s1', { sessionId: 's1', total_score: 0 })).overallScore, 0);
+    assert.equal((await loadAnalysisDetail('s1', { sessionId: 'other', overallScore: 82 })).overallScore, null);
+    assert.equal((await loadAnalysisDetail('s1', { sessionId: 's1', overallScore: 70, _raw: { session_id: 's1', result: {} } })).overallScore, null);
+    assert.equal((await loadAnalysisDetail('s1', { sessionId: 's1', overallScore: 82, is_mock: true })).overallScore, null);
     careMissing = true;
     assert.equal((await loadAnalysisDetail('s1')).moisture, 63);
     assert.ok((await loadAnalysisCare('s1')).careMessage);

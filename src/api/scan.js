@@ -175,13 +175,9 @@ export async function getScanHistory() {
     return mockScanHistory;
   }
 
-  try {
-    const res = await client.get('/history');
-    return Array.isArray(res.data) ? res.data : [];
-  } catch (err) {
-    console.warn('[getScanHistory] 기록 조회 실패:', err);
-    return [];
-  }
+  const res = await client.get('/history');
+  if (!Array.isArray(res.data)) throw new Error('측정 기록 응답 형식을 확인할 수 없습니다.');
+  return res.data;
 }
 
 // ── 특정 스캔 조회 ───────────────────────────────────────
