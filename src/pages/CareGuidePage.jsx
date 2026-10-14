@@ -12,6 +12,8 @@ import Button from '../components/common/Button';
 import useAuthStore from '../store/authStore';
 import useScanStore from '../store/scanStore';
 import useWeather from '../hooks/useWeather';
+import { useModeStore } from '../store/modeStore';
+import { loadAnalysisCare } from '../api/analysisDetail';
 
 // ─── 루틴 데이터 맵 정의 (피부 타입별 맞춤 케어 루틴) ───
 const ROUTINE_TEMPLATES = {
@@ -94,8 +96,36 @@ const ROUTINE_TEMPLATES = {
 ROUTINE_TEMPLATES['중성'] = ROUTINE_TEMPLATES['복합성'];
 
 const CareGuidePage = () => {
-  const { survey, fetchSurvey } = useAuthStore();
-  const { currentScan } = useScanStore();
+  const { survey, fetchSurvey, user } = useAuthStore();
+  const { currentScan, initializeIfNeeded } = useScanStore();
+  const { mode } = useModeStore();
+  const isDemo = mode === 'mock';
+  const sessionId = currentScan?.sessionId || currentScan?.session_id;
+  const token = localStorage.getItem('damda_token');
+  const careKey = JSON.stringify([user?.user_id, token, sessionId, isDemo]);
+  const [careState, setCareState] = useState(null);
+  const [retry, setRetry] = useState(0);
+  const [initializing, setInitializing] = useState(true);
+  const care = careState?.key === careKey ? careState : null;
+
+  useEffect(() => {
+    let active = true;
+    setInitializing(true);
+    initializeIfNeeded().finally(() => { if (active) setInitializing(false); });
+    return () => { active = false; };
+  }, [initializeIfNeeded, user?.user_id, mode]);
+
+  useEffect(() => {
+    setSelectedStep(null);
+    if (isDemo || !sessionId) return;
+    let active = true;
+    const controller = new AbortController();
+    setCareState({ key: careKey, loading: true });
+    loadAnalysisCare(sessionId, controller.signal).then(data => {
+      if (active && token === localStorage.getItem('damda_token')) setCareState({ key: careKey, ...data });
+    }).catch(() => { /* 화면을 떠난 뒤 취소된 응답은 표시하지 않는다. */ });
+    return () => { active = false; controller.abort(); };
+  }, [careKey, retry]);
   const { weather } = useWeather();
 
   const [activeTab, setActiveTab] = useState('morning'); // morning, night, weekly
@@ -103,7 +133,7 @@ const CareGuidePage = () => {
 
   // 피부 타입 알아내기 (1순위: 스캔 결과 예측값, 2순위: 내 피부 설문 결과, 3순위: null)
   const userSkinType = currentScan?.skinType?.replace(' 피부', '')?.replace(' 경향', '') || survey?.skin_type || null;
-  const routine = userSkinType ? (ROUTINE_TEMPLATES[userSkinType] || ROUTINE_TEMPLATES['복합성']) : null;
+  const routine = isDemo && userSkinType ? (ROUTINE_TEMPLATES[userSkinType] || ROUTINE_TEMPLATES['복합성']) : null;
 
   useEffect(() => {
     fetchSurvey();
@@ -146,10 +176,10 @@ const CareGuidePage = () => {
             </div>
             
             {/* 피부타입 배지 */}
-            {userSkinType && (
+            {isDemo && userSkinType && (
               <div className="bg-gradient-to-r from-primary-50 to-emerald-50 text-primary-700 px-4 py-2 rounded-xl text-xs font-bold border border-primary-100 flex items-center gap-1.5 shadow-sm">
                 <Sparkles size={14} className="text-primary-500 flex-shrink-0" />
-                진단 피부 타입: <span className="underline font-extrabold">{userSkinType}</span>
+                예시 피부 타입: <span className="underline font-extrabold">{userSkinType}</span>
               </div>
             )}
           </div>
@@ -160,7 +190,7 @@ const CareGuidePage = () => {
               <Sun size={24} />
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="text-xs font-bold text-text-primary mb-1 uppercase tracking-wider">오늘의 날씨 맞춤 팁</h4>
+              <h4 className="text-xs font-bold text-text-primary mb-1 uppercase tracking-wider">오늘의 날씨 참고 팁</h4>
               <p className="text-sm text-text-secondary leading-relaxed">{getCareTip()}</p>
             </div>
             {weather && (
@@ -173,7 +203,41 @@ const CareGuidePage = () => {
           </div>
 
           {/* 피부 데이터 부재 시 비활성화 안내 카드 */}
-          {!userSkinType ? (
+          {!isDemo ? (
+            <section className="space-y-4" aria-label="촬영별 케어 가이드">
+              {initializing || (sessionId && (!care || care.loading)) ? (
+                <p role="status" className="rounded-xl bg-white p-6">케어 가이드를 불러오는 중입니다.</p>
+              ) : !sessionId ? (
+                <div className="rounded-xl bg-white p-6">
+                  <p>선택된 촬영 기록이 없습니다. 촬영하거나 기록을 선택해 주세요.</p>
+                  <Link to="/report" className="mt-3 inline-block text-primary-600">촬영 기록 보기</Link>
+                </div>
+              ) : care?.careMessage ? (
+                <div className="rounded-xl bg-white p-6" role="status">
+                  <p>{care.careMessage}</p>
+                  <button className="btn-primary mt-3" onClick={() => setRetry(n => n + 1)}>다시 조회</button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-text-secondary">선택한 촬영 결과에 저장된 케어 가이드입니다.</p>
+                  {[
+                    ['summary', '종합 안내'],
+                    ['morning_routine', '아침 루틴'],
+                    ['night_routine', '저녁 루틴'],
+                    ['lifestyle_tips', '생활 습관'],
+                    ['next_scan_date', '다음 측정 권장일'],
+                  ].map(([key, title]) => (
+                    <article key={key} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                      <h2 className="mb-2 font-bold text-text-primary">{title}</h2>
+                      <p className="whitespace-pre-wrap break-words text-sm text-text-secondary">
+                        {care?.advice?.[key] || '등록된 안내가 없습니다.'}
+                      </p>
+                    </article>
+                  ))}
+                </>
+              )}
+            </section>
+          ) : !userSkinType ? (
             <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center shadow-sm">
               <div className="w-16 h-16 bg-primary-50 text-primary-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <BookOpen size={32} />
@@ -193,6 +257,7 @@ const CareGuidePage = () => {
             </div>
           ) : (
             <div className="space-y-6">
+              <p className="text-sm text-primary-700">시연용 예시 루틴입니다. 실제 촬영에 대한 BE 케어 결과가 아닙니다.</p>
               {/* 탭 네비게이션 */}
               <div className="flex bg-white rounded-xl shadow-sm p-1 border border-gray-100 mb-6">
                 <button
