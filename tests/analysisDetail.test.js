@@ -51,6 +51,30 @@ test('history detail fetches matching result and optional care', async () => {
     client.defaults.adapter = adapter;
     resultFailed = true;
     await assert.rejects(loadAnalysisDetail('s1'));
+    client.defaults.adapter = async config => {
+      if (config.url.includes('/result/')) throw Object.assign(new Error('no result'), { response: { status: 404 } });
+      return { config, status: 200, headers: {}, data: [
+        { session_id: 'other', moisture: 99 },
+        { session_id: 's1', moisture: 0, sebum: 12, white_image_url: 'https://example.com/photo.jpg' },
+      ] };
+    };
+    const fallback = await loadAnalysisDetail('s1', { moisture: 99, overallScore: 70, skinType: 'stale' });
+    assert.equal(fallback.moisture, 0);
+    assert.equal(fallback.oil, 12);
+    assert.equal(fallback.spots, null);
+    assert.equal(fallback.skinType, undefined);
+    assert.equal(fallback.overallScore, null);
+    assert.equal(fallback.white_image_url, 'https://example.com/photo.jpg');
+    assert.match(fallback.detailMessage, /404/);
+    await assert.rejects(loadAnalysisDetail('not-owned'));
+    let authCalls = 0;
+    client.defaults.adapter = async () => {
+      authCalls++;
+      throw Object.assign(new Error('forbidden'), { response: { status: 403 } });
+    };
+    await assert.rejects(loadAnalysisDetail('s1'));
+    assert.equal(authCalls, 1);
+
   } finally {
     await server.close();
     if (old === undefined) delete globalThis.localStorage; else globalThis.localStorage = old;

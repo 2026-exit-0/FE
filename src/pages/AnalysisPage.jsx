@@ -15,7 +15,7 @@ import Button from '../components/common/Button';
 import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
 import { downloadReportPdf } from '../api/scan';
-import { loadAnalysisDetail, loadAnalysisCare } from '../api/analysisDetail';
+import { loadAnalysisDetail, loadAnalysisCare, analysisErrorMessage } from '../api/analysisDetail';
 import { scanImages } from '../utils/scanSafety';
 
 // ─── 지표 색상 매핑 ───
@@ -214,8 +214,8 @@ const AnalysisPage = () => {
             ? { ...previous, data: { ...previous.data, ...care } } : previous);
         }
       }).catch(() => { /* 화면을 벗어난 뒤 취소된 요청은 반영하지 않는다. */ });
-    }).catch(() => {
-      if (active && token === localStorage.getItem('damda_token')) setDetail({ key: requestKey, error: '촬영 결과를 불러오지 못했습니다. 다시 시도해 주세요.' });
+    }).catch(error => {
+      if (active && token === localStorage.getItem('damda_token')) setDetail({ key: requestKey, error: analysisErrorMessage(error) });
     });
     return () => { active = false; controller.abort(); };
   }, [requestKey, retry]);
@@ -260,7 +260,7 @@ const AnalysisPage = () => {
     return !demo && analysis[key] == null ? { ...metric, value: null, status: '데이터 없음', statusColor: 'yellow' } : metric;
   });
   const overallScore = analysis.narrative?.overall_score ?? analysis.overallScore ?? null;
-  const skinType = analysis.skinType || analysis.narrative?.skin_type || '복합성 피부';
+  const skinType = analysis.skinType || analysis.narrative?.skin_type || '피부 타입 정보 없음';
 
   // 백엔드 원본 summary / advice만 추출 (임의 더미 텍스트 제외)
   const summary = analysis.narrative?.summary || analysis.advice?.summary || analysis.narrative?.description || analysis.advice?.description || '';
@@ -671,6 +671,12 @@ const AnalysisPage = () => {
 
         <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-28 desktop:pb-8 animate-fadeIn">
           <div className="max-w-6xl mx-auto">
+            {analysis.detailMessage && (
+              <div role="status" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <p>{analysis.detailMessage}</p>
+                <button className="mt-2 underline font-medium" onClick={() => setRetry(n => n + 1)}>상세 결과 다시 조회</button>
+              </div>
+            )}
             {/* ── 상단 요약 배너 ── */}
             <div className="relative flex flex-col tablet:flex-row items-center gap-5 mb-5 bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
               {/* 데모 배지 (결과 카드 상단: 정직성 필수 표기 및 눈에 띄지 않게 은은한 그레이 톤) */}

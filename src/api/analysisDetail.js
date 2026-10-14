@@ -1,8 +1,31 @@
 import client from './client';
 
+export function analysisErrorMessage(error) {
+  const status = error.response?.status;
+  if (status === 401) return '로그인이 만료되었습니다. 다시 로그인해 주세요.';
+  if (status === 403) return '이 촬영 결과를 조회할 권한이 없습니다.';
+  if (status === 404) return '이 촬영의 상세 결과를 찾을 수 없습니다 (404).';
+  return status ? `촬영 결과 조회에 실패했습니다 (${status}). 다시 시도해 주세요.`
+    : '서버에 연결하지 못했거나 결과 응답을 확인할 수 없습니다. 다시 시도해 주세요.';
+}
+
 export async function loadAnalysisDetail(sessionId, history = {}, signal) {
   const id = encodeURIComponent(sessionId);
-  const { data } = await client.get(`/result/${id}`, { signal });
+  let data;
+  let detailMessage = '';
+  try {
+    ({ data } = await client.get(`/result/${id}`, { signal }));
+  } catch (error) {
+    if (signal?.aborted || [401, 403].includes(error.response?.status)) throw error;
+    // 저장된 화면 캐시 대신 현재 계정의 목록을 다시 확인한다.
+    const response = await client.get('/history', { signal });
+    const row = Array.isArray(response.data)
+      ? response.data.find(item => item.session_id === sessionId) : null;
+    if (!row) throw error;
+    data = row;
+    history = row;
+    detailMessage = `${analysisErrorMessage(error)} 기록 목록에서 확인한 사진·측정값을 표시합니다.`;
+  }
   if (!data || (data.session_id && data.session_id !== sessionId)) throw new Error('촬영 결과를 확인할 수 없습니다.');
   const values = data.result || data;
   const number = value => value == null || value === '' || !Number.isFinite(Number(value)) ? null : Number(value);
@@ -14,6 +37,7 @@ export async function loadAnalysisDetail(sessionId, history = {}, signal) {
   return {
     ...history,
     sessionId,
+    detailMessage,
     moisture: number(values.moisture ?? values.moisture_on),
     oil: number(values.sebum ?? values.oil),
     spots: number(values.pore ?? values.spots),
