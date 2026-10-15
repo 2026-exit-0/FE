@@ -128,3 +128,44 @@ test('a seen session can finish after timeout, but completed and historical resu
   assert.equal(shouldResumeScan(done, { ...context, deviceId: 'another-device' }), false);
   assert.equal(shouldResumeScan({ ...done, status: 'failed' }, context), false);
 });
+
+test('completed scans fall back only to the matching history record', async () => {
+  const api = createScannerSessionApi({ get: async path => {
+    if (path === '/scans/status') return { data: { session_id: 'saved', status: 'done' } };
+    if (path.startsWith('/result/')) throw failure(404);
+    return { data: [{ session_id: 'other', moisture: 90 }, { session_id: 'saved', moisture: 0, white_image_url: 'photo' }] };
+  } }, 'ESP32_1');
+  const result = await api.wait('saved');
+  assert.equal(result.moisture, 0);
+  assert.equal(result.white_image_url, 'photo');
+});
+
+test('retry after result failure reads the completed session even if latest status changed', async () => {
+  let ready = false;
+  let statusCalls = 0;
+  const api = createScannerSessionApi({ get: async path => {
+    if (path === '/scans/status') {
+      statusCalls++;
+      return { data: { session_id: statusCalls === 1 ? 'saved' : 'other', status: 'done' } };
+    }
+    if (path === '/history') return { data: [{ session_id: 'other' }] };
+    assert.equal(path, '/result/saved');
+    if (!ready) throw failure(404);
+    return { data: { session_id: 'saved', moisture: 41 } };
+  }, post: async () => { assert.fail('must not trigger a new scan'); } }, 'ESP32_1');
+  await assert.rejects(api.wait('saved'), { code: 'SCAN_RESULT_UNAVAILABLE' });
+  ready = true;
+  assert.equal((await api.wait('saved')).moisture, 41);
+  assert.equal(statusCalls, 1);
+});
+
+test('completed result authorization failure never falls back to history', async () => {
+  const calls = [];
+  const api = createScannerSessionApi({ get: async path => {
+    calls.push(path);
+    if (path === '/scans/status') return { data: { session_id: 'saved', status: 'done' } };
+    throw failure(403);
+  } }, 'ESP32_1');
+  await assert.rejects(api.wait('saved'), error => error.response.status === 403);
+  assert.deepEqual(calls, ['/scans/status', '/result/saved']);
+});

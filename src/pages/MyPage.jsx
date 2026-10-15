@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, User, Lock, Save, Heart, RotateCcw, Scan, BarChart3, TrendingUp } from 'lucide-react';
+import { Camera, User, Lock, Save, Heart, RotateCcw, Scan, BarChart3, TrendingUp, ChevronRight } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import useScanStore from '../store/scanStore';
 import Header from '../components/common/Header';

@@ -20,6 +20,7 @@ export function scanErrorMessage(error) {
 }
 
 export function createScannerSessionApi(client, deviceId) {
+  let completedSessionId = null;
   const path = `/device/link/${encodeURIComponent(deviceId)}`;
   return {
     deviceId,
@@ -68,11 +69,27 @@ export function createScannerSessionApi(client, deviceId) {
       while (Date.now() < deadline) {
         signal?.throwIfAborted();
         try {
-          const current = await this.status({ signal });
+          const current = completedSessionId === sessionId
+            ? { session_id: sessionId, status: 'done' }
+            : await this.status({ signal });
           if (current?.session_id === sessionId) {
             if (current.status === 'failed') throw new Error('촬영 또는 저장에 실패했습니다. 기기 상태를 확인해 주세요.');
             if (current.status === 'done') {
-              const { data } = await client.get(`/result/${encodeURIComponent(sessionId)}`, { signal });
+              completedSessionId = sessionId;
+              let data;
+              try {
+                ({ data } = await client.get(`/result/${encodeURIComponent(sessionId)}`, { signal }));
+              } catch (error) {
+                signal?.throwIfAborted();
+                if (error.response?.status !== 404) throw error;
+                const response = await client.get('/history', { signal });
+                data = Array.isArray(response.data)
+                  ? response.data.find(row => row.session_id === sessionId) : null;
+                if (!data) throw error;
+              }
+              if (!data || (data.session_id && data.session_id !== sessionId)) {
+                throw new Error('요청한 촬영의 결과가 아닙니다.');
+              }
               return { ...data, session_id: sessionId };
             }
           } else if (current?.session_id) {
@@ -80,7 +97,14 @@ export function createScannerSessionApi(client, deviceId) {
           }
         } catch (error) {
           signal?.throwIfAborted();
-          if (!isRetryableScanError(error)) throw error;
+          if (!isRetryableScanError(error)) {
+            if (completedSessionId === sessionId && ![401, 403].includes(error.response?.status)) {
+              throw Object.assign(new Error('촬영은 완료됐지만 결과를 불러오지 못했습니다. 다시 시도하면 같은 촬영의 결과를 조회합니다.'), {
+                code: 'SCAN_RESULT_UNAVAILABLE', cause: error,
+              });
+            }
+            throw error;
+          }
           // 일시적인 조회 실패는 새 촬영 없이 같은 세션으로 재시도한다.
         }
         signal?.throwIfAborted();

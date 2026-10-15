@@ -208,7 +208,7 @@ const previewUrl = streamUrl
 
   useEffect(() => {
     const busy = scanStatus === 'countdown' || scanStatus === 'scanning';
-    busyRef.current = busy || scanStatus === 'complete';
+    busyRef.current = busy || scanStatus === 'complete' || scanStatus === 'error';
     useScanStore.getState().setScannerStatus(busy ? 'scanning' : 'idle');
   }, [scanStatus]);
 
@@ -389,7 +389,7 @@ useEffect(() => {
         err
       );
 
-      if (err.code !== 'SCAN_WAIT_TIMEOUT') sessionToResumeRef.current = null;
+      if (!['SCAN_WAIT_TIMEOUT', 'SCAN_RESULT_UNAVAILABLE'].includes(err.code)) sessionToResumeRef.current = null;
       const errorMsg = scanErrorMessage(err);
 
       setScanErrorMsg(errorMsg);
