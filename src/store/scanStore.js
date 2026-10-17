@@ -5,24 +5,30 @@ import { mockDemoScanHistory } from '../utils/mockData';
 import { getAiMode, useModeStore } from '../store/modeStore';
 import { scanImages } from '../utils/scanSafety';
 
+const measurement = value => {
+  if (value == null || typeof value === 'boolean' || String(value).trim() === '') return null;
+  const parsed = Number(String(value).replace(/%$/, '').trim());
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 // 백엔드 narrative / result 응답을 flat 구조로 변환 (차트/UI 호환)
 export function parseApiResult(apiResult) {
   if (!apiResult) return {};
 
   // 1. 새 BE 응답 형태: { session_id, total_score, result: { moisture/moisture_on, sebum, pore, elasticity, pigmentation/melanin_on }, advice: {...} }
   if (apiResult.result || apiResult.total_score !== undefined) {
-    const r = apiResult.result || {};
+    const r = apiResult.result || apiResult;
     const advice = apiResult.advice || {};
 
-    const tipsList = Array.isArray(advice.tips) ? advice.tips : (advice.tips ? [advice.tips] : []);
+    const tipsList = Array.isArray(advice.tips) ? [...advice.tips] : (advice.tips ? [advice.tips] : []);
     if (advice.recommendation) tipsList.push(advice.recommendation);
 
-    const moistureVal = r.moisture ?? r.moisture_on ?? 0;
-    const oilVal = r.sebum ?? r.oil ?? 0;
-    const elasticityVal = r.elasticity ?? 0;
-    const spotsVal = r.pore ?? r.spots ?? 0;
-    const pigmentationVal = r.pigmentation ?? r.melanin_on ?? 0;
-    const overall = apiResult.total_score ?? apiResult.overallScore ?? 70;
+    const moistureVal = measurement(r.moisture);
+    const oilVal = measurement(r.sebum ?? r.oil);
+    const elasticityVal = measurement(r.elasticity);
+    const spotsVal = measurement(r.pore ?? r.spots);
+    const pigmentationVal = measurement(r.pigmentation);
+    const overall = measurement(apiResult.total_score ?? apiResult.overallScore);
 
     // 날짜 파싱 (1순위: BE created_at, 2순위: BE date, 3순위: 오늘 날짜)
     let formattedDate = new Date().toISOString().split('T')[0].replace(/-/g, '.');
@@ -43,20 +49,20 @@ export function parseApiResult(apiResult) {
       spots: spotsVal,
       pigmentation: pigmentationVal,
       overallScore: overall,
-      skinType: apiResult.skinType || '복합성 피부',
+      skinType: apiResult.skin_type_result || apiResult.skinType || null,
       date: formattedDate,
       area: apiResult.area || apiResult.region || '얼굴 전체',
       narrative: {
         overall_score: overall,
-        summary: advice.summary || advice.description || `종합 피부 점수는 ${overall}점입니다.`,
+        summary: advice.summary || advice.description || (overall == null ? '' : `종합 피부 점수는 ${overall}점입니다.`),
         per_metric: [
-          { name: '수분도', value: `${moistureVal}%`, rating_text: moistureVal >= 60 ? '정상' : '주의' },
-          { name: '유분도', value: `${oilVal}%`, rating_text: oilVal <= 55 ? '보통' : '주의' },
-          { name: '탄력', value: `${elasticityVal}%`, rating_text: elasticityVal >= 60 ? '정상' : '주의' },
-          { name: '모공', value: `${spotsVal}%`, rating_text: spotsVal >= 60 ? '양호' : '관리 권장' },
-          { name: '색소침착', value: `${pigmentationVal}%`, rating_text: pigmentationVal <= 55 ? '정상' : '주의' },
+          { name: '수분도', value: moistureVal == null ? null : `${moistureVal}%`, rating_text: moistureVal == null ? '데이터 없음' : moistureVal >= 60 ? '정상' : '주의' },
+          { name: '유분도', value: oilVal == null ? null : `${oilVal}%`, rating_text: oilVal == null ? '데이터 없음' : oilVal <= 55 ? '보통' : '주의' },
+          { name: '탄력', value: elasticityVal == null ? null : `${elasticityVal}%`, rating_text: elasticityVal == null ? '데이터 없음' : elasticityVal >= 60 ? '정상' : '주의' },
+          { name: '모공', value: spotsVal == null ? null : `${spotsVal}%`, rating_text: spotsVal == null ? '데이터 없음' : spotsVal >= 60 ? '양호' : '관리 권장' },
+          { name: '색소침착', value: pigmentationVal == null ? null : `${pigmentationVal}%`, rating_text: pigmentationVal == null ? '데이터 없음' : pigmentationVal <= 55 ? '정상' : '주의' },
         ],
-        tips: tipsList.length > 0 ? tipsList : ['하루 1.5L 이상 수분 섭취와 자외선 차단을 권장합니다.'],
+        tips: tipsList,
       },
       recommendedProducts: apiResult.recommended_products || [],
       ...scanImages(apiResult),
@@ -70,15 +76,20 @@ export function parseApiResult(apiResult) {
   if (!n) return {
     ...apiResult,
     sessionId: apiResult.session_id || apiResult.sessionId,
-    oil: apiResult.sebum ?? apiResult.oil,
-    spots: apiResult.pore ?? apiResult.spots,
+    moisture: measurement(apiResult.moisture),
+    oil: measurement(apiResult.sebum ?? apiResult.oil),
+    elasticity: measurement(apiResult.elasticity),
+    pigmentation: measurement(apiResult.pigmentation),
+    overallScore: measurement(apiResult.total_score ?? apiResult.overallScore),
+    skinType: apiResult.skin_type_result || apiResult.skinType || null,
+    spots: measurement(apiResult.pore ?? apiResult.spots),
     ...scanImages(apiResult),
   };
 
   const metrics = {};
   n.per_metric?.forEach((m) => {
     const key = metricKeyMap[m.name] || m.name.toLowerCase();
-    metrics[key] = parseFloat(m.value) || 0;
+    metrics[key] = measurement(m.value);
   });
 
   let fallbackDate = new Date().toISOString().split('T')[0].replace(/-/g, '.');
@@ -92,13 +103,13 @@ export function parseApiResult(apiResult) {
 
   return {
     sessionId: apiResult.session_id,
-    moisture: metrics.moisture ?? metrics['수분도'] ?? apiResult.moisture ?? 0,
-    oil: metrics.oil ?? metrics['유분도'] ?? apiResult.oil ?? 0,
-    elasticity: metrics.elasticity ?? metrics['탄력'] ?? apiResult.elasticity ?? 0,
-    spots: metrics.spots ?? metrics['모공'] ?? apiResult.spots ?? 0,
-    pigmentation: metrics.pigmentation ?? metrics['색소침착'] ?? apiResult.pigmentation ?? 0,
-    overallScore: n.overall_score || apiResult.overallScore || 70,
-    skinType: apiResult.predictions?.classification?.skin_type || apiResult.skinType || '복합성 피부',
+    moisture: metrics.moisture ?? measurement(apiResult.moisture),
+    oil: metrics.oil ?? measurement(apiResult.oil),
+    elasticity: metrics.elasticity ?? measurement(apiResult.elasticity),
+    spots: metrics.spots ?? measurement(apiResult.spots),
+    pigmentation: metrics.pigmentation ?? measurement(apiResult.pigmentation),
+    overallScore: measurement(n.overall_score ?? apiResult.total_score ?? apiResult.overallScore),
+    skinType: apiResult.predictions?.classification?.skin_type || apiResult.skin_type_result || apiResult.skinType || null,
     date: fallbackDate,
     area: apiResult.meta?.region || apiResult.area || '얼굴 전체',
     is_mock: Boolean(apiResult.is_mock ?? apiResult._raw?.is_mock ?? false),
