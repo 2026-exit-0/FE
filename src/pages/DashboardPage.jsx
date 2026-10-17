@@ -14,6 +14,7 @@ import useWeather from '../hooks/useWeather';
 import useScanStore from '../store/scanStore';
 import { UV_LEVELS } from '../utils/constants';
 import { useModeStore } from '../store/modeStore';
+import { dashboardData } from '../utils/dashboardData';
 
 const DashboardPage = () => {
   const { mode } = useModeStore();
@@ -25,12 +26,13 @@ const DashboardPage = () => {
     initializeIfNeeded();
   }, [initializeIfNeeded]);
 
-  const hasScanData = scans.length > 0 || !!currentScan;
+  const dashboard = dashboardData(scans, currentScan, mode);
+  const hasScanData = dashboard.hasScanData;
   const uvInfo = UV_LEVELS[weather?.uv] || UV_LEVELS.moderate;
 
   // 대표 점수 및 지표
-  const latestScore = currentScan?.overallScore || scans[0]?.overallScore || 84;
-  const userSkinType = currentScan?.skinType || scans[0]?.skinType || '복합성 피부';
+  const latestScore = dashboard.score;
+  const userSkinType = dashboard.skinType || '피부 타입 정보 없음';
 
   // 퀵 서비스 4대 기능
   const quickAccess = [
@@ -142,19 +144,19 @@ const DashboardPage = () => {
                     AI DAILY PRESCRIPTION
                   </span>
                   <span className="text-xs text-emerald-200/80 font-medium">
-                    오늘의 맞춤 피부 처방
+                    최근 촬영 기록 확인
                   </span>
                 </div>
 
                 <h1 className="text-2xl tablet:text-3xl font-extrabold tracking-tight leading-tight">
-                  {user?.nickname || '회원'}님, 오늘 피부는<br />
+                  {user?.nickname || '회원'}님,<br />
                   <span className="text-emerald-300">
-                    T존 피지 밸런싱
-                  </span>에 집중할 타이밍이에요.
+                    최근 피부 측정 기록
+                  </span>을 확인해 보세요.
                 </h1>
 
                 <p className="text-sm text-emerald-100/90 leading-relaxed font-normal">
-                  현재 야외 자외선 수치가 상승 중입니다. 가벼운 수분 젤 에센스를 도포하고 외출 20분 전 자외선 차단제를 잊지 마세요.
+                  촬영 사진과 측정값을 확인하고, 기록을 모아 피부 상태의 변화를 살펴보세요.
                 </p>
 
                 <div className="flex flex-wrap items-center gap-3 pt-2">
@@ -169,7 +171,7 @@ const DashboardPage = () => {
 
                   <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-black/20 backdrop-blur-md border border-white/10 text-xs font-medium text-emerald-100">
                     <Clock size={14} className="text-emerald-300" />
-                    <span>최근 측정: {currentScan?.date || '오늘 오전'}</span>
+                    <span>최근 측정: {dashboard.date || (hasScanData ? '측정일 정보 없음' : '측정 기록 없음')}</span>
                   </div>
                 </div>
               </div>
@@ -181,13 +183,13 @@ const DashboardPage = () => {
                     <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="8" />
                     <circle
                       cx="50" cy="50" r="42" fill="none" stroke="#6ee7b7" strokeWidth="8" strokeLinecap="round"
-                      strokeDasharray={264} strokeDashoffset={264 - (264 * latestScore) / 100}
+                      strokeDasharray={264} strokeDashoffset={264 - (264 * Math.max(0, Math.min(100, latestScore ?? 0))) / 100}
                       className="transition-all duration-1000 ease-out"
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                     <span className="text-[10px] text-emerald-200 uppercase font-semibold">피부 점수</span>
-                    <span className="text-3xl font-black text-white leading-none">{latestScore}</span>
+                    <span className="text-3xl font-black text-white leading-none">{latestScore ?? '—'}</span>
                     <span className="text-[9px] text-emerald-300 font-medium">/ 100점</span>
                   </div>
                 </div>
@@ -199,19 +201,19 @@ const DashboardPage = () => {
                   <div className="grid grid-cols-3 gap-2 pt-1">
                     <div className="bg-black/20 rounded-xl px-2.5 py-1.5 text-center">
                       <span className="text-[10px] text-emerald-200 block">수분</span>
-                      <span className="text-xs font-bold text-white">74%</span>
+                      <span className="text-xs font-bold text-white">{dashboard.moisture == null ? '—' : `${dashboard.moisture}%`}</span>
                     </div>
                     <div className="bg-black/20 rounded-xl px-2.5 py-1.5 text-center">
                       <span className="text-[10px] text-emerald-200 block">유분</span>
-                      <span className="text-xs font-bold text-white">42%</span>
+                      <span className="text-xs font-bold text-white">{dashboard.oil == null ? '—' : `${dashboard.oil}%`}</span>
                     </div>
                     <div className="bg-black/20 rounded-xl px-2.5 py-1.5 text-center">
                       <span className="text-[10px] text-emerald-200 block">탄력</span>
-                      <span className="text-xs font-bold text-white">79%</span>
+                      <span className="text-xs font-bold text-white">{dashboard.elasticity == null ? '—' : `${dashboard.elasticity}%`}</span>
                     </div>
                   </div>
                   <p className="text-[11px] text-emerald-200/90 pt-1">
-                    전체 사용자 상위 <strong>12%</strong>의 양호한 피부결
+                    {mode === 'mock' ? '시연용 예시 데이터' : hasScanData ? '최근 촬영 기록 · 없는 항목은 —로 표시합니다' : '측정 후 피부 상태를 확인할 수 있어요'}
                   </p>
                 </div>
               </div>
