@@ -103,11 +103,51 @@ export async function getScannerHealth() {
   };
 }
 
+// 부위 코드(FE) → BE가 아는 scan_area(한글). 데모 점수·폴백 이미지 매칭에 사용.
+const REGION_TO_AREA = {
+  FOREHEAD: '이마', NOSE: '코', CHIN: '턱',
+  L_CHEEK: '왼쪽볼', R_CHEEK: '오른쪽볼', CHEEK: '볼',
+};
+
+// 시연용 데모: BE 데모 분석을 호출해 리치 리포트·부위 매칭 이미지를 받아온다.
+// BE 미연동/에러 시 기존 buildMockResult 로 폴백(전시 안전성 유지).
+async function demoViaBackend(region) {
+  const scan_area = REGION_TO_AREA[region] || region;
+  const session = await createScanSession({ scan_area });
+  const sid = session.session_id;
+  await client.post(`/scans/${sid}/analyze-scan`, null, { params: { demo: true, region } });
+  const [{ data: result }, { data: advice }] = await Promise.all([
+    client.get(`/result/${sid}`),
+    client.get(`/care/${sid}`),
+  ]);
+  const rep = advice?.report || {};
+  return {
+    session_id: sid,
+    is_mock: true,
+    area: scan_area,
+    total_score: rep.overall_score ?? null,
+    skin_type_result: rep.skin_type ?? null,
+    result: {
+      moisture: result.moisture, sebum: result.sebum, pore: result.pore,
+      elasticity: result.elasticity, pigmentation: result.pigmentation,
+    },
+    advice,
+    white_image_url: result.white_image_url,
+    uv_image_url: result.uv_image_url,
+    meta: { region },
+  };
+}
+
 export async function measureWithScanner(formData, { sessionId, signal, onSession } = {}) {
   const region = formData?.get?.('region') || 'FOREHEAD';
   if (getAiMode() === 'mock') {
-    await delay(800);
-    return buildMockResult(region);
+    try {
+      return await demoViaBackend(region);   // BE 데모(리치 리포트+부위 이미지)
+    } catch (e) {
+      console.warn('[demo] BE 데모 분석 실패 → 로컬 목업 폴백:', e?.message);
+      await delay(600);
+      return buildMockResult(region);        // 폴백
+    }
   }
   const session = sessionId
     ? { session_id: sessionId }
