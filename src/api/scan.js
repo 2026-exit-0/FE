@@ -1,12 +1,14 @@
 import client, { isMock } from './client';
 import { mockAnalysis, mockScanHistory } from '../utils/mockData';
-import { getAiMode } from '../store/modeStore';
 import { safeStreamUrl } from '../utils/scanSafety';
 import { createScannerSessionApi } from './scannerSession';
 
 const DEVICE_API_BASE = import.meta.env.VITE_DEVICE_API_BASE || '/device-api';
 const DEFAULT_DEVICE_ID = import.meta.env.VITE_SCANNER_DEVICE_ID || 'ESP32_1';
 export const scannerSession = createScannerSessionApi(client, DEFAULT_DEVICE_ID);
+
+// 실기기 측정 시도 제한 시간(ms). 이 시간 안에 응답이 없으면 데모 폴백으로 전환한다.
+const REAL_SCAN_TIMEOUT_MS = Number(import.meta.env.VITE_SCAN_TIMEOUT_MS) || 8000;
 
 // ── 신규 BE 스캔 세션 생성 (POST /scans) ────────────────────
 export async function createScanSession(data = {}) {
@@ -88,10 +90,9 @@ export async function getEsp32StreamInfo(deviceId = 'ESP32_1') {
 }
 
 // ── 스캐너 상태 확인 ─────────────────────────────────────
+// 실기기 등록/스트림 주소를 확인한다. 기기가 없더라도 UI는 '연결됨'으로 보이고,
+// 실제 측정 가능 여부는 스캔 시 measureWithScanner 가 시도 후 판단한다.
 export async function getScannerHealth() {
-  if (getAiMode() === 'mock') {
-    return { status: 'demo', message: '시연용 모드 · 실제 기기를 사용하지 않습니다', streamUrl: null, ip: null };
-  }
   const stream = await getEsp32StreamInfo(DEFAULT_DEVICE_ID);
   if (!stream.ip) {
     return { status: 'unreachable', message: '등록된 스캐너가 없습니다. 기기 전원과 Wi-Fi를 확인해 주세요.', streamUrl: null, ip: null };
@@ -109,8 +110,7 @@ const REGION_TO_AREA = {
   L_CHEEK: '왼쪽볼', R_CHEEK: '오른쪽볼', CHEEK: '볼',
 };
 
-// 시연용 데모: BE 데모 분석을 호출해 리치 리포트·부위 매칭 이미지를 받아온다.
-// BE 미연동/에러 시 기존 buildMockResult 로 폴백(전시 안전성 유지).
+// BE 데모 분석을 호출해 리치 리포트·부위 매칭 이미지를 받아온다. (실기기 실패 시 폴백)
 async function demoViaBackend(region) {
   const scan_area = REGION_TO_AREA[region] || region;
   const session = await createScanSession({ scan_area });
@@ -138,28 +138,59 @@ async function demoViaBackend(region) {
   };
 }
 
+// promise 에 제한 시간을 건다. 시간 초과 시 TIMEOUT 에러로 reject.
+function withTimeout(promise, ms, label = 'TIMEOUT') {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const err = new Error(label);
+      err.code = label;
+      reject(err);
+    }, ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+// ── 단일 측정 흐름 (모드 구분 없음) ──────────────────────────
+// 항상 실기기/실제 AI 측정을 먼저 시도하고, 하드웨어·AI가 응답하지 않으면
+// 자동으로 BE 데모 분석 → 로컬 목업 순으로 폴백한다. (전시 무중단)
 export async function measureWithScanner(formData, { sessionId, signal, onSession } = {}) {
   const region = formData?.get?.('region') || 'FOREHEAD';
-  if (getAiMode() === 'mock') {
-    try {
-      return await demoViaBackend(region);   // BE 데모(리치 리포트+부위 이미지)
-    } catch (e) {
-      console.warn('[demo] BE 데모 분석 실패 → 로컬 목업 폴백:', e?.message);
-      await delay(600);
-      return buildMockResult(region);        // 폴백
-    }
+
+  // (A) 물리 버튼 등으로 이미 시작된 실기기 세션 재개 → 실제 결과를 기다린다(폴백 없음).
+  if (sessionId) {
+    onSession?.(sessionId);
+    return scannerSession.wait(sessionId, { signal });
   }
-  const session = sessionId
-    ? { session_id: sessionId }
-    : await scannerSession.start(region, { signal });
-  onSession?.(session.session_id);
-  return scannerSession.wait(session.session_id, { signal });
+
+  // (B) 화면 버튼 스캔: 실기기 측정 시도(타임아웃)
+  try {
+    const session = await withTimeout(
+      scannerSession.start(region, { signal }), REAL_SCAN_TIMEOUT_MS, 'SCAN_START_TIMEOUT');
+    onSession?.(session.session_id);
+    const result = await withTimeout(
+      scannerSession.wait(session.session_id, { signal }), REAL_SCAN_TIMEOUT_MS, 'SCAN_WAIT_TIMEOUT');
+    return { ...result, is_mock: Boolean(result?.is_mock) };
+  } catch (e) {
+    if (signal?.aborted) throw e; // 사용자가 화면을 벗어난 경우: 폴백하지 않는다.
+    console.warn('[scan] 실기기 측정 실패/시간초과 → 데모 분석으로 전환:', e?.message);
+  }
+
+  // (C) BE 데모 분석 폴백 (설문 기반 리포트 + 부위 매칭 이미지)
+  try {
+    return await demoViaBackend(region);
+  } catch (e) {
+    console.warn('[scan] BE 데모 분석 실패 → 로컬 목업 폴백:', e?.message);
+  }
+
+  // (D) 로컬 목업 최종 폴백 (BE·네트워크 모두 불가 시 전시 안전망)
+  await delay(500);
+  return buildMockResult(region);
 }
 
 // ── 사진 업로드 분석 ─────────────────────────────────────
+// 업로드한 사진으로 실제 분석을 시도하고, 실패하면 설문 기반 목업으로 폴백한다.
 export async function measureWithPhoto(formData) {
-  const mode = getAiMode();
-  const isDemo = mode === 'mock';
   const region = formData?.get?.('region') || '얼굴 전체';
 
   let sessionId = null;
@@ -167,16 +198,14 @@ export async function measureWithPhoto(formData) {
     const session = await createScanSession({ scan_area: region });
     sessionId = session?.session_id;
   } catch (sessErr) {
-    if (isDemo) {
-      await delay(1200);
-      return buildMockResult(region);
-    }
-    throw sessErr;
+    console.warn('[photo] 세션 생성 실패 → 목업 폴백:', sessErr?.message);
+    await delay(1000);
+    return buildMockResult(region);
   }
 
   try {
     const uploadData = formData instanceof FormData ? formData : new FormData();
-    uploadData.set('demo', isDemo ? 'true' : 'false');
+    uploadData.set('demo', 'false');
 
     const res = await client.post(`/scans/${sessionId}/analyze`, uploadData, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -185,13 +214,11 @@ export async function measureWithPhoto(formData) {
     return {
       ...data,
       session_id: sessionId,
-      is_mock: data.is_mock !== undefined ? Boolean(data.is_mock) : isDemo,
+      is_mock: Boolean(data.is_mock),
     };
   } catch (err) {
-    if (isDemo) {
-      return buildMockResult(region);
-    }
-    throw err;
+    console.warn('[photo] 분석 실패 → 목업 폴백:', err?.message);
+    return buildMockResult(region);
   }
 }
 
@@ -209,8 +236,7 @@ export async function downloadReportPdf(sessionId) {
 
 // ── 측정 기록 조회 ───────────────────────────────────────
 export async function getScanHistory() {
-  const mode = getAiMode();
-  if (isMock || mode === 'mock') {
+  if (isMock) {
     await delay(200);
     return mockScanHistory;
   }

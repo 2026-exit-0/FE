@@ -12,7 +12,6 @@ import Button from '../components/common/Button';
 import useAuthStore from '../store/authStore';
 import useScanStore from '../store/scanStore';
 import useWeather from '../hooks/useWeather';
-import { useModeStore } from '../store/modeStore';
 import { loadAnalysisCare } from '../api/analysisDetail';
 
 // ─── 루틴 데이터 맵 정의 (피부 타입별 맞춤 케어 루틴) ───
@@ -190,11 +189,9 @@ const SkinReport = ({ report }) => {
 const CareGuidePage = () => {
   const { survey, fetchSurvey, user } = useAuthStore();
   const { currentScan, initializeIfNeeded } = useScanStore();
-  const { mode } = useModeStore();
-  const isDemo = mode === 'mock';
   const sessionId = currentScan?.sessionId || currentScan?.session_id;
   const token = localStorage.getItem('damda_token');
-  const careKey = JSON.stringify([user?.user_id, token, sessionId, isDemo]);
+  const careKey = JSON.stringify([user?.user_id, token, sessionId]);
   const [careState, setCareState] = useState(null);
   const [retry, setRetry] = useState(0);
   const [initializing, setInitializing] = useState(true);
@@ -205,7 +202,7 @@ const CareGuidePage = () => {
     setInitializing(true);
     initializeIfNeeded().finally(() => { if (active) setInitializing(false); });
     return () => { active = false; };
-  }, [initializeIfNeeded, user?.user_id, mode]);
+  }, [initializeIfNeeded, user?.user_id]);
 
   useEffect(() => {
     setSelectedStep(null);
