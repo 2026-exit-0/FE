@@ -128,7 +128,8 @@ export async function getSurvey() {
 
 // ── 피부 설문 저장 ──────────────────────────────────────
 // BE: PUT /surveys/me (SurveyIn) → SurveyOut
-// SurveyIn: { skin_type, concerns[], allergies[], preferred_categories[], budget_min, budget_max }
+// SurveyIn: { skin_type, age_band, gender, concerns[], allergies[], preferred_categories[], budget_min, budget_max }
+// age_band: '10대'~'60대+', gender: 'F'|'M' (데모 개인화/폴백 이미지 매칭에 사용)
 export async function saveSurvey(data) {
   const budgetMin = data.budget_min ?? (data.budget ? Math.max(0, Number(data.budget) - 10000) : 0);
   const budgetMax = data.budget_max ?? (data.budget ? Number(data.budget) + 10000 : 100000);
@@ -137,6 +138,8 @@ export async function saveSurvey(data) {
     await delay(400);
     const survey = {
       skin_type: data.skin_type,
+      age_band: data.age_band || null,
+      gender: data.gender || null,
       concerns: data.concerns || [],
       allergies: data.allergies || [],
       preferred_categories: data.preferred_categories || [],
@@ -150,6 +153,8 @@ export async function saveSurvey(data) {
 
   const payload = {
     skin_type: data.skin_type,
+    age_band: data.age_band || null,
+    gender: data.gender || null,
     concerns: data.concerns || [],
     allergies: data.allergies || [],
     preferred_categories: data.preferred_categories || [],

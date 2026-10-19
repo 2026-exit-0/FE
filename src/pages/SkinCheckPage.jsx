@@ -18,6 +18,34 @@ const SKIN_TYPES = [
   { value: '중성', label: '중성', desc: '균형잡힌 피부' },
 ];
 
+// 데모 개인화/폴백 이미지 매칭용 — BE age_band 값과 정확히 일치해야 함
+const AGE_BANDS = ['10대', '20대', '30대', '40대', '50대', '60대+'];
+
+// 연령대 / 성별 입력 (직접입력·자가진단 공통). gender 값은 BE/데모와 맞춰 'F'|'M'.
+const AgeGenderFields = ({ ageBand, gender, onAge, onGender }) => (
+  <div className="grid grid-cols-2 gap-4 mb-8">
+    <div>
+      <label className="block text-sm font-semibold text-text-primary mb-2">
+        연령대 <span className="text-text-secondary font-normal text-xs">(선택)</span>
+      </label>
+      <select value={ageBand} onChange={(e) => onAge(e.target.value)} className="input-field">
+        <option value="">선택 안 함</option>
+        {AGE_BANDS.map((a) => <option key={a} value={a}>{a}</option>)}
+      </select>
+    </div>
+    <div>
+      <label className="block text-sm font-semibold text-text-primary mb-2">
+        성별 <span className="text-text-secondary font-normal text-xs">(선택)</span>
+      </label>
+      <select value={gender} onChange={(e) => onGender(e.target.value)} className="input-field">
+        <option value="">선택 안 함</option>
+        <option value="F">여성</option>
+        <option value="M">남성</option>
+      </select>
+    </div>
+  </div>
+);
+
 const STEP_LABELS = ['진단 방식 선택', '피부 정보 입력', '완료'];
 
 // ─── 진행 바 ────────────────────────────────────────────────
@@ -119,7 +147,7 @@ const DirectInput = ({ onBack, onDone }) => {
     skin_type: '',
     sensitivity: 3,
     aging_score: 2,
-    age: '',
+    age_band: '',
     gender: '',
   });
 
@@ -130,7 +158,7 @@ const DirectInput = ({ onBack, onDone }) => {
       skin_type: form.skin_type,
       sensitivity: form.sensitivity,
       aging_score: form.aging_score,
-      age: form.age ? parseInt(form.age) : null,
+      age_band: form.age_band || null,
       gender: form.gender || null,
     });
   };
@@ -204,30 +232,13 @@ const DirectInput = ({ onBack, onDone }) => {
         </div>
       </div>
 
-      {/* 선택 항목 */}
-      <div className="grid grid-cols-2 gap-4 mb-8">
-        <div>
-          <label className="block text-sm font-semibold text-text-primary mb-2">나이 (선택)</label>
-          <input
-            type="number" min="10" max="90" placeholder="예: 28"
-            value={form.age}
-            onChange={(e) => setForm((f) => ({ ...f, age: e.target.value }))}
-            className="input-field"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-semibold text-text-primary mb-2">성별 (선택)</label>
-          <select
-            value={form.gender}
-            onChange={(e) => setForm((f) => ({ ...f, gender: e.target.value }))}
-            className="input-field"
-          >
-            <option value="">선택 안 함</option>
-            <option value="F">여성</option>
-            <option value="M">남성</option>
-          </select>
-        </div>
-      </div>
+      {/* 연령대 / 성별 (데모 개인화·폴백 이미지 매칭) */}
+      <AgeGenderFields
+        ageBand={form.age_band}
+        gender={form.gender}
+        onAge={(v) => setForm((f) => ({ ...f, age_band: v }))}
+        onGender={(v) => setForm((f) => ({ ...f, gender: v }))}
+      />
 
       <div className="flex gap-3 pt-4 pb-20">
         <button type="button" onClick={onBack}
@@ -251,6 +262,8 @@ const Questionnaire = ({ onBack, onDone }) => {
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [ageBand, setAgeBand] = useState('');
+  const [gender, setGender] = useState('');
 
   useEffect(() => {
     getQuestionnaire().then((data) => {
@@ -275,6 +288,8 @@ const Questionnaire = ({ onBack, onDone }) => {
     try {
       onDone({
         skin_type: '복합성',
+        age_band: ageBand || null,
+        gender: gender || null,
         sensitivity: answers['q3'] !== undefined ? answers['q3'] + 1 : 3,
         aging_score: answers['q5'] !== undefined ? answers['q5'] + 1 : 2,
         lifestyle_flags: {
@@ -339,6 +354,12 @@ const Questionnaire = ({ onBack, onDone }) => {
         ))}
       </div>
 
+      {/* 연령대 / 성별 (데모 개인화·폴백 이미지 매칭) */}
+      <AgeGenderFields
+        ageBand={ageBand} gender={gender}
+        onAge={setAgeBand} onGender={setGender}
+      />
+
       <div className="flex gap-3 pt-4 pb-20">
         <button type="button" onClick={onBack}
           className="flex items-center gap-1.5 px-5 py-3 border border-gray-200 bg-white rounded-xl text-sm font-medium text-text-secondary hover:bg-gray-50 transition-colors shadow-sm"
@@ -392,6 +413,8 @@ const SkinCheckPage = () => {
     try {
       const surveyPayload = {
         skin_type: inputs.skin_type || '',
+        age_band: inputs.age_band || null,
+        gender: inputs.gender || null,
         concerns: inputs.concerns || [],
         allergies: inputs.allergies || [],
         preferred_categories: inputs.preferred_categories || [],
