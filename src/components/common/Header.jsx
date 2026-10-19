@@ -2,12 +2,10 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
-import { useModeStore } from '../../store/modeStore';
 
 const Header = ({ variant = 'landing' }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isLoggedIn, user, logout } = useAuthStore();
-  const { mode, setMode } = useModeStore();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -88,16 +86,6 @@ const Header = ({ variant = 'landing' }) => {
 
           {/* Right Actions */}
           <div className="hidden tablet:flex items-center gap-3">
-            {/* 분석 모드 토글 — 눈에 띄지 않는 작은 점(클릭 전환, 툴팁으로 모드 확인) */}
-            <button
-              type="button"
-              onClick={() => setMode(mode === 'mock' ? 'real' : 'mock')}
-              title={`분석 모드: ${mode === 'mock' ? '시연용' : '실제 AI'} · 클릭하면 전환`}
-              aria-label="분석 모드 전환"
-              className="w-2.5 h-2.5 rounded-full border border-gray-300/70 opacity-30 hover:opacity-80 transition-opacity mr-1"
-              style={{ backgroundColor: mode === 'real' ? '#10b981' : '#d1d5db' }}
-            />
-
             {isLoggedIn ? (
               <>
                 <Link to="/mypage" className="text-sm font-medium text-text-secondary hover:text-primary-500 transition-colors duration-200">
@@ -128,17 +116,8 @@ const Header = ({ variant = 'landing' }) => {
             )}
           </div>
 
-          {/* Mobile Right: AI Mode Toggle + Menu Button */}
+          {/* Mobile Right: Menu Button */}
           <div className="flex items-center gap-2 tablet:hidden">
-            <button
-              type="button"
-              onClick={() => setMode(mode === 'mock' ? 'real' : 'mock')}
-              title={`분석 모드: ${mode === 'mock' ? '시연용' : '실제 AI'} · 클릭하면 전환`}
-              aria-label="분석 모드 전환"
-              className="w-2.5 h-2.5 rounded-full border border-gray-300/70 opacity-30 transition-opacity"
-              style={{ backgroundColor: mode === 'real' ? '#10b981' : '#d1d5db' }}
-            />
-
             <button
               className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
