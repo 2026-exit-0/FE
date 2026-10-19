@@ -103,7 +103,7 @@ const DualLightViewer = ({ analysis }) => {
               스캔 촬영 정밀 비교 (Dual-Light Spectrum)
             </h3>
             <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
-              {isDemo ? '예시 사진' : '촬영 사진'}
+              촬영 사진
             </span>
           </div>
           <p className="text-xs text-text-secondary mt-1">
@@ -137,8 +137,8 @@ const DualLightViewer = ({ analysis }) => {
           </div>
 
           <div className="p-3 bg-white border-t border-gray-100 text-xs text-text-secondary flex items-center justify-between">
-            <span>표면 거칠기: <strong className="text-text-primary">{isDemo ? '양호 (예시)' : '측정값 없음'}</strong></span>
-            <span>평균 반사율: <strong className="text-emerald-600 font-bold">{isDemo ? '78.4% (예시)' : '측정값 없음'}</strong></span>
+            <span>표면 거칠기: <strong className="text-text-primary">{isDemo ? '양호' : '측정값 없음'}</strong></span>
+            <span>평균 반사율: <strong className="text-emerald-600 font-bold">{isDemo ? '78.4%' : '측정값 없음'}</strong></span>
           </div>
         </div>
 
@@ -165,7 +165,7 @@ const DualLightViewer = ({ analysis }) => {
           </div>
 
           <div className="p-3 bg-white border-t border-gray-100 text-xs text-text-secondary flex items-center justify-between">
-            <span>피지 포르피린: <strong className="text-orange-500 font-bold">{isDemo ? '보통 (예시)' : '측정값 없음'}</strong></span>
+            <span>피지 포르피린: <strong className="text-orange-500 font-bold">{isDemo ? '보통' : '측정값 없음'}</strong></span>
             <span>색소 침착도: <strong className="text-purple-600 font-bold">{analysis?.pigmentation ?? 55}%</strong></span>
           </div>
         </div>
@@ -679,24 +679,12 @@ const AnalysisPage = () => {
             )}
             {/* ── 상단 요약 배너 ── */}
             <div className="relative flex flex-col tablet:flex-row items-center gap-5 mb-5 bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-              {/* 데모 배지 (결과 카드 상단: 정직성 필수 표기 및 눈에 띄지 않게 은은한 그레이 톤) */}
-              {(analysis?.is_mock || analysis?._raw?.is_mock) && (
-                <div className="absolute top-3 right-4 flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-gray-50 border border-gray-200/60 text-[10px] text-gray-400 font-normal tracking-tight select-none">
-                  <span className="w-1 h-1 rounded-full bg-gray-300 shrink-0" />
-                  <span>데모 · 예시 데이터</span>
-                </div>
-              )}
-
+              {/* 데모/실제 구분은 헤더의 모드 토글로만 — 결과 화면에는 별도 표기 없음 */}
               <div className="bg-primary-50 border border-primary-100 rounded-2xl p-5 flex flex-col items-center flex-shrink-0">
                 <ScoreCircle score={overallScore} />
                 <span className="mt-2 inline-block bg-primary-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-sm">
                   {analysis.skinType || '복합성 피부'}
                 </span>
-                {(analysis?.is_mock || analysis?._raw?.is_mock) && (
-                  <span className="mt-1 text-[9px] text-gray-400 font-normal select-none">
-                    데모 · 예시 데이터
-                  </span>
-                )}
               </div>
 
               <div className="flex flex-wrap gap-3 justify-center tablet:justify-start flex-1 w-full">
