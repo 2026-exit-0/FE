@@ -139,3 +139,9 @@
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* 피부 스캔 이미지 선명도 보정 (ESP32 소프트 센서 대비 모공/결 강조, 밝기 유지).
+   SVG 언샤프(#skinSharpen, index.html) + 약한 채도. 라이브/폴백 이미지 공통. */
+.skin-enhance {
+  filter: url(#skinSharpen) saturate(1.05);
+}

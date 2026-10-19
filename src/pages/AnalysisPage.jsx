@@ -126,7 +126,7 @@ const DualLightViewer = ({ analysis }) => {
 
           <div className="aspect-[4/3] relative bg-[#f8ede3] flex items-center justify-center overflow-hidden">
             {whiteImg && failedWhite !== whiteImg ? (
-              <img onError={() => setFailedWhite(whiteImg)} src={whiteImg} alt="일반광 피부 촬영" className="w-full h-full object-cover" />
+              <img onError={() => setFailedWhite(whiteImg)} src={whiteImg} alt="일반광 피부 촬영" className="w-full h-full object-cover skin-enhance" />
             ) : (
               <p className="p-6 text-center text-sm text-gray-600">일반광 사진을 불러올 수 없습니다.</p>
             )}
@@ -154,7 +154,7 @@ const DualLightViewer = ({ analysis }) => {
 
           <div className="aspect-[4/3] relative bg-[#090614] flex items-center justify-center overflow-hidden">
             {uvImg && failedUv !== uvImg ? (
-              <img onError={() => setFailedUv(uvImg)} src={uvImg} alt="UV 형광 피부 촬영" className="w-full h-full object-cover" />
+              <img onError={() => setFailedUv(uvImg)} src={uvImg} alt="UV 형광 피부 촬영" className="w-full h-full object-cover skin-enhance" />
             ) : (
               <p className="p-6 text-center text-sm text-purple-200">UV 사진을 불러올 수 없습니다.</p>
             )}
