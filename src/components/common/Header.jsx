@@ -88,31 +88,15 @@ const Header = ({ variant = 'landing' }) => {
 
           {/* Right Actions */}
           <div className="hidden tablet:flex items-center gap-3">
-            {/* AI 모드 토글 (목업 ↔ 실제 AI) */}
-            <div className="flex items-center bg-gray-100 p-0.5 rounded-full border border-gray-200/80 mr-1" title="AI 분석 모드 전환">
-              <button
-                type="button"
-                onClick={() => setMode('mock')}
-                className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
-                  mode === 'mock'
-                    ? 'bg-white text-primary-600 shadow-xs'
-                    : 'text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                시연용
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('real')}
-                className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
-                  mode === 'real'
-                    ? 'bg-primary-500 text-white shadow-xs'
-                    : 'text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                실제 AI
-              </button>
-            </div>
+            {/* 분석 모드 토글 — 눈에 띄지 않는 작은 점(클릭 전환, 툴팁으로 모드 확인) */}
+            <button
+              type="button"
+              onClick={() => setMode(mode === 'mock' ? 'real' : 'mock')}
+              title={`분석 모드: ${mode === 'mock' ? '시연용' : '실제 AI'} · 클릭하면 전환`}
+              aria-label="분석 모드 전환"
+              className="w-2.5 h-2.5 rounded-full border border-gray-300/70 opacity-30 hover:opacity-80 transition-opacity mr-1"
+              style={{ backgroundColor: mode === 'real' ? '#10b981' : '#d1d5db' }}
+            />
 
             {isLoggedIn ? (
               <>
@@ -146,30 +130,14 @@ const Header = ({ variant = 'landing' }) => {
 
           {/* Mobile Right: AI Mode Toggle + Menu Button */}
           <div className="flex items-center gap-2 tablet:hidden">
-            <div className="flex items-center bg-gray-100 p-0.5 rounded-full border border-gray-200/80">
-              <button
-                type="button"
-                onClick={() => setMode('mock')}
-                className={`px-2 py-0.5 rounded-full text-[11px] font-bold transition-all ${
-                  mode === 'mock'
-                    ? 'bg-white text-primary-600 shadow-xs'
-                    : 'text-gray-400'
-                }`}
-              >
-                시연용
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('real')}
-                className={`px-2 py-0.5 rounded-full text-[11px] font-bold transition-all ${
-                  mode === 'real'
-                    ? 'bg-primary-500 text-white shadow-xs'
-                    : 'text-gray-400'
-                }`}
-              >
-                실제 AI
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setMode(mode === 'mock' ? 'real' : 'mock')}
+              title={`분석 모드: ${mode === 'mock' ? '시연용' : '실제 AI'} · 클릭하면 전환`}
+              aria-label="분석 모드 전환"
+              className="w-2.5 h-2.5 rounded-full border border-gray-300/70 opacity-30 transition-opacity"
+              style={{ backgroundColor: mode === 'real' ? '#10b981' : '#d1d5db' }}
+            />
 
             <button
               className="p-2 rounded-lg hover:bg-gray-100 transition-colors"

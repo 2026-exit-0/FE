@@ -95,6 +95,98 @@ const ROUTINE_TEMPLATES = {
 
 ROUTINE_TEMPLATES['중성'] = ROUTINE_TEMPLATES['복합성'];
 
+// ─── BE 구조화 리포트 렌더 (데모·실제 공통) ───
+const BAND_STYLE = {
+  '좋음': { dot: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  '보통': { dot: 'bg-amber-500', chip: 'bg-amber-50 text-amber-700 border-amber-200' },
+  '주의': { dot: 'bg-rose-500', chip: 'bg-rose-50 text-rose-600 border-rose-200' },
+};
+
+const SkinReport = ({ report }) => {
+  if (!report) return null;
+  const metrics = report.metrics || [];
+  const score = report.overall_score;
+  return (
+    <section className="space-y-5" aria-label="피부 분석 리포트">
+      {/* 종합 소견 */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-primary-600 mb-1">종합 소견</p>
+            <h2 className="text-lg font-bold text-text-primary">
+              {report.scan_area} 측정 · <span className="text-primary-600">{report.skin_type}</span> 피부
+            </h2>
+            <p className="text-sm text-text-secondary leading-relaxed mt-2 max-w-2xl">{report.summary}</p>
+          </div>
+          {score != null && (
+            <div className="flex flex-col items-center justify-center bg-primary-50 rounded-2xl px-5 py-3 flex-shrink-0">
+              <span className="text-[10px] font-bold text-primary-600 uppercase">종합 점수</span>
+              <span className="text-3xl font-extrabold text-primary-600 leading-tight">{score}</span>
+              <span className="text-[10px] text-text-secondary">/ 100</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 지표별 상세 */}
+      <div>
+        <h3 className="text-sm font-bold text-text-primary mb-3 px-1">지표별 상세 분석</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {metrics.map((m) => {
+            const st = BAND_STYLE[m.band] || BAND_STYLE['보통'];
+            return (
+              <div key={m.key} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full ${st.dot}`} />
+                    <h4 className="text-sm font-bold text-text-primary">{m.label}</h4>
+                  </div>
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${st.chip}`}>{m.band}</span>
+                </div>
+                <p className="text-xs text-text-secondary mb-2">측정값: <strong className="text-text-primary">{m.sensor}</strong></p>
+                <p className="text-sm text-text-primary leading-relaxed">{m.meaning}</p>
+                <p className="text-xs text-text-secondary leading-relaxed mt-1.5"><span className="font-semibold">추정 원인 ·</span> {m.cause}</p>
+                <div className="mt-2.5 bg-primary-50/60 rounded-lg px-3 py-2 text-xs text-primary-800 leading-relaxed">
+                  <span className="font-bold">관리법 ·</span> {m.care}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 부위 소견 + 생활 수칙 + 추천 근거 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+          <h3 className="text-sm font-bold text-text-primary mb-2">부위 소견</h3>
+          <p className="text-sm text-text-secondary leading-relaxed">{report.region_note}</p>
+          {report.recommend_basis && (
+            <>
+              <h3 className="text-sm font-bold text-text-primary mt-4 mb-2">제품 추천 기준</h3>
+              <p className="text-sm text-text-secondary leading-relaxed">{report.recommend_basis}</p>
+            </>
+          )}
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+          <h3 className="text-sm font-bold text-text-primary mb-2">생활 수칙</h3>
+          <ul className="space-y-1.5">
+            {(report.lifestyle || []).map((t, i) => (
+              <li key={i} className="flex gap-2 text-sm text-text-secondary leading-relaxed">
+                <CheckCircle size={15} className="text-primary-500 mt-0.5 flex-shrink-0" /> {t}
+              </li>
+            ))}
+          </ul>
+          {report.next_scan_days != null && (
+            <p className="text-xs text-text-secondary mt-3 flex items-center gap-1.5">
+              <Calendar size={13} /> 다음 측정 권장: 약 {report.next_scan_days}일 후
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const CareGuidePage = () => {
   const { survey, fetchSurvey, user } = useAuthStore();
   const { currentScan, initializeIfNeeded } = useScanStore();
@@ -117,7 +209,7 @@ const CareGuidePage = () => {
 
   useEffect(() => {
     setSelectedStep(null);
-    if (isDemo || !sessionId) return;
+    if (!sessionId) return;   // 데모·실제 공통으로 BE 리포트 로드
     let active = true;
     const controller = new AbortController();
     setCareState({ key: careKey, loading: true });
@@ -133,7 +225,8 @@ const CareGuidePage = () => {
 
   // 피부 타입 알아내기 (1순위: 스캔 결과 예측값, 2순위: 내 피부 설문 결과, 3순위: null)
   const userSkinType = currentScan?.skinType?.replace(' 피부', '')?.replace(' 경향', '') || survey?.skin_type || null;
-  const routine = isDemo && userSkinType ? (ROUTINE_TEMPLATES[userSkinType] || ROUTINE_TEMPLATES['복합성']) : null;
+  const routine = userSkinType ? (ROUTINE_TEMPLATES[userSkinType] || ROUTINE_TEMPLATES['복합성']) : null;
+  const report = care?.report || null;
 
   useEffect(() => {
     fetchSurvey();
@@ -175,11 +268,11 @@ const CareGuidePage = () => {
               <p className="text-sm text-text-secondary">피부 분석 및 라이프스타일 기반 맞춤 루틴</p>
             </div>
             
-            {/* 피부타입 배지 */}
-            {isDemo && userSkinType && (
+            {/* 피부타입 배지 (데모·실제 동일 표기) */}
+            {userSkinType && (
               <div className="bg-gradient-to-r from-primary-50 to-emerald-50 text-primary-700 px-4 py-2 rounded-xl text-xs font-bold border border-primary-100 flex items-center gap-1.5 shadow-sm">
                 <Sparkles size={14} className="text-primary-500 flex-shrink-0" />
-                예시 피부 타입: <span className="underline font-extrabold">{userSkinType}</span>
+                예상 피부 타입: <span className="underline font-extrabold">{userSkinType}</span>
               </div>
             )}
           </div>
@@ -202,49 +295,20 @@ const CareGuidePage = () => {
             )}
           </div>
 
-          {/* 피부 데이터 부재 시 비활성화 안내 카드 */}
-          {!isDemo ? (
-            <section className="space-y-4" aria-label="촬영별 케어 가이드">
-              {initializing || (sessionId && (!care || care.loading)) ? (
-                <p role="status" className="rounded-xl bg-white p-6">케어 가이드를 불러오는 중입니다.</p>
-              ) : !sessionId ? (
-                <div className="rounded-xl bg-white p-6">
-                  <p>선택된 촬영 기록이 없습니다. 촬영하거나 기록을 선택해 주세요.</p>
-                  <Link to="/report" className="mt-3 inline-block text-primary-600">촬영 기록 보기</Link>
-                </div>
-              ) : care?.careMessage ? (
-                <div className="rounded-xl bg-white p-6" role="status">
-                  <p>{care.careMessage}</p>
-                  <button className="btn-primary mt-3" onClick={() => setRetry(n => n + 1)}>다시 조회</button>
-                </div>
-              ) : (
-                <>
-                  <p className="text-sm text-text-secondary">선택한 촬영 결과에 저장된 케어 가이드입니다.</p>
-                  {[
-                    ['summary', '종합 안내'],
-                    ['morning_routine', '아침 루틴'],
-                    ['night_routine', '저녁 루틴'],
-                    ['lifestyle_tips', '생활 습관'],
-                    ['next_scan_date', '다음 측정 권장일'],
-                  ].map(([key, title]) => (
-                    <article key={key} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                      <h2 className="mb-2 font-bold text-text-primary">{title}</h2>
-                      <p className="whitespace-pre-wrap break-words text-sm text-text-secondary">
-                        {care?.advice?.[key] || '등록된 안내가 없습니다.'}
-                      </p>
-                    </article>
-                  ))}
-                </>
-              )}
-            </section>
-          ) : !userSkinType ? (
+          {/* BE 구조화 리포트 (데모·실제 공통) */}
+          {report && <SkinReport report={report} />}
+
+          {/* 리포트 없을 때: 로딩 / 빈 상태 / 에러 안내 */}
+          {!report && (initializing || (sessionId && (!care || care.loading))) ? (
+            <p role="status" className="rounded-xl bg-white p-6">케어 가이드를 불러오는 중입니다.</p>
+          ) : !report && !sessionId && !userSkinType ? (
             <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center shadow-sm">
               <div className="w-16 h-16 bg-primary-50 text-primary-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <BookOpen size={32} />
               </div>
               <h3 className="text-lg font-bold text-text-primary mb-2">아직 등록된 피부 진단 정보가 없습니다</h3>
               <p className="text-sm text-text-secondary max-w-md mx-auto mb-6 leading-relaxed">
-                피부 스캔이나 자가진단 설문을 먼저 진행하시면 내 피부 타입에 최적화된 아침/저녁 맞춤 케어 가이드를 받으실 수 있습니다.
+                피부 스캔이나 자가진단 설문을 먼저 진행하시면 내 피부 타입에 최적화된 맞춤 케어 가이드를 받으실 수 있습니다.
               </p>
               <div className="flex flex-wrap justify-center gap-3">
                 <Link to="/scan">
@@ -255,9 +319,17 @@ const CareGuidePage = () => {
                 </Link>
               </div>
             </div>
-          ) : (
-            <div className="space-y-6">
-              <p className="text-sm text-primary-700">시연용 예시 루틴입니다. 실제 촬영에 대한 BE 케어 결과가 아닙니다.</p>
+          ) : !report && care?.careMessage ? (
+            <div className="rounded-xl bg-white p-6" role="status">
+              <p>{care.careMessage}</p>
+              <button className="btn-primary mt-3" onClick={() => setRetry(n => n + 1)}>다시 조회</button>
+            </div>
+          ) : null}
+
+          {/* 맞춤 제품 루틴 (피부 타입 기반, 데모·실제 공통) */}
+          {routine && (
+            <div className="space-y-6 mt-8">
+              <h3 className="text-sm font-bold text-text-primary px-1">맞춤 제품 루틴</h3>
               {/* 탭 네비게이션 */}
               <div className="flex bg-white rounded-xl shadow-sm p-1 border border-gray-100 mb-6">
                 <button
