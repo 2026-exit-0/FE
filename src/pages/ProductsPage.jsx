@@ -245,13 +245,22 @@ const ProductModal = ({ product, onClose }) => {
             </div>
           )}
 
-          {/* 전성분 (상세 전용 · 접기) */}
-          {product.full_ingredients && (
-            <details>
-              <summary className="text-xs text-text-secondary font-semibold uppercase tracking-wide cursor-pointer select-none">전성분 보기</summary>
-              <p className="mt-2 text-[11px] text-text-secondary leading-relaxed break-words">{product.full_ingredients}</p>
-            </details>
-          )}
+          {/* 전성분 (상세 전용 · 전체 노출) */}
+          {product.full_ingredients && (() => {
+            const all = product.full_ingredients.split(',').map((s) => s.trim()).filter(Boolean);
+            return (
+              <div>
+                <p className="text-xs text-text-secondary font-semibold uppercase tracking-wide mb-2">
+                  전성분 <span className="text-[10px] font-normal">({all.length})</span>
+                </p>
+                <div className="flex flex-wrap gap-1 max-h-56 overflow-y-auto pr-1">
+                  {all.map((ing, i) => (
+                    <span key={i} className="text-[11px] bg-gray-50 text-text-secondary px-1.5 py-0.5 rounded border border-gray-100">{ing}</span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* 구매 버튼 */}
           {product.purchase_url && (
