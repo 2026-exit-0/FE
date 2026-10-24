@@ -73,6 +73,22 @@ function _mag(delta) {
   return '소폭';
 }
 
+// 지표별 개선/악화 시 구체 설명 문구
+const IMPROVE_MSG = {
+  moisture: '수분이 차올라 속당김과 각질 들뜸이 줄었어요',
+  oil: '유분 밸런스가 안정돼 번들거림이 가라앉았어요',
+  pore: '모공이 조여지고 피부결이 매끈해졌어요',
+  elasticity: '피부 탄력이 올라 처짐 없이 탄탄해졌어요',
+  pigmentation: '색소·잡티가 옅어지고 피부 톤이 맑아졌어요',
+};
+const WORSEN_MSG = {
+  moisture: '수분이 빠져 속건조가 보이니 보습 레이어링을 늘려 보세요',
+  oil: '유분이 늘었으니 T존 피지 관리와 가벼운 제형을 권해요',
+  pore: '모공이 두드러지니 각질·피지 케어와 모공 토너를 챙겨 보세요',
+  elasticity: '탄력이 떨어졌으니 펩타이드·레티놀 집중 케어가 필요해요',
+  pigmentation: '색소가 짙어졌으니 자외선 차단과 미백 성분 케어를 권해요',
+};
+
 export function reportNarrative(scans) {
   const chron = [...scans].sort((a, b) => (reportDate(a)?.getTime() || 0) - (reportDate(b)?.getTime() || 0));
   if (chron.length < 2) {
@@ -100,12 +116,12 @@ export function reportNarrative(scans) {
       continue;
     }
     const isImprove = m.higherBetter ? delta > 0 : delta < 0;
-    const dir = delta > 0 ? '상승' : '하락';
-    const verb = isImprove ? '개선됐어요' : '관리가 필요해요';
+    const dir = delta > 0 ? '올라' : '내려';
+    const detail = isImprove ? IMPROVE_MSG[m.id] : WORSEN_MSG[m.id];
     lines.push({
       label: m.label,
       tone: isImprove ? 'up' : 'down',
-      text: `${m.label}는 ${a}→${b}${m.unit}으로 ${_mag(delta)} ${dir}해 ${verb}.`,
+      text: `${m.label} ${a}→${b}${m.unit} (${delta > 0 ? '+' : ''}${delta}, ${_mag(delta)} ${dir}) · ${detail}.`,
     });
     (isImprove ? improved : worsened).push(m.label);
   }
