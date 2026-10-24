@@ -328,7 +328,7 @@ const ProductsPage = () => {
       if (seed != null) body.seed = seed;
       if (excludeIds.length > 0) body.exclude_ids = excludeIds;
 
-      const data = await getRecommendations(body, currentScan?.is_mock ? undefined : currentScan?.sessionId);
+      const data = await getRecommendations(body, currentScan?.sessionId);
       if (!isCurrent()) return;
       setRecommendationSource(data.source);
       let list = (data.recommended_products || []).map((p) => ({
@@ -341,7 +341,7 @@ const ProductsPage = () => {
       if (list.length === 0 && excludeIds.length > 0) {
         shownIds.current.clear();
         delete body.exclude_ids;
-        const retryData = await getRecommendations(body, currentScan?.is_mock ? undefined : currentScan?.sessionId);
+        const retryData = await getRecommendations(body, currentScan?.sessionId);
         if (!isCurrent()) return;
         setRecommendationSource(retryData.source);
         list = (retryData.recommended_products || []).map((p) => ({
