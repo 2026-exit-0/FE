@@ -132,6 +132,7 @@ async function demoViaBackend(region) {
       elasticity: result.elasticity, pigmentation: result.pigmentation,
     },
     advice,
+    recommended_products: advice?.recommended_products || [],   // 성분 기반 추천 (카드용)
     white_image_url: result.white_image_url,
     uv_image_url: result.uv_image_url,
     meta: { region },

@@ -60,10 +60,12 @@ export async function loadAnalysisCare(sessionId, signal) {
     for (const key of ['morning_routine', 'night_routine', 'lifestyle_tips']) {
       if (advice[key]) tips.push(advice[key]);
     }
-    return { narrative: { summary: advice.summary || '', tips }, advice, report: advice.report || null, careMessage: '' };
+    return { narrative: { summary: advice.summary || '', tips }, advice, report: advice.report || null,
+             recommendedProducts: advice.recommended_products || [], careMessage: '' };
   } catch (error) {
     if (signal?.aborted) throw error;
-    return { narrative: { summary: '', tips: [] }, advice: {}, report: null, careMessage: error.response?.status === 404
+    return { narrative: { summary: '', tips: [] }, advice: {}, report: null, recommendedProducts: [],
+      careMessage: error.response?.status === 404
       ? '이 촬영의 케어 가이드가 아직 없습니다.' : '케어 가이드를 불러오지 못했습니다.' };
   }
 }

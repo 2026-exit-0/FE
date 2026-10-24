@@ -19,11 +19,10 @@ export function metricValue(scan, metric) {
   return null;
 }
 
-export function selectReportScans(scans, mode) {
+export function selectReportScans(scans) {
+  // 모드 구분 없이 전체 측정 기록을 중복 제거 후 최신순 정렬 (데모·실제 통합)
   const seen = new Set();
   return scans.filter(scan => {
-    const demo = scan.is_mock === true || scan._raw?.is_mock === true;
-    if ((mode === 'mock') !== demo) return false;
     const id = scan.sessionId || scan.session_id || scan.id;
     if (id != null && seen.has(id)) return false;
     if (id != null) seen.add(id);
@@ -55,4 +54,76 @@ export function reportChart(scans, metric) {
 export function reportChange(scans, metric) {
   const values = reportChart(scans, metric);
   return values.length < 2 ? null : Math.round((values.at(-1).score - values[0].score) * 10) / 10;
+}
+
+// ─── 구간별 변화 서술형 리포트 생성 ───────────────────────
+// 그래프만으로는 안 보이는 "무엇이 얼마나, 어느 방향으로" 를 문장으로 설명한다.
+const NARRATIVE_METRICS = [
+  { id: 'moisture', label: '수분도', higherBetter: true, unit: '점' },
+  { id: 'oil', label: '유분도', higherBetter: false, unit: '점' },
+  { id: 'pore', label: '모공', higherBetter: true, unit: '점' },
+  { id: 'elasticity', label: '탄력', higherBetter: true, unit: '점' },
+  { id: 'pigmentation', label: '색소침착', higherBetter: false, unit: '점' },
+];
+
+function _mag(delta) {
+  const a = Math.abs(delta);
+  if (a >= 10) return '크게';
+  if (a >= 4) return '뚜렷하게';
+  return '소폭';
+}
+
+export function reportNarrative(scans) {
+  const chron = [...scans].sort((a, b) => (reportDate(a)?.getTime() || 0) - (reportDate(b)?.getTime() || 0));
+  if (chron.length < 2) {
+    return {
+      enough: false,
+      summary: '아직 비교할 측정이 부족합니다. 같은 부위를 2회 이상 측정하면 구간별 변화 추이를 설명해 드려요.',
+      lines: [],
+    };
+  }
+  const first = chron[0], last = chron.at(-1);
+  const d1 = reportDate(first), d2 = reportDate(last);
+  const days = d1 && d2 ? Math.max(1, Math.round((d2 - d1) / 86400000)) : null;
+  const periodText = days
+    ? `${d1.toLocaleDateString('ko-KR')} ~ ${d2.toLocaleDateString('ko-KR')} (약 ${days}일, ${chron.length}회 측정)`
+    : `${chron.length}회 측정`;
+
+  const lines = [];
+  const improved = [], worsened = [];
+  for (const m of NARRATIVE_METRICS) {
+    const a = metricValue(first, m.id), b = metricValue(last, m.id);
+    if (a === null || b === null) continue;
+    const delta = Math.round((b - a) * 10) / 10;
+    if (delta === 0) {
+      lines.push({ label: m.label, tone: 'flat', text: `${m.label}는 ${a}${m.unit}으로 변화 없이 유지됐어요.` });
+      continue;
+    }
+    const isImprove = m.higherBetter ? delta > 0 : delta < 0;
+    const dir = delta > 0 ? '상승' : '하락';
+    const verb = isImprove ? '개선됐어요' : '관리가 필요해요';
+    lines.push({
+      label: m.label,
+      tone: isImprove ? 'up' : 'down',
+      text: `${m.label}는 ${a}→${b}${m.unit}으로 ${_mag(delta)} ${dir}해 ${verb}.`,
+    });
+    (isImprove ? improved : worsened).push(m.label);
+  }
+
+  const overallA = metricValue(first, 'overall'), overallB = metricValue(last, 'overall');
+  const overallDelta = overallA !== null && overallB !== null ? Math.round((overallB - overallA) * 10) / 10 : null;
+
+  let summary = '';
+  if (overallDelta !== null) {
+    const s = overallDelta > 0 ? `종합 점수가 ${overallA}→${overallB}점으로 ${overallDelta}점 올랐어요`
+      : overallDelta < 0 ? `종합 점수가 ${overallA}→${overallB}점으로 ${Math.abs(overallDelta)}점 내렸어요`
+      : `종합 점수는 ${overallB}점으로 유지됐어요`;
+    summary = s + '. ';
+  }
+  if (improved.length) summary += `특히 ${improved.join('·')}이(가) 좋아졌고`;
+  if (improved.length && worsened.length) summary += ', ';
+  if (worsened.length) summary += `${worsened.join('·')}은(는) 더 신경 쓰면 좋겠어요`;
+  summary = (summary.trim() || '선택한 기간의 지표 변화를 아래에 정리했어요') + '.';
+
+  return { enough: true, periodText, summary, lines };
 }
