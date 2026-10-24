@@ -270,7 +270,14 @@ const AnalysisPage = () => {
   const tips = Array.isArray(rawTips) ? rawTips : (rawTips ? [rawTips] : []);
 
   const userContextApplied = analysis.narrative?.user_context?.applied ?? false;
-  const recommendedProducts = analysis.recommendedProducts || [];
+  const recommendedProducts = (analysis.recommendedProducts || []).map((p) => ({
+    ...p,
+    id: p.id || p.product_id,
+    name: p.name || p.name_kr,
+    efficacy: Array.isArray(p.efficacy) ? p.efficacy : (p.efficacy ? [p.efficacy] : []),
+    reason: p.reason || null,
+    score: p.score ?? (p.match_score != null ? Math.round(Number(p.match_score)) : null),
+  }));
 
   // 레이더 차트 매핑
   const radarData = metrics.map((m, i) => ({
@@ -817,18 +824,20 @@ const AnalysisPage = () => {
                       <div className="grid grid-cols-1 tablet:grid-cols-3 gap-3">
                         {reportProducts.map((p, i) => (
                           <div key={p.id ?? i} className="flex items-center gap-3 bg-background-gray rounded-xl p-3 border border-gray-100 hover:border-primary-200 hover:shadow-sm transition-all">
-                            <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center text-lg flex-shrink-0 shadow-sm border border-gray-100">
-                              {p.emoji ?? '📦'}
+                            <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center text-lg flex-shrink-0 shadow-sm border border-gray-100 overflow-hidden">
+                              {p.image_url
+                                ? <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.textContent = p.emoji ?? '📦'; }} />
+                                : (p.emoji ?? '📦')}
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="text-[10px] text-text-secondary truncate">{p.brand ?? p.category ?? '피부 맞춤'}</p>
                               <p className="text-xs font-bold text-text-primary truncate">{p.name ?? p.name_kr}</p>
-                              {p.tag && (
+                              {p.efficacy?.length > 0 ? (
+                                <span className="text-[9px] bg-primary-50 text-primary-600 font-semibold px-1.5 py-0.5 rounded-full mt-1 inline-block">{p.efficacy.slice(0, 2).join('·')}</span>
+                              ) : p.tag ? (
                                 <span className="text-[9px] bg-primary-50 text-primary-600 font-semibold px-1.5 py-0.5 rounded-full mt-1 inline-block">{p.tag}</span>
-                              )}
-                              {p.compatibility && (
-                                <span className="text-[9px] bg-primary-50 text-primary-600 font-semibold px-1.5 py-0.5 rounded-full mt-1 inline-block">매칭 {p.compatibility}%</span>
-                              )}
+                              ) : null}
+                              {p.reason && <p className="text-[10px] text-text-secondary mt-1 leading-snug line-clamp-2">{p.reason}</p>}
                             </div>
                           </div>
                         ))}
@@ -979,11 +988,17 @@ const AnalysisPage = () => {
                       <div className="grid grid-cols-1 tablet:grid-cols-2 gap-4">
                         {recommendedProducts.slice(0, 4).map((p) => (
                           <div key={p.id} className="bg-white rounded-xl border border-gray-100 p-4 flex gap-3 shadow-sm">
-                            <div className="w-16 h-16 rounded-lg bg-gray-50 flex items-center justify-center text-xl flex-shrink-0">📦</div>
+                            <div className="w-16 h-16 rounded-lg bg-gray-50 flex items-center justify-center text-xl flex-shrink-0 overflow-hidden">
+                              {p.image_url
+                                ? <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.textContent = '📦'; }} />
+                                : '📦'}
+                            </div>
                             <div className="min-w-0 flex-1">
                               <p className="text-[10px] text-text-secondary">{p.brand}</p>
                               <p className="text-xs font-bold text-text-primary truncate">{p.name}</p>
-                              <span className="text-[10px] text-primary-600 font-bold mt-1 inline-block">매칭율 {p.compatibility}%</span>
+                              {p.efficacy?.length > 0 && <p className="text-[10px] text-primary-600 font-semibold mt-0.5 truncate">{p.efficacy.slice(0, 3).join(' · ')}</p>}
+                              {p.reason && <p className="text-[10px] text-text-secondary mt-1 leading-snug line-clamp-2">{p.reason}</p>}
+                              {p.score != null && <span className="text-[10px] text-emerald-600 font-bold mt-1 inline-block">매칭 {p.score}점</span>}
                             </div>
                           </div>
                         ))}

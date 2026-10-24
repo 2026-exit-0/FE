@@ -13,9 +13,7 @@ import BottomNav from '../components/common/BottomNav';
 import Button from '../components/common/Button';
 import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
-import { useModeStore } from '../store/modeStore';
-import { selectReportScans, filterReportPeriod, reportChart, reportChange, metricValue, reportDate } from '../utils/reportData';
-import { mockDemoScanHistory } from '../utils/mockData';
+import { selectReportScans, filterReportPeriod, reportChart, reportChange, reportNarrative, metricValue, reportDate } from '../utils/reportData';
 import { downloadReportPdf } from '../api/scan';
 
 // ─── 기간 필터 ──────────────────────────────────────────
@@ -157,24 +155,21 @@ const CustomTooltip = ({ active, payload, label }) => {
 const ReportPage = () => {
   const navigate = useNavigate();
   useAuth(true);
-  const { mode } = useModeStore();
   const { currentScan, scans, setCurrentScan, fetchHistory } = useScanStore();
   const [period, setPeriod] = useState('month');
   const [metric, setMetric] = useState('moisture');
 
   useEffect(() => {
-    if (mode === 'real') fetchHistory();
-  }, [mode, fetchHistory]);
+    fetchHistory();
+  }, [fetchHistory]);
 
   const availableScans = useMemo(() => selectReportScans(
-    mode === 'mock' ? mockDemoScanHistory : [...scans, ...(currentScan ? [currentScan] : [])],
-    mode,
-  ), [mode, scans, currentScan]);
+    [...scans, ...(currentScan ? [currentScan] : [])],
+  ), [scans, currentScan]);
   const displayScans = useMemo(() => {
-    // 예시 기록은 마지막 예시 촬영일을 기준으로 기간을 보여준다.
-    const reference = mode === 'mock' ? reportDate(availableScans[0] || {}) : new Date();
-    return filterReportPeriod(availableScans, period, reference || new Date());
-  }, [availableScans, period, mode]);
+    return filterReportPeriod(availableScans, period, new Date());
+  }, [availableScans, period]);
+  const narrative = useMemo(() => reportNarrative(displayScans), [displayScans]);
   const hasScanData = availableScans.length > 0;
   const chartData = reportChart(displayScans, metric);
   const metricLabel = metricFilters.find((item) => item.id === metric)?.label || '수분도';
@@ -254,11 +249,6 @@ const ReportPage = () => {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-xl font-bold text-text-primary">분석 리포트</h1>
-                  {mode === 'mock' && (
-                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full border bg-purple-50 text-purple-600 border-purple-200/70">
-                      시연용 데이터
-                    </span>
-                  )}
                 </div>
                 <p className="text-sm text-text-secondary">피부 변화 추이를 확인하세요</p>
               </div>
@@ -323,6 +313,32 @@ const ReportPage = () => {
                       value={change === null ? '-' : `${change > 0 ? '+' : ''}${change}점`}
                       subtitle={change === null ? '기간 내 비교 가능한 기록 부족' : '선택 기간의 첫 측정 대비 최근 측정'} />;
                   })}
+                </div>
+
+                {/* ── 구간별 변화 서술형 리포트 ─────────── */}
+                <div className="bg-white rounded-2xl border border-gray-100 p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <FileText size={16} className="text-primary-500" />
+                    <h3 className="text-sm font-semibold text-text-primary">기간별 변화 리포트</h3>
+                    {narrative.enough && (
+                      <span className="text-[11px] text-text-secondary ml-1">{narrative.periodText}</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-text-primary leading-relaxed bg-primary-50/60 border border-primary-100 rounded-xl px-4 py-3">
+                    {narrative.summary}
+                  </p>
+                  {narrative.enough && narrative.lines.length > 0 && (
+                    <ul className="mt-3 space-y-2">
+                      {narrative.lines.map((ln, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-text-secondary leading-relaxed">
+                          <span className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                            ln.tone === 'up' ? 'bg-primary-500' : ln.tone === 'down' ? 'bg-rose-500' : 'bg-gray-300'
+                          }`} />
+                          <span>{ln.text}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
                 {/* ── 차트 + 히스토리 (가로 배치) ──────── */}

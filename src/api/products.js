@@ -1,24 +1,42 @@
-import { getAiMode } from '../store/modeStore';
 import client, { isMock } from './client';
 import { mockProducts, calculateCompatibility } from '../utils/mockData';
 
+// BE 응답(RecommendationOut/ProductOut) → UI 카드 공통 형태로 정규화.
+// 주성분·효능·추천사유·점수 필드명을 UI(ProductCard/모달)가 읽는 키로 맞춘다.
+export function normalizeProductItem(p) {
+  if (!p || typeof p !== 'object') return p;
+  const main = p.main_ingredients ?? p.key_ingredients ?? p.ingredients ?? [];
+  const eff = Array.isArray(p.efficacy) ? p.efficacy : (p.efficacy ? [p.efficacy] : []);
+  const score = p.score ?? (p.match_score != null ? Number(p.match_score) : undefined);
+  return {
+    ...p,
+    id: p.id ?? p.product_id,
+    name: p.name ?? p.name_kr,
+    score,
+    main_ingredients: main,
+    efficacy: eff,
+    effect: p.effect ?? (eff.length ? eff.join(' · ') : null),
+    caution_ingredients: p.caution_ingredients ?? [],
+  };
+}
+
 // ── 제품 추천 (POST /scans/{id}/recommend 또는 GET /products) ────────
 export async function getRecommendations(body = {}, sessionId) {
-  const isDemo = getAiMode() === 'mock' || localStorage.getItem('damda_token') === 'demo_access_token';
+  const isDemo = localStorage.getItem('damda_token') === 'demo_access_token';
   if (isMock || isDemo) return { ...buildMockRecommendations(body), source: 'demo' };
 
   if (sessionId && !String(sessionId).startsWith('mock_')) {
     try {
       const res = await client.post(`/scans/${encodeURIComponent(sessionId)}/recommend`);
       const items = Array.isArray(res.data) ? res.data : (res.data?.recommended_products || res.data?.products || []);
-      if (items.length > 0) return { recommended_products: items, source: 'personalized' };
+      if (items.length > 0) return { recommended_products: items.map(normalizeProductItem), source: 'personalized' };
     } catch (error) {
       if ([401, 403].includes(error.response?.status)) throw error;
     }
   }
   const res = await client.get('/products');
   const items = Array.isArray(res.data) ? res.data : (res.data?.products || []);
-  return { recommended_products: items, source: 'catalog' };
+  return { recommended_products: items.map(normalizeProductItem), source: 'catalog' };
 }
 
 // ── 제품 목록 조회 (GET /products) ──────────────────────

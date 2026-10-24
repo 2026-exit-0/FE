@@ -8,7 +8,7 @@ import Button from '../components/common/Button';
 import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
 import useAuthStore from '../store/authStore';
-import { getRecommendations } from '../api/products';
+import { getRecommendations, getProductById, normalizeProductItem } from '../api/products';
 
 // ─── 카테고리 필터 ───────────────────────────────────────────
 const FILTER_CATEGORIES = [
@@ -20,14 +20,22 @@ const FILTER_CATEGORIES = [
   { id: '탄력', label: '탄력 / 항노화' },
 ];
 
-// ─── 가격대 필터 (BE price_range 필드 기준) ──────────────────
+// ─── 가격대 필터 (price 숫자 기준 — price_range 문자열 표기가 달라도 안전) ──
 const PRICE_RANGES = [
   { id: '', label: '전체 가격' },
-  { id: '1-3만원', label: '1~3만원' },
-  { id: '3-5만원', label: '3~5만원' },
-  { id: '5-10만원', label: '5~10만원' },
-  { id: '10만원+', label: '10만원+' },
+  { id: 'u3', label: '~3만원', max: 30000 },
+  { id: '3_5', label: '3~5만원', min: 30000, max: 50000 },
+  { id: '5_10', label: '5~10만원', min: 50000, max: 100000 },
+  { id: '10p', label: '10만원+', min: 100000 },
 ];
+
+function priceInBucket(price, bucketId) {
+  const b = PRICE_RANGES.find((x) => x.id === bucketId);
+  if (!b || price == null) return price == null ? false : true;
+  if (b.min != null && price < b.min) return false;
+  if (b.max != null && price >= b.max) return false;
+  return true;
+}
 
 // ─── 정렬 옵션 ───────────────────────────────────────────────
 const SORT_OPTIONS = [
@@ -43,11 +51,15 @@ function normalizeIngredients(ingredients) {
   return ingredients.map((ing) => ing?.kr || ing?.inci || String(ing));
 }
 
-// ─── price_range 숫자 추출 (정렬용) ──────────────────────────
-function priceRangeToNum(pr) {
-  if (!pr) return 9999;
-  const map = { '1-3만원': 2, '3-5만원': 4, '5-10만원': 7, '10만원+': 11 };
-  return map[pr] ?? 9999;
+// ─── 정렬용 가격 숫자 (price 우선, 없으면 price_range 문자열 추정) ───────
+function productPriceNum(p) {
+  if (typeof p.price === 'number') return p.price;
+  const pr = p.price_range || '';
+  if (pr.includes('10만') || pr.includes('10만원+')) return 110000;
+  if (pr.includes('5') && pr.includes('10')) return 70000;
+  if (pr.includes('3') && pr.includes('5')) return 40000;
+  if (pr.includes('3만')) return 20000;
+  return 9999999;
 }
 
 // ─── 제품 카드 ───────────────────────────────────────────────
@@ -207,30 +219,38 @@ const ProductModal = ({ product, onClose }) => {
             <p className="text-sm text-text-primary bg-gray-50 rounded-lg px-3 py-2 border-l-2 border-primary-400">{product.reason || '범용 케어'}</p>
           </div>
 
-          {/* 주의 사항 */}
-          {product.warnings?.length > 0 && (
+          {/* 주의 성분 (상세 전용 · 경고 톤) */}
+          {(product.caution_ingredients?.length > 0) && (
             <div>
-              <p className="text-xs text-text-secondary font-semibold uppercase tracking-wide mb-1">주의 성분</p>
+              <p className="text-xs text-red-500 font-semibold uppercase tracking-wide mb-1">⚠ 주의 성분</p>
               <div className="flex flex-wrap gap-1">
-                {product.warnings.map((w, i) => (
-                  <span key={i} className={`text-xs px-2 py-0.5 rounded-md ${w.level === 'high' ? 'bg-red-50 text-red-600' : w.level === 'medium' ? 'bg-amber-50 text-amber-600' : 'bg-gray-100 text-gray-600'}`}>
-                    {w.label}
+                {product.caution_ingredients.map((w, i) => (
+                  <span key={i} className="text-xs px-2 py-0.5 rounded-md bg-red-50 text-red-600 border border-red-100">
+                    {typeof w === 'string' ? w : (w.label || w.kr || '')}
                   </span>
                 ))}
               </div>
             </div>
           )}
 
-          {/* 전성분 (주요 성분) */}
+          {/* 주성분 */}
           {ingredients.length > 0 && (
             <div>
-              <p className="text-xs text-text-secondary font-semibold uppercase tracking-wide mb-2">주요 성분</p>
+              <p className="text-xs text-text-secondary font-semibold uppercase tracking-wide mb-2">주성분</p>
               <div className="flex flex-wrap gap-1.5">
                 {ingredients.map((ing, i) => (
                   <span key={i} className="text-xs bg-gray-100 text-text-secondary px-2 py-0.5 rounded-full">{ing}</span>
                 ))}
               </div>
             </div>
+          )}
+
+          {/* 전성분 (상세 전용 · 접기) */}
+          {product.full_ingredients && (
+            <details>
+              <summary className="text-xs text-text-secondary font-semibold uppercase tracking-wide cursor-pointer select-none">전성분 보기</summary>
+              <p className="mt-2 text-[11px] text-text-secondary leading-relaxed break-words">{product.full_ingredients}</p>
+            </details>
           )}
 
           {/* 구매 버튼 */}
@@ -334,6 +354,30 @@ const ProductsPage = () => {
     }
   }, [currentScan, userInputs]);
 
+  // 카드 클릭 시 목록 데이터로 모달을 먼저 띄우고, BE 상세(주의성분·전성분·판매링크)를 보강
+  const openProduct = useCallback(async (p) => {
+    setSelectedProduct(p);
+    const pid = p?.id;
+    if (!pid || String(pid).startsWith('mock')) return;
+    try {
+      const detail = normalizeProductItem(await getProductById(pid));
+      setSelectedProduct((cur) => {
+        if (!cur || cur.id !== pid) return cur;
+        return {
+          ...cur,
+          caution_ingredients: detail.caution_ingredients ?? cur.caution_ingredients,
+          full_ingredients: detail.full_ingredients ?? cur.full_ingredients,
+          purchase_url: detail.purchase_url ?? cur.purchase_url,
+          main_ingredients: cur.main_ingredients?.length ? cur.main_ingredients : detail.main_ingredients,
+          efficacy: cur.efficacy?.length ? cur.efficacy : detail.efficacy,
+          effect: cur.effect ?? detail.effect,
+          price: cur.price ?? detail.price,
+          price_range: cur.price_range ?? detail.price_range,
+        };
+      });
+    } catch { /* 상세 조회 실패 시 목록 데이터로 표시 */ }
+  }, []);
+
   useEffect(() => {
     initializeIfNeeded();
   }, [initializeIfNeeded]);
@@ -364,9 +408,9 @@ const ProductsPage = () => {
       });
     }
 
-    // 가격대 필터
+    // 가격대 필터 (price 숫자 기준)
     if (priceFilter) {
-      list = list.filter((p) => p.price_range === priceFilter);
+      list = list.filter((p) => priceInBucket(p.price, priceFilter));
     }
 
     // 검색 필터 (이름 / 브랜드 / 성분 한글명)
@@ -384,9 +428,9 @@ const ProductsPage = () => {
     if (sortBy === 'score') {
       list.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
     } else if (sortBy === 'price_asc') {
-      list.sort((a, b) => priceRangeToNum(a.price_range) - priceRangeToNum(b.price_range));
+      list.sort((a, b) => productPriceNum(a) - productPriceNum(b));
     } else if (sortBy === 'price_desc') {
-      list.sort((a, b) => priceRangeToNum(b.price_range) - priceRangeToNum(a.price_range));
+      list.sort((a, b) => productPriceNum(b) - productPriceNum(a));
     }
 
     return list;
@@ -590,7 +634,7 @@ const ProductsPage = () => {
               <div className="space-y-3">
                 {filteredProducts.map((p, idx) => (
                   <div key={p.id ?? idx} className="animate-fadeIn" style={{ animationDelay: `${idx * 50}ms` }}>
-                    <ProductCard product={p} onClick={() => setSelectedProduct(p)} />
+                    <ProductCard product={p} onClick={() => openProduct(p)} />
                   </div>
                 ))}
               </div>
