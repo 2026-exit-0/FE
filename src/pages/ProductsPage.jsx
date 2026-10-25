@@ -307,7 +307,6 @@ const ProductsPage = () => {
   const [priceFilter, setPriceFilter] = useState('');
   const [sortBy, setSortBy] = useState('score');
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const shownIds = useRef(new Set());
 
   const hasScanData = !!currentScan;
   const userInputs = useMemo(() => (
@@ -316,19 +315,13 @@ const ProductsPage = () => {
       : {}
   ), [currentScan]);
 
-  const fetchProducts = useCallback(async ({ filters = [], seed = null, isRefresh = false } = {}) => {
+  const fetchProducts = useCallback(async () => {
     const generation = ++requestGeneration.current;
     const token = localStorage.getItem('damda_token');
     const isCurrent = () => generation === requestGeneration.current && token === localStorage.getItem('damda_token');
     setLoading(true);
     setRecommendationError('');
     try {
-      // 리프레시 시 이미 많이 본 경우 shownIds를 리셋하여 빈 결과 방지
-      if (isRefresh && shownIds.current.size >= 15) {
-        shownIds.current.clear();
-      }
-
-      const excludeIds = isRefresh ? Array.from(shownIds.current) : [];
       const body = {
         measurement: currentScan
           ? { moisture: currentScan.moisture, oil: currentScan.oil, elasticity: currentScan.elasticity }
@@ -336,34 +329,15 @@ const ProductsPage = () => {
         user_inputs: userInputs,
         top_k: 20,
       };
-      if (filters.length > 0) body.filter_categories = filters;
-      if (seed != null) body.seed = seed;
-      if (excludeIds.length > 0) body.exclude_ids = excludeIds;
-
       const data = await getRecommendations(body, currentScan?.sessionId);
       if (!isCurrent()) return;
       setRecommendationSource(data.source);
-      let list = (data.recommended_products || []).map((p) => ({
+      const list = (data.recommended_products || []).map((p) => ({
         ...p,
         id: p.id || p.product_id,
         name: p.name || p.name_kr,
       }));
 
-      // 만약 exclude_ids 때문에 백엔드가 빈 목록을 줬다면, shownIds 비우고 제외 없이 재요청
-      if (list.length === 0 && excludeIds.length > 0) {
-        shownIds.current.clear();
-        delete body.exclude_ids;
-        const retryData = await getRecommendations(body, currentScan?.sessionId);
-        if (!isCurrent()) return;
-        setRecommendationSource(retryData.source);
-        list = (retryData.recommended_products || []).map((p) => ({
-          ...p,
-          id: p.id || p.product_id,
-          name: p.name || p.name_kr,
-        }));
-      }
-
-      list.forEach((p) => p.id && shownIds.current.add(p.id));
       setProducts(list);
     } catch (err) {
       if (!isCurrent()) return;
@@ -414,7 +388,6 @@ const ProductsPage = () => {
   }, [initializeIfNeeded]);
 
   useEffect(() => {
-    shownIds.current.clear();
     setProducts([]);
     setRecommendationSource(null);
     if (hasScanData) fetchProducts();
@@ -484,7 +457,7 @@ const ProductsPage = () => {
   };
 
   const handleRefresh = () => {
-    fetchProducts({ filters: activeFilters, seed: Math.floor(Math.random() * 99999), isRefresh: true });
+    fetchProducts();
   };
 
   const clearAll = () => {
@@ -600,7 +573,7 @@ const ProductsPage = () => {
                   className="flex items-center gap-1.5 text-xs font-medium text-text-secondary border border-gray-200 px-3 py-1.5 rounded-lg hover:border-primary-300 hover:text-primary-600 transition-all disabled:opacity-50 bg-white"
                 >
                   <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-                  다른 추천
+                  새로고침
                 </button>
               </div>
             </div>
