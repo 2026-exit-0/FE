@@ -145,7 +145,7 @@ const ProductCard = ({ product, onClick }) => {
 };
 
 // ─── 제품 상세 모달 ──────────────────────────────────────────
-const ProductModal = ({ product, onClose }) => {
+const ProductModal = ({ product, onClose, detailStatus, onRetry }) => {
   const { wishlist, toggleWish } = useAuthStore();
   if (!product) return null;
 
@@ -219,6 +219,24 @@ const ProductModal = ({ product, onClose }) => {
             <p className="text-sm text-text-primary bg-gray-50 rounded-lg px-3 py-2 border-l-2 border-primary-400">{product.reason || '범용 케어'}</p>
           </div>
 
+          <div role="status" aria-live="polite" className="rounded-xl bg-gray-50 p-3 text-sm text-text-secondary">
+            {detailStatus === 'loading' ? '상세 성분 정보를 불러오는 중입니다.' :
+              detailStatus === 'error' ? (
+                <>
+                  <p>상세 성분 정보를 불러오지 못했습니다. 현재 확인된 정보만 표시합니다.</p>
+                  <button type="button" onClick={onRetry} className="mt-2 font-semibold text-primary-600 underline">다시 조회</button>
+                </>
+              ) : detailStatus === 'unavailable' ? '이 제품의 추가 상세 정보를 조회할 수 없습니다.' :
+                '등록된 제품 정보입니다. 정보 미제공은 해당 성분이 없다는 의미가 아닙니다.'}
+          </div>
+          {detailStatus === 'success' && (
+            <div className="space-y-1 text-xs text-text-secondary">
+              {!product.caution_ingredients?.length && <p>주의성분: 정보 미제공</p>}
+              {!ingredients.length && <p>주성분: 정보 미제공</p>}
+              {!product.full_ingredients?.trim() && <p>전성분: 정보 미제공</p>}
+            </div>
+          )}
+
           {/* 주의 성분 (상세 전용 · 경고 톤) */}
           {(product.caution_ingredients?.length > 0) && (
             <div>
@@ -291,6 +309,8 @@ const ProductsPage = () => {
   const [loading, setLoading] = useState(false);
   const [activeFilters, setActiveFilters] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [detailStatus, setDetailStatus] = useState('idle');
+  const detailRequest = useRef(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [priceFilter, setPriceFilter] = useState('');
   const [sortBy, setSortBy] = useState('score');
@@ -365,11 +385,20 @@ const ProductsPage = () => {
 
   // 카드 클릭 시 목록 데이터로 모달을 먼저 띄우고, BE 상세(주의성분·전성분·판매링크)를 보강
   const openProduct = useCallback(async (p) => {
+    const request = ++detailRequest.current;
+    const token = localStorage.getItem('damda_token');
+    const isCurrent = () => request === detailRequest.current && token === localStorage.getItem('damda_token');
     setSelectedProduct(p);
     const pid = p?.id;
-    if (!pid || String(pid).startsWith('mock')) return;
+    if (!pid || String(pid).startsWith('mock') || token === 'demo_access_token') {
+      setDetailStatus('unavailable');
+      return;
+    }
+    setDetailStatus('loading');
     try {
       const detail = normalizeProductItem(await getProductById(pid));
+      if (!isCurrent()) return;
+      if (!detail || String(detail.id) !== String(pid)) throw new Error('제품 상세 응답 불일치');
       setSelectedProduct((cur) => {
         if (!cur || cur.id !== pid) return cur;
         return {
@@ -384,7 +413,8 @@ const ProductsPage = () => {
           price_range: cur.price_range ?? detail.price_range,
         };
       });
-    } catch { /* 상세 조회 실패 시 목록 데이터로 표시 */ }
+    setDetailStatus('success');
+    } catch { if (isCurrent()) setDetailStatus('error'); }
   }, []);
 
   useEffect(() => {
@@ -398,6 +428,14 @@ const ProductsPage = () => {
     if (hasScanData) fetchProducts();
     return () => { requestGeneration.current++; };
   }, [hasScanData, fetchProducts]);
+
+  const closeProduct = () => {
+    detailRequest.current++;
+    setSelectedProduct(null);
+    setDetailStatus('idle');
+  };
+
+  useEffect(() => () => { detailRequest.current++; }, []);
 
   // 클라이언트 사이드: 카테고리 + 검색 + 가격대 + 정렬
   const filteredProducts = useMemo(() => {
@@ -655,7 +693,7 @@ const ProductsPage = () => {
       <BottomNav />
 
       {/* 모달 */}
-      <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />
+      <ProductModal product={selectedProduct} onClose={closeProduct} detailStatus={detailStatus} onRetry={() => openProduct(selectedProduct)} />
 
       {/* 정렬 메뉴 외부 클릭 닫기 */}
       {showSortMenu && (
