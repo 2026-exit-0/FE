@@ -1,3 +1,4 @@
+import { scoreColor } from '../utils/scoreColor';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -120,7 +121,7 @@ const SkinReport = ({ report }) => {
           {score != null && (
             <div className="flex flex-col items-center justify-center bg-primary-50 rounded-2xl px-5 py-3 flex-shrink-0">
               <span className="text-[10px] font-bold text-primary-600 uppercase">종합 점수</span>
-              <span className="text-3xl font-extrabold text-primary-600 leading-tight">{score}</span>
+              <span style={{ color: scoreColor(score) }} className="text-3xl font-extrabold leading-tight">{score}</span>
               <span className="text-[10px] text-text-secondary">/ 100</span>
             </div>
           )}

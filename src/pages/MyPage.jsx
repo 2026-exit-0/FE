@@ -1,3 +1,4 @@
+import { scoreColor } from '../utils/scoreColor';
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, User, Lock, Save, Heart, RotateCcw, Scan, BarChart3, TrendingUp, ChevronRight } from 'lucide-react';
@@ -287,7 +288,7 @@ const MyPage = () => {
                       <BarChart3 size={12} className="text-blue-500" />
                       <span className="text-[10px] text-blue-600 font-semibold">최근 점수</span>
                     </div>
-                    <p className="text-xl font-black text-blue-600">
+                    <p style={{ color: scoreColor(scans[0]?.overallScore ?? scans[0]?.narrative?.overall_score) }} className="text-xl font-black">
                       {scans[0]?.overallScore ?? scans[0]?.narrative?.overall_score ?? '-'}
                     </p>
                     <p className="text-[9px] text-blue-500">점</p>
@@ -544,7 +545,7 @@ const MyPage = () => {
                               <span className="text-xs text-text-secondary">{scan.date}</span>
                             </div>
                             <p className="text-sm font-medium text-text-primary">
-                              종합 피부 점수: <span className="text-lg text-primary-500 ml-1">{scan.overallScore}</span>점
+                              종합 피부 점수: <span style={{ color: scoreColor(scan.overallScore) }} className="text-lg ml-1">{scan.overallScore}</span>점
                             </p>
                           </div>
                           <ChevronRight className="text-gray-300 group-hover:text-primary-500 transition-colors" />

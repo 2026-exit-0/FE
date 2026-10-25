@@ -1,3 +1,4 @@
+import { scoreColor } from '../utils/scoreColor';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -60,7 +61,7 @@ function extractMetrics(scan) {
 
 // 종합 점수 원형 차트
 const ScoreCircle = ({ score }) => {
-  const color = score >= 70 ? '#4CAF50' : score >= 50 ? '#EAB308' : '#F97316';
+  const color = scoreColor(score);
   const circumference = 2 * Math.PI * 52;
   const offset = circumference - ((score ?? 0) / 100) * circumference;
 
@@ -95,7 +96,7 @@ const DualLightViewer = ({ analysis }) => {
     <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
             <span className="p-1.5 bg-primary-50 text-primary-600 rounded-lg">
               <Camera size={16} />
             </span>
@@ -116,7 +117,7 @@ const DualLightViewer = ({ analysis }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* 1. 일반광 (White Light) */}
         <div className="flex flex-col rounded-xl border border-gray-200 overflow-hidden bg-white shadow-sm">
-          <div className="flex items-center justify-between px-3.5 py-2.5 bg-gray-50 border-b border-gray-200">
+          <div className="flex flex-wrap gap-2 items-center justify-between px-3.5 py-2.5 bg-gray-50 border-b border-gray-200">
             <div className="flex items-center gap-1.5">
               <Sun size={14} className="text-amber-500" />
               <span className="text-xs font-bold text-text-primary">일반광 (White Light 5500K)</span>
@@ -136,7 +137,7 @@ const DualLightViewer = ({ analysis }) => {
             </div>
           </div>
 
-          <div className="p-3 bg-white border-t border-gray-100 text-xs text-text-secondary flex items-center justify-between">
+          <div className="p-3 bg-white border-t border-gray-100 text-xs text-text-secondary flex flex-wrap gap-2 items-center justify-between">
             <span>표면 거칠기: <strong className="text-text-primary">{isDemo ? '양호' : '측정값 없음'}</strong></span>
             <span>평균 반사율: <strong className="text-emerald-600 font-bold">{isDemo ? '78.4%' : '측정값 없음'}</strong></span>
           </div>
@@ -144,7 +145,7 @@ const DualLightViewer = ({ analysis }) => {
 
         {/* 2. UV 형광광 (UV 395nm Wood's Lamp) */}
         <div className="flex flex-col rounded-xl border border-purple-200 overflow-hidden bg-white shadow-sm">
-          <div className="flex items-center justify-between px-3.5 py-2.5 bg-purple-950 text-purple-200 border-b border-purple-900">
+          <div className="flex flex-wrap gap-2 items-center justify-between px-3.5 py-2.5 bg-purple-950 text-purple-200 border-b border-purple-900">
             <div className="flex items-center gap-1.5">
               <Moon size={14} className="text-purple-400" />
               <span className="text-xs font-bold text-white">UV 형광광 (Wood's Lamp 395nm)</span>
@@ -164,7 +165,7 @@ const DualLightViewer = ({ analysis }) => {
             </div>
           </div>
 
-          <div className="p-3 bg-white border-t border-gray-100 text-xs text-text-secondary flex items-center justify-between">
+          <div className="p-3 bg-white border-t border-gray-100 text-xs text-text-secondary flex flex-wrap gap-2 items-center justify-between">
             <span>피지 포르피린: <strong className="text-orange-500 font-bold">{isDemo ? '보통' : '측정값 없음'}</strong></span>
             <span>색소 침착도: <strong className="text-purple-600 font-bold">{analysis?.pigmentation ?? 55}%</strong></span>
           </div>
@@ -239,7 +240,7 @@ const AnalysisPage = () => {
         <Header variant="dashboard" />
         <div className="flex">
           <Sidebar />
-          <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-28 desktop:pb-8">
+          <main className="flex-1 min-w-0 p-4 tablet:p-6 desktop:p-8 pb-28 desktop:pb-8">
             <div className="max-w-lg mx-auto text-center py-20 animate-fadeIn">
               <div className="w-20 h-20 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-6">
                 <BarChart3 size={36} className="text-primary-300" />
@@ -676,8 +677,8 @@ const AnalysisPage = () => {
       <div className="flex">
         <Sidebar />
 
-        <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-28 desktop:pb-8 animate-fadeIn">
-          <div className="max-w-6xl mx-auto">
+        <main className="flex-1 min-w-0 p-4 tablet:p-6 desktop:p-8 pb-28 desktop:pb-8 animate-fadeIn">
+          <div className="max-w-6xl mx-auto min-w-0 break-words">
             {analysis.detailMessage && (
               <div role="status" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                 <p>{analysis.detailMessage}</p>
@@ -694,11 +695,11 @@ const AnalysisPage = () => {
                 </span>
               </div>
 
-              <div className="flex flex-wrap gap-3 justify-center tablet:justify-start flex-1 w-full">
+              <div className="grid grid-cols-2 sm:grid-cols-3 tablet:grid-cols-5 gap-3 flex-1 min-w-0 w-full">
                 {metrics.map((m) => {
                   const style = statusColorMap[m.statusColor];
                   return (
-                    <div key={m.label} className={`flex flex-col items-center px-4 py-3 rounded-xl border ${style.bg} min-w-[90px] flex-1`}>
+                    <div key={m.label} className={`flex flex-col items-center px-4 py-3 rounded-xl border ${style.bg} min-w-0`}>
                       <span className={`text-xl font-bold ${style.text}`}>{m.value == null ? '—' : `${m.value}%`}</span>
                       <span className="text-[10px] text-text-secondary mt-0.5">{m.label}</span>
                       <span className={`text-[9px] font-bold mt-1 px-2 py-0.5 rounded-full ${style.bg} ${style.text}`}>
@@ -716,15 +717,15 @@ const AnalysisPage = () => {
             {/* 본문 레이아웃 */}
             <div className="flex flex-col desktop:flex-row gap-6">
               {/* 사이드 탭 가로 이동식 (모바일/태블릿) & 세로형 (데스크톱) */}
-              <div className="w-full desktop:w-64 flex-shrink-0">
-                <nav className="flex desktop:flex-col overflow-x-auto desktop:overflow-x-visible pb-2 desktop:pb-0 gap-1 border-b desktop:border-b-0 desktop:border-r border-gray-200 pr-0 desktop:pr-4 scrollbar-hide">
+              <div className="w-full min-w-0 desktop:w-64 flex-shrink-0">
+                <nav className="flex max-w-full desktop:flex-col overflow-x-auto desktop:overflow-x-visible pb-2 desktop:pb-0 gap-1 border-b desktop:border-b-0 desktop:border-r border-gray-200 pr-0 desktop:pr-4 scrollbar-hide">
                   {sideMenuItems.map((item) => {
                     const Icon = item.icon;
                     return (
                       <button
                         key={item.id}
                         onClick={() => setActiveMenu(item.id)}
-                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left whitespace-nowrap desktop:whitespace-normal ${
+                        className={`flex shrink-0 items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left whitespace-nowrap desktop:whitespace-normal ${
                           activeMenu === item.id
                             ? 'bg-primary-500 text-white shadow-sm font-bold'
                             : 'text-text-secondary hover:bg-white hover:text-text-primary'
@@ -792,7 +793,7 @@ const AnalysisPage = () => {
                                   </div>
                                   <span className="text-sm font-bold text-text-primary w-10 text-right">{m.value == null ? '—' : `${m.value}%`}</span>
                                 </div>
-                                <div className="flex items-center gap-2 ml-[68px]">
+                                <div className="flex flex-wrap items-center gap-2 tablet:ml-[68px]">
                                   <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${style.bg} ${style.text}`}>
                                     {m.status}
                                   </span>
@@ -812,8 +813,8 @@ const AnalysisPage = () => {
 
                     {/* 맞춤 화장품 추천 미니 섹션 (3개) */}
                     <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap gap-2 items-center justify-between mb-4">
+                        <div className="flex flex-wrap items-center gap-2 min-w-0">
                           <Star size={15} className="text-yellow-500" />
                           <h3 className="text-sm font-bold text-text-primary">분석 기반 추천 화장품</h3>
                         </div>
@@ -862,7 +863,7 @@ const AnalysisPage = () => {
 
                     <div className="flex flex-col tablet:flex-row items-center justify-center gap-10 desktop:gap-16">
                       {/* 세련된 얼굴 실루엣 히트맵 카드 */}
-                      <div className="relative w-64 h-64 bg-gradient-to-b from-primary-50/30 via-white to-gray-50/40 rounded-3xl border border-primary-100/60 p-3.5 flex flex-col items-center justify-around shadow-sm">
+                      <div className="relative w-full max-w-64 h-64 shrink-0 bg-gradient-to-b from-primary-50/30 via-white to-gray-50/40 rounded-3xl border border-primary-100/60 p-3.5 flex flex-col items-center justify-around shadow-sm">
                         {/* 은은한 얼굴 실루엣 SVG 백그라운드 */}
                         <svg className="absolute inset-0 w-full h-full text-primary-200/40 pointer-events-none p-3" viewBox="0 0 100 120" fill="none" stroke="currentColor" strokeWidth="0.8" strokeDasharray="2 2">
                           <ellipse cx="50" cy="55" rx="36" ry="46" />
@@ -977,7 +978,7 @@ const AnalysisPage = () => {
                 {/* 4. 제품 추천 (H.5.4) */}
                 {activeMenu === 'products' && (
                   <div className="space-y-4 animate-fadeIn">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap gap-2 items-center justify-between">
                       <h3 className="text-sm font-bold text-text-primary">분석 맞춤 추천 화장품</h3>
                       <Link to="/products" className="text-xs font-semibold text-primary-600 flex items-center gap-1">
                         전체 추천 보기 <ArrowRight size={13} />

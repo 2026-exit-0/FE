@@ -1,3 +1,4 @@
+import { scoreColor } from '../utils/scoreColor';
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -68,7 +69,7 @@ const ProgressBar = ({ value, max = 100 }) => {
         className="h-full rounded-full transition-all duration-700 ease-out"
         style={{
           width: `${percent}%`,
-          backgroundColor: percent >= 70 ? '#4CAF50' : percent >= 50 ? '#EAB308' : '#F97316',
+          backgroundColor: scoreColor(value),
         }}
       />
     </div>
@@ -443,7 +444,7 @@ const ReportPage = () => {
                                   {item.skinType || '-'}
                                 </td>
                                 <td className="py-3.5 pr-3 font-bold text-text-primary">
-                                  {score === null ? '-' : `${score}점`}
+                                  <span style={{ color: scoreColor(score) }}>{score === null ? '-' : `${score}점`}</span>
                                 </td>
                                 <td className="py-3.5">
                                   <div className="flex items-center gap-2">
