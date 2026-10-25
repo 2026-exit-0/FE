@@ -1,3 +1,4 @@
+import { productScoreLabel } from '../utils/productScore';
 import { scoreColor } from '../utils/scoreColor';
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -499,7 +500,7 @@ const MyPage = () => {
                           <div className="min-w-0 flex-1">
                             <p className="text-[10px] text-text-secondary">{product.brand}</p>
                             <p className="text-xs font-bold text-text-primary truncate">{product.name}</p>
-                            <span className="text-[10px] text-primary-600 font-bold mt-1 inline-block">매칭율 {product.compatibility || product.score || 90}%</span>
+                            <span className="text-[10px] text-primary-600 font-bold mt-1 inline-block">{productScoreLabel(product)}</span>
                           </div>
                           
                           <button

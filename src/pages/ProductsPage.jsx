@@ -1,3 +1,4 @@
+import { productScoreLabel, compareProductScore } from '../utils/productScore';
 import { productPrice, productPriceLabel, compareProductPrice } from '../utils/productPrice';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
@@ -86,7 +87,7 @@ const ProductCard = ({ product, onClick }) => {
             <div className="flex flex-wrap gap-1 mt-1">{catTags}</div>
           </div>
           <span className="text-xs font-bold bg-gradient-to-r from-emerald-500 to-green-600 text-white px-2.5 py-1 rounded-lg flex-shrink-0 shadow-sm">
-            {product.score?.toFixed(1) ?? '0'}점
+            {productScoreLabel(product)}
           </span>
         </div>
 
@@ -174,7 +175,7 @@ const ProductModal = ({ product, onClose, detailStatus, onRetry }) => {
             </div>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <span className="text-sm font-bold bg-gradient-to-r from-emerald-500 to-green-600 text-white px-3 py-1 rounded-lg shadow-sm">
-                {product.score?.toFixed(1) ?? '0'}점
+                {productScoreLabel(product)}
               </span>
               {/* 가격대 */}
               {(
@@ -464,7 +465,7 @@ const ProductsPage = () => {
 
     // 정렬
     if (sortBy === 'score') {
-      list.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+      list.sort(compareProductScore);
     } else if (sortBy === 'price_asc') {
       list.sort((a, b) => compareProductPrice(a, b));
     } else if (sortBy === 'price_desc') {

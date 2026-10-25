@@ -1,3 +1,4 @@
+import { productScore } from '../utils/productScore';
 import client, { isMock } from './client';
 import { mockProducts, calculateCompatibility } from '../utils/mockData';
 
@@ -7,7 +8,7 @@ export function normalizeProductItem(p) {
   if (!p || typeof p !== 'object') return p;
   const main = p.main_ingredients ?? p.key_ingredients ?? p.ingredients ?? [];
   const eff = Array.isArray(p.efficacy) ? p.efficacy : (p.efficacy ? [p.efficacy] : []);
-  const score = p.score ?? (p.match_score != null ? Number(p.match_score) : undefined);
+  const score = productScore(p);
   return {
     ...p,
     id: p.id ?? p.product_id,
