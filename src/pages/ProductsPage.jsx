@@ -1,3 +1,4 @@
+import { productPrice, productPriceLabel, compareProductPrice } from '../utils/productPrice';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, Scan, RefreshCw, Sparkles, Heart, Search, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
@@ -23,13 +24,14 @@ const FILTER_CATEGORIES = [
 // ─── 가격대 필터 (price 숫자 기준 — price_range 문자열 표기가 달라도 안전) ──
 const PRICE_RANGES = [
   { id: '', label: '전체 가격' },
-  { id: 'u3', label: '~3만원', max: 30000 },
-  { id: '3_5', label: '3~5만원', min: 30000, max: 50000 },
-  { id: '5_10', label: '5~10만원', min: 50000, max: 100000 },
+  { id: 'u3', label: '3만원 미만', max: 30000 },
+  { id: '3_5', label: '3만~5만원 미만', min: 30000, max: 50000 },
+  { id: '5_10', label: '5만~10만원 미만', min: 50000, max: 100000 },
   { id: '10p', label: '10만원+', min: 100000 },
 ];
 
-function priceInBucket(price, bucketId) {
+function priceInBucket(value, bucketId) {
+  const price = productPrice(value);
   const b = PRICE_RANGES.find((x) => x.id === bucketId);
   if (!b || price == null) return price == null ? false : true;
   if (b.min != null && price < b.min) return false;
@@ -49,17 +51,6 @@ function normalizeIngredients(ingredients) {
   if (!Array.isArray(ingredients) || ingredients.length === 0) return [];
   if (typeof ingredients[0] === 'string') return ingredients;
   return ingredients.map((ing) => ing?.kr || ing?.inci || String(ing));
-}
-
-// ─── 정렬용 가격 숫자 (price 우선, 없으면 price_range 문자열 추정) ───────
-function productPriceNum(p) {
-  if (typeof p.price === 'number') return p.price;
-  const pr = p.price_range || '';
-  if (pr.includes('10만') || pr.includes('10만원+')) return 110000;
-  if (pr.includes('5') && pr.includes('10')) return 70000;
-  if (pr.includes('3') && pr.includes('5')) return 40000;
-  if (pr.includes('3만')) return 20000;
-  return 9999999;
 }
 
 // ─── 제품 카드 ───────────────────────────────────────────────
@@ -111,9 +102,9 @@ const ProductCard = ({ product, onClick }) => {
         <div className="flex justify-between items-center mt-2 border-t border-gray-50 pt-2">
           <div className="flex items-center gap-1.5 flex-wrap">
             {/* 가격대 */}
-            {product.price_range && (
+            {(
               <span className="text-[10px] bg-blue-50 text-blue-600 font-semibold px-2 py-0.5 rounded-full">
-                {product.price_range}
+                {productPriceLabel(product)}
               </span>
             )}
             {/* 무향료 / 무알코올 뱃지 */}
@@ -186,9 +177,9 @@ const ProductModal = ({ product, onClose, detailStatus, onRetry }) => {
                 {product.score?.toFixed(1) ?? '0'}점
               </span>
               {/* 가격대 */}
-              {product.price_range && (
+              {(
                 <span className="text-xs bg-blue-50 text-blue-600 font-semibold px-2.5 py-1 rounded-full">
-                  💰 {product.price_range}
+                  💰 {productPriceLabel(product)}
                 </span>
               )}
               {(product.category || []).map((c) => (
@@ -475,9 +466,9 @@ const ProductsPage = () => {
     if (sortBy === 'score') {
       list.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
     } else if (sortBy === 'price_asc') {
-      list.sort((a, b) => productPriceNum(a) - productPriceNum(b));
+      list.sort((a, b) => compareProductPrice(a, b));
     } else if (sortBy === 'price_desc') {
-      list.sort((a, b) => productPriceNum(b) - productPriceNum(a));
+      list.sort((a, b) => compareProductPrice(a, b, true));
     }
 
     return list;
