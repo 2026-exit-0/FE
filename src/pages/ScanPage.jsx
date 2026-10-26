@@ -144,10 +144,9 @@ const previewUrl = streamUrl
     }retry=${streamRetryKey}`
   : '';
 
-  // 기기는 항상 '연결됨'으로 표시한다. 실제 측정 가능 여부는 스캔 시 판단하고,
-  // 불가하면 자동으로 데모 결과로 폴백한다. (전시 무중단)
-  const displayScannerStatus = 'ok';
-  const displayScannerMsg = scannerStatus === 'ok' ? scannerMsg : '스캐너 연결됨 · 측정 준비 완료';
+  const displayScannerMsg = scannerMsg;
+  const scannerTitle = scannerStatus === 'checking' ? '스캐너 확인 중'
+    : scannerStatus === 'ok' ? '스캐너 등록 확인됨' : '스캐너 연결 확인 불가';
 
   useEffect(() => { initializeIfNeeded(); }, [initializeIfNeeded]);
 
@@ -232,20 +231,20 @@ const previewUrl = streamUrl
       if (requestId !== scannerRequestRef.current) return;
       if (data.status === 'ok') {
         setScannerStatus('ok');
-        setScannerMsg(data.message || '스캐너 연결됨');
+        setScannerMsg(data.message || '등록된 기기입니다. 실제 통신 상태는 촬영 시 확인합니다.');
         setStreamUrl(data.streamUrl || '');
         setDetectedIp(data.ip || null);
       } else {
-        // 기기가 없어도 UI는 연결된 것처럼 두고, 스트림만 비운다.
-        setScannerStatus('standby');
-        setScannerMsg('스캐너 연결됨 · 측정 준비 완료');
+        // 등록 조회만으로 실제 기기 연결을 단정하지 않는다.
+        setScannerStatus('unreachable');
+        setScannerMsg('기기 전원과 Wi-Fi를 확인해 주세요.');
         setStreamUrl('');
         setDetectedIp(null);
       }
     } catch {
       if (requestId !== scannerRequestRef.current) return;
-      setScannerStatus('standby');
-      setScannerMsg('스캐너 연결됨 · 측정 준비 완료');
+      setScannerStatus('unreachable');
+      setScannerMsg('기기 전원과 Wi-Fi를 확인해 주세요.');
       setStreamUrl('');
       setDetectedIp(null);
     }
@@ -669,12 +668,12 @@ useEffect(() => {
               {/* 스캐너 연결 카드 */}
               <div className="border-t border-gray-100 pt-5">
                 <h3 className="mb-3 text-sm font-semibold text-text-primary">스캐너 연결</h3>
-                <div className="rounded-xl p-4 flex items-center gap-3 bg-primary-50">
+                <div className="rounded-xl p-4 flex items-center gap-3 bg-gray-50">
                   <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary-100">
                     <Wifi size={18} className="text-primary-500" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-primary-700">스캐너 연결됨</p>
+                    <p className="text-sm font-medium text-primary-700">{scannerTitle}</p>
                     <p className="text-xs text-primary-500">{displayScannerMsg}</p>
                   </div>
                 </div>
@@ -682,7 +681,7 @@ useEffect(() => {
                   <p className="text-sm font-semibold">기기 연결 · {scannerSession.deviceId}</p>
                   <p className="my-2 text-xs text-text-secondary" role="status">{linkMessage}</p>
                   <Button onClick={connectDevice} disabled={deviceLinked || linkBusy || scanStatus === 'scanning' || scanStatus === 'countdown'}>
-                    {deviceLinked ? '내 계정에 연결됨' : linkBusy ? '연결 중...' : '이 기기로 측정하기 (선택)'}
+                    {deviceLinked ? '내 계정에 연결됨' : linkBusy ? '연결 중...' : '내 계정에 기기 연결'}
                   </Button>
                 </div>
               </div>
