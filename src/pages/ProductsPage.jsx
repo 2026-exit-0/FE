@@ -633,14 +633,29 @@ const ProductsPage = () => {
                   <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 h-28 animate-pulse" />
                 ))}
               </div>
+            ) : recommendationError ? (
+              <div role="alert" className="text-center py-16 text-text-secondary">
+                <RefreshCw size={40} className="mx-auto mb-3 text-gray-300" />
+                <p className="text-sm font-medium text-text-primary mb-1">제품 목록을 불러오지 못했어요.</p>
+                <p className="text-xs text-text-secondary mb-4">잠시 후 다시 시도해 주세요. 선택한 검색 조건은 유지됩니다.</p>
+                <button onClick={handleRefresh} className="text-primary-500 text-sm font-semibold hover:underline">
+                  다시 시도
+                </button>
+              </div>
             ) : filteredProducts.length === 0 ? (
               <div className="text-center py-16 text-text-secondary">
                 <ShoppingBag size={40} className="mx-auto mb-3 text-gray-300" />
-                <p className="text-sm font-medium text-text-primary mb-1">해당 조건에 맞는 제품이 없어요.</p>
-                <p className="text-xs text-text-secondary mb-4">검색어나 필터를 변경해 보세요.</p>
-                <button onClick={clearAll} className="text-primary-500 text-sm font-semibold hover:underline">
-                  필터 초기화
-                </button>
+                <p className="text-sm font-medium text-text-primary mb-1">
+                  {hasActiveFilter ? '해당 조건에 맞는 제품이 없어요.' : '현재 표시할 제품이 없어요.'}
+                </p>
+                <p className="text-xs text-text-secondary mb-4">
+                  {hasActiveFilter ? '검색어나 필터를 변경해 보세요.' : '나중에 새로고침해 주세요.'}
+                </p>
+                {hasActiveFilter && (
+                  <button onClick={clearAll} className="text-primary-500 text-sm font-semibold hover:underline">
+                    필터 초기화
+                  </button>
+                )}
               </div>
             ) : (
               <div className="space-y-3">
