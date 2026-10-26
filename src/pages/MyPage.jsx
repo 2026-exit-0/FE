@@ -11,6 +11,18 @@ import BottomNav from '../components/common/BottomNav';
 import Button from '../components/common/Button';
 import { SKIN_TYPES, SKIN_CONCERNS } from '../utils/constants';
 
+const WishlistImage = ({ src, name }) => {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => { setFailed(false); }, [src]);
+  return (
+    <div className="w-16 h-16 rounded-lg bg-gray-50 flex items-center justify-center text-xl flex-shrink-0 overflow-hidden">
+      {src && !failed
+        ? <img src={src} alt={name || '제품 사진'} loading="lazy" className="w-full h-full object-contain" onError={() => setFailed(true)} />
+        : <span aria-label="제품 사진 없음">📦</span>}
+    </div>
+  );
+};
+
 const MyPage = () => {
   const navigate = useNavigate();
   const { user, survey, wishlist, toggleWish, fetchWishlist, wishlistBusy, wishlistError, updateUser, changePassword, updateProfileImage, fetchSurvey, saveSurvey } = useAuthStore();
@@ -507,7 +519,7 @@ const MyPage = () => {
                     <div className="grid grid-cols-1 tablet:grid-cols-2 gap-4">
                       {wishlist.map((product) => (
                         <div key={product.id} className="bg-white border border-gray-100 hover:border-primary-200 rounded-xl p-4 flex gap-3 shadow-sm hover:shadow relative group transition-all">
-                          <div className="w-16 h-16 rounded-lg bg-gray-50 flex items-center justify-center text-xl flex-shrink-0">📦</div>
+                          <WishlistImage src={product.image_url} name={product.name} />
                           <div className="min-w-0 flex-1">
                             <p className="text-[10px] text-text-secondary">{product.brand}</p>
                             <p className="text-xs font-bold text-text-primary truncate">{product.name}</p>
