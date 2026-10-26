@@ -166,6 +166,7 @@ const ReportPage = () => {
 
   const availableScans = useMemo(() => selectReportScans(
     [...scans, ...(currentScan ? [currentScan] : [])],
+    localStorage.getItem('damda_token') === 'demo_access_token' ? 'mock' : 'real',
   ), [scans, currentScan]);
   const displayScans = useMemo(() => {
     return filterReportPeriod(availableScans, period, new Date());
@@ -180,7 +181,7 @@ const ReportPage = () => {
   const handleExportPDF = async () => {
     const sessionId = currentScan?.sessionId;
 
-    if (sessionId) {
+    if (sessionId && !currentScan?.exampleMetrics) {
       try {
         const blob = await downloadReportPdf(sessionId);
         const url = URL.createObjectURL(blob);

@@ -28,7 +28,7 @@ export async function loadAnalysisDetail(sessionId, history = {}, signal) {
   }
   if (!data || (data.session_id && data.session_id !== sessionId)) throw new Error('촬영 결과를 확인할 수 없습니다.');
   const values = data.result || data;
-  const number = value => value == null || value === '' || !Number.isFinite(Number(value)) ? null : Number(value);
+  const number = value => value == null || typeof value === 'boolean' || String(value).trim() === '' || !Number.isFinite(Number(value)) ? null : Number(value);
   // 변환 과정에서 붙인 기본 점수 대신 같은 세션의 원본 응답만 보존한다.
   const original = history._raw || history;
   const originalId = original.session_id || original.sessionId || history.sessionId || history.session_id;

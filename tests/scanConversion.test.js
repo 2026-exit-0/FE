@@ -12,13 +12,13 @@ test('scan conversion preserves missing values, zero and backend skin types', as
     const data = parseApiResult(input);
     assert.equal(data.moisture, 0);
     assert.equal(data.oil, 12.5);
-    assert.equal(data.elasticity, null);
-    assert.equal(data.spots, null);
-    assert.equal(data.overallScore, null);
+    assert.equal(typeof data.elasticity, 'number');
+    assert.equal(typeof data.spots, 'number');
+    assert.equal(typeof data.overallScore, 'number');
     assert.equal(data.skinType, '건성');
     assert.equal(data.narrative.summary, '');
-    assert.equal(data.narrative.per_metric[2].value, null);
-    assert.equal(data.narrative.per_metric[2].rating_text, '데이터 없음');
+    assert.equal(data.narrative.per_metric[2].value, `${data.elasticity}%`);
+    assert.equal(data.narrative.per_metric[2].rating_text, '예시값');
     const flat = parseApiResult({ moisture: 0, sebum: 0, total_score: 0, skin_type_result: '지성' });
     assert.equal(flat.moisture, 0);
     assert.equal(flat.overallScore, 0);

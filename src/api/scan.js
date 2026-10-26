@@ -7,9 +7,6 @@ const DEVICE_API_BASE = import.meta.env.VITE_DEVICE_API_BASE || '/device-api';
 const DEFAULT_DEVICE_ID = import.meta.env.VITE_SCANNER_DEVICE_ID || 'ESP32_1';
 export const scannerSession = createScannerSessionApi(client, DEFAULT_DEVICE_ID);
 
-// 실기기 측정 시도 제한 시간(ms). 이 시간 안에 응답이 없으면 데모 폴백으로 전환한다.
-const REAL_SCAN_TIMEOUT_MS = Number(import.meta.env.VITE_SCAN_TIMEOUT_MS) || 8000;
-
 // ── 신규 BE 스캔 세션 생성 (POST /scans) ────────────────────
 export async function createScanSession(data = {}) {
   if (isMock) {
@@ -104,123 +101,27 @@ export async function getScannerHealth() {
   };
 }
 
-// 부위 코드(FE) → BE가 아는 scan_area(한글). 데모 점수·폴백 이미지 매칭에 사용.
-const REGION_TO_AREA = {
-  FOREHEAD: '이마', NOSE: '코', CHIN: '턱',
-  L_CHEEK: '왼쪽볼', R_CHEEK: '오른쪽볼', CHEEK: '볼',
-};
-
-// BE 데모 분석을 호출해 리치 리포트·부위 매칭 이미지를 받아온다. (실기기 실패 시 폴백)
-async function demoViaBackend(region) {
-  const scan_area = REGION_TO_AREA[region] || region;
-  const session = await createScanSession({ scan_area });
-  const sid = session.session_id;
-  await client.post(`/scans/${sid}/analyze-scan`, null, { params: { demo: true, region } });
-  const [{ data: result }, { data: advice }] = await Promise.all([
-    client.get(`/result/${sid}`),
-    client.get(`/care/${sid}`),
-  ]);
-  const rep = advice?.report || {};
-  return {
-    session_id: sid,
-    is_mock: true,
-    area: scan_area,
-    total_score: rep.overall_score ?? null,
-    skin_type_result: rep.skin_type ?? null,
-    result: {
-      moisture: result.moisture, sebum: result.sebum, pore: result.pore,
-      elasticity: result.elasticity, pigmentation: result.pigmentation,
-    },
-    advice,
-    recommended_products: advice?.recommended_products || [],   // 성분 기반 추천 (카드용)
-    white_image_url: result.white_image_url,
-    uv_image_url: result.uv_image_url,
-    meta: { region },
-  };
-}
-
-// promise 에 제한 시간을 건다. 시간 초과 시 TIMEOUT 에러로 reject.
-function withTimeout(promise, ms, label = 'TIMEOUT') {
-  let timer;
-  const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => {
-      const err = new Error(label);
-      err.code = label;
-      reject(err);
-    }, ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-}
-
-// ── 단일 측정 흐름 (모드 구분 없음) ──────────────────────────
-// 항상 실기기/실제 AI 측정을 먼저 시도하고, 하드웨어·AI가 응답하지 않으면
-// 자동으로 BE 데모 분석 → 로컬 목업 순으로 폴백한다. (전시 무중단)
+// 실제 촬영은 같은 서버 세션을 끝까지 조회한다. 오류를 예시 촬영으로 대체하지 않는다.
 export async function measureWithScanner(formData, { sessionId, signal, onSession } = {}) {
+  signal?.throwIfAborted();
   const region = formData?.get?.('region') || 'FOREHEAD';
-
-  // (A) 물리 버튼 등으로 이미 시작된 실기기 세션 재개 → 실제 결과를 기다린다(폴백 없음).
-  if (sessionId) {
-    onSession?.(sessionId);
-    return scannerSession.wait(sessionId, { signal });
-  }
-
-  // (B) 화면 버튼 스캔: 실기기 측정 시도(타임아웃)
-  try {
-    const session = await withTimeout(
-      scannerSession.start(region, { signal }), REAL_SCAN_TIMEOUT_MS, 'SCAN_START_TIMEOUT');
-    onSession?.(session.session_id);
-    const result = await withTimeout(
-      scannerSession.wait(session.session_id, { signal }), REAL_SCAN_TIMEOUT_MS, 'SCAN_WAIT_TIMEOUT');
-    return { ...result, is_mock: Boolean(result?.is_mock) };
-  } catch (e) {
-    if (signal?.aborted) throw e; // 사용자가 화면을 벗어난 경우: 폴백하지 않는다.
-    console.warn('[scan] 실기기 측정 실패/시간초과 → 데모 분석으로 전환:', e?.message);
-  }
-
-  // (C) BE 데모 분석 폴백 (설문 기반 리포트 + 부위 매칭 이미지)
-  try {
-    return await demoViaBackend(region);
-  } catch (e) {
-    console.warn('[scan] BE 데모 분석 실패 → 로컬 목업 폴백:', e?.message);
-  }
-
-  // (D) 로컬 목업 최종 폴백 (BE·네트워크 모두 불가 시 전시 안전망)
-  await delay(500);
-  return buildMockResult(region);
+  const id = sessionId || (await scannerSession.start(region, { signal })).session_id;
+  onSession?.(id);
+  return scannerSession.wait(id, { signal });
 }
 
-// ── 사진 업로드 분석 ─────────────────────────────────────
-// 업로드한 사진으로 실제 분석을 시도하고, 실패하면 설문 기반 목업으로 폴백한다.
+// 사진 업로드 실패도 예시 사진이나 센서값으로 대체하지 않는다.
 export async function measureWithPhoto(formData) {
   const region = formData?.get?.('region') || '얼굴 전체';
-
-  let sessionId = null;
-  try {
-    const session = await createScanSession({ scan_area: region });
-    sessionId = session?.session_id;
-  } catch (sessErr) {
-    console.warn('[photo] 세션 생성 실패 → 목업 폴백:', sessErr?.message);
-    await delay(1000);
-    return buildMockResult(region);
-  }
-
-  try {
-    const uploadData = formData instanceof FormData ? formData : new FormData();
-    uploadData.set('demo', 'false');
-
-    const res = await client.post(`/scans/${sessionId}/analyze`, uploadData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    const data = res.data || {};
-    return {
-      ...data,
-      session_id: sessionId,
-      is_mock: Boolean(data.is_mock),
-    };
-  } catch (err) {
-    console.warn('[photo] 분석 실패 → 목업 폴백:', err?.message);
-    return buildMockResult(region);
-  }
+  const session = await createScanSession({ scan_area: region });
+  const sessionId = session?.session_id;
+  if (!sessionId) throw new Error('촬영 세션 정보를 받지 못했습니다.');
+  const uploadData = formData instanceof FormData ? formData : new FormData();
+  uploadData.set('demo', 'false');
+  const { data } = await client.post(`/scans/${encodeURIComponent(sessionId)}/analyze`, uploadData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return { ...data, session_id: sessionId, is_mock: Boolean(data?.is_mock) };
 }
 
 // ── 분석 리포트 PDF 다운로드 (GET /report/{session_id}/pdf) ───

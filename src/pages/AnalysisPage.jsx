@@ -1,3 +1,4 @@
+import { withExampleMetrics } from '../utils/exampleMetrics';
 import { scoreColor } from '../utils/scoreColor';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -222,7 +223,7 @@ const AnalysisPage = () => {
   }, [requestKey, retry]);
 
   const currentDetail = detail?.key === requestKey ? detail : null;
-  const analysis = demo ? selected : currentDetail?.data;
+  const analysis = withExampleMetrics(demo ? selected : currentDetail?.data);
   const hasScanData = !!selected;
   if (hasScanData && !demo && !analysis) {
     return <div className="min-h-screen bg-background-gray">
@@ -293,6 +294,7 @@ const AnalysisPage = () => {
 
     if (sessionId) {
       try {
+        if (analysis.exampleMetrics) throw new Error('LOCAL_EXAMPLE_REPORT');
         const blob = await downloadReportPdf(sessionId);
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
