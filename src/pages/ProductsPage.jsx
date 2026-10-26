@@ -56,7 +56,7 @@ function normalizeIngredients(ingredients) {
 
 // ─── 제품 카드 ───────────────────────────────────────────────
 const ProductCard = ({ product, onClick }) => {
-  const { wishlist, toggleWish } = useAuthStore();
+  const { wishlist, toggleWish, wishlistBusy } = useAuthStore();
   const isWished = (wishlist || []).some((p) => p.id === product.id);
   const ingredients = normalizeIngredients(product.main_ingredients);
 
@@ -125,6 +125,7 @@ const ProductCard = ({ product, onClick }) => {
           </div>
 
           <button
+            disabled={wishlistBusy}
             onClick={(e) => { e.stopPropagation(); toggleWish(product); }}
             className="p-1.5 rounded-full hover:bg-gray-50 transition-colors flex-shrink-0"
           >
@@ -138,7 +139,7 @@ const ProductCard = ({ product, onClick }) => {
 
 // ─── 제품 상세 모달 ──────────────────────────────────────────
 const ProductModal = ({ product, onClose, detailStatus, onRetry }) => {
-  const { wishlist, toggleWish } = useAuthStore();
+  const { wishlist, toggleWish, wishlistBusy } = useAuthStore();
   if (!product) return null;
 
   const isWished = (wishlist || []).some((p) => p.id === product.id);
@@ -167,6 +168,7 @@ const ProductModal = ({ product, onClose, detailStatus, onRetry }) => {
                 <h2 className="text-lg font-bold text-text-primary mt-1">{product.name}</h2>
               </div>
               <button
+                disabled={wishlistBusy}
                 onClick={() => toggleWish(product)}
                 className="p-2 rounded-full border border-gray-100 hover:bg-gray-50 transition-colors flex-shrink-0"
               >
@@ -292,6 +294,8 @@ const ProductModal = ({ product, onClose, detailStatus, onRetry }) => {
 // ─── 메인 페이지 ─────────────────────────────────────────────
 const ProductsPage = () => {
   useAuth(true);
+  const { user, fetchWishlist, wishlistError, wishlistBusy } = useAuthStore();
+  useEffect(() => { fetchWishlist(); }, [user?.user_id, fetchWishlist]);
   const { currentScan, initializeIfNeeded } = useScanStore();
 
   const [products, setProducts] = useState([]);
@@ -515,6 +519,13 @@ const ProductsPage = () => {
                 </p>
               </div>
             </div>
+
+            {wishlistError && (
+              <div role="alert" className="mb-4 text-sm text-red-600">
+                {wishlistError}
+                <button disabled={wishlistBusy} onClick={fetchWishlist} className="ml-2 underline">찜 목록 다시 조회</button>
+              </div>
+            )}
 
             {/* 검색바 */}
             <div className="relative mb-3">

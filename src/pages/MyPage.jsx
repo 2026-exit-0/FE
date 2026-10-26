@@ -13,8 +13,11 @@ import { SKIN_TYPES, SKIN_CONCERNS } from '../utils/constants';
 
 const MyPage = () => {
   const navigate = useNavigate();
-  const { user, survey, wishlist, toggleWish, setWishlist, updateUser, changePassword, updateProfileImage, fetchSurvey, saveSurvey } = useAuthStore();
+  const { user, survey, wishlist, toggleWish, fetchWishlist, wishlistBusy, wishlistError, updateUser, changePassword, updateProfileImage, fetchSurvey, saveSurvey } = useAuthStore();
   const { scans, setCurrentScan } = useScanStore();
+
+  useEffect(() => { fetchWishlist(); }, [user?.user_id, fetchWishlist]);
+  useEffect(() => { setUndoBackup(null); setShowUndoSnackbar(false); }, [user?.user_id]);
 
   const fileInputRef = useRef(null);
   const [activeTab, setActiveTab] = useState('profile'); // profile, password, scans, survey, wishlist
@@ -191,22 +194,23 @@ const MyPage = () => {
     }
   };
 
-  // 찜 삭제 핸들러 (5초 되돌리기 활성화)
-  const handleCancelWish = (product) => {
-    const backup = [...wishlist];
-    setUndoBackup(backup);
-    toggleWish(product);
+  // 삭제 성공 후 해당 제품만 되돌릴 수 있다.
+  const handleCancelWish = async (product) => {
+    const owner = useAuthStore.getState().user?.user_id;
+    const result = await toggleWish(product, false);
+    if (!result.success || owner !== useAuthStore.getState().user?.user_id) return;
+    setUndoBackup(product);
     setShowUndoSnackbar(true);
   };
 
-  // 찜 되돌리기 실행
-  const handleUndo = () => {
-    if (undoBackup) {
-      setWishlist(undoBackup);
-      setShowUndoSnackbar(false);
-      setUndoBackup(null);
-      showToast('찜 취소가 복원되었습니다.');
-    }
+  const handleUndo = async () => {
+    if (!undoBackup) return;
+    const owner = useAuthStore.getState().user?.user_id;
+    const result = await toggleWish(undoBackup, true);
+    if (!result.success || owner !== useAuthStore.getState().user?.user_id) return;
+    setShowUndoSnackbar(false);
+    setUndoBackup(null);
+    showToast('찜 취소가 복원되었습니다.');
   };
 
   return (
@@ -492,6 +496,13 @@ const MyPage = () => {
                 <div className="animate-fadeIn">
                   <h3 className="text-lg font-bold text-text-primary border-b pb-4 mb-6">내가 찜한 제품</h3>
 
+                  {wishlistError && (
+                    <div role="alert" className="mb-4 text-sm text-red-600">
+                      {wishlistError}
+                      <button disabled={wishlistBusy} onClick={fetchWishlist} className="ml-2 underline">다시 조회</button>
+                    </div>
+                  )}
+                  {wishlistBusy && <p role="status" className="mb-4 text-sm text-text-secondary">찜 목록을 동기화하고 있어요.</p>}
                   {wishlist.length > 0 ? (
                     <div className="grid grid-cols-1 tablet:grid-cols-2 gap-4">
                       {wishlist.map((product) => (
@@ -504,6 +515,7 @@ const MyPage = () => {
                           </div>
                           
                           <button
+                            disabled={wishlistBusy}
                             onClick={() => handleCancelWish(product)}
                             className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-rose-50 text-rose-500 transition-colors"
                             title="찜 취소"
@@ -516,7 +528,7 @@ const MyPage = () => {
                   ) : (
                     <div className="text-center py-12 text-text-secondary">
                       <Heart size={32} className="mx-auto mb-2 text-gray-300" />
-                      <p className="text-sm">찜한 화장품이 없습니다.</p>
+                      <p className="text-sm">{wishlistError ? '찜 목록을 다시 조회해 주세요.' : wishlistBusy ? '잠시 기다려 주세요.' : '찜한 화장품이 없습니다.'}</p>
                     </div>
                   )}
                 </div>
