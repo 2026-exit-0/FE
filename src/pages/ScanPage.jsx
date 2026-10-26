@@ -422,8 +422,8 @@ useEffect(() => {
               <div className="overflow-hidden card">
                 {/* 스캐너 연결 상태 */}
                 <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full transition-colors bg-green-500" />
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="w-2 h-2 transition-colors bg-green-500 rounded-full" />
                     <span className="text-sm text-text-secondary">{displayScannerMsg}</span>
                     <button
                       type="button"
@@ -435,16 +435,16 @@ useEffect(() => {
                     </button>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full border border-primary-100">
+                    <span className="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full border border-primary-100 whitespace-nowrap">
                       {selectedArea}
                     </span>
                     <span className="text-xs text-text-secondary">UV 모드</span>
                   </div>
                 </div>
 
-                <details className="mb-4 rounded-xl border border-gray-200 p-3 text-sm">
-                  <summary className="cursor-pointer font-medium">로컬 영상 직접 연결 설정</summary>
-                  <label className="mt-3 flex items-center gap-2">
+                <details className="p-3 mb-4 text-sm border border-gray-200 rounded-xl">
+                  <summary className="font-medium cursor-pointer">로컬 영상 직접 연결 설정</summary>
+                  <label className="flex items-center gap-2 mt-3">
                     <input type="checkbox" checked={localPreview}
                       disabled={['scanning', 'countdown', 'complete'].includes(scanStatus)}
                       onChange={event => setLocalPreview(event.target.checked)} />
@@ -462,8 +462,8 @@ useEffect(() => {
                         disabled={['scanning', 'countdown', 'complete'].includes(scanStatus)}
                         onChange={event => setLocalStreamInput(event.target.value)}
                         placeholder="http://192.168.4.1/stream"
-                        className="w-full rounded-lg border border-gray-300 p-2 text-sm" />
-                      <p className="break-all text-xs text-text-secondary">
+                        className="w-full p-2 text-sm border border-gray-300 rounded-lg" />
+                      <p className="text-xs break-all text-text-secondary">
                         {localStreamUrl ? `연결 주소: ${localStreamUrl}` : localCandidate
                           ? '주소를 확인해 주세요. HTTP는 내부 IP 주소만 사용할 수 있습니다.'
                           : '등록된 기기 주소가 없습니다. 영상이 나오는 주소를 입력해 주세요.'}
@@ -666,10 +666,10 @@ useEffect(() => {
                 </div>
 
               {/* 스캐너 연결 카드 */}
-              <div className="border-t border-gray-100 pt-5">
+              <div className="pt-5 border-t border-gray-100">
                 <h3 className="mb-3 text-sm font-semibold text-text-primary">스캐너 연결</h3>
-                <div className="rounded-xl p-4 flex items-center gap-3 bg-gray-50">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary-100">
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-gray-50">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary-100">
                     <Wifi size={18} className="text-primary-500" />
                   </div>
                   <div>
@@ -677,7 +677,7 @@ useEffect(() => {
                     <p className="text-xs text-primary-500">{displayScannerMsg}</p>
                   </div>
                 </div>
-                <div className="mt-4 rounded-xl border border-gray-200 p-4">
+                <div className="p-4 mt-4 border border-gray-200 rounded-xl">
                   <p className="text-sm font-semibold">기기 연결 · {scannerSession.deviceId}</p>
                   <p className="my-2 text-xs text-text-secondary" role="status">{linkMessage}</p>
                   <Button onClick={connectDevice} disabled={deviceLinked || linkBusy || scanStatus === 'scanning' || scanStatus === 'countdown'}>
