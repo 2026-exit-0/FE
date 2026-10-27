@@ -165,8 +165,8 @@ const ReportPage = () => {
   }, [fetchHistory]);
 
   const availableScans = useMemo(() => selectReportScans(
-    [...scans, ...(currentScan ? [currentScan] : [])],
-    localStorage.getItem('damda_token') === 'demo_access_token' ? 'mock' : 'real',
+    [...scans, ...(currentScan ? [currentScan] : [])].filter(scan => currentScan?.is_mock ? scan.is_mock : true),
+    currentScan?.is_mock || localStorage.getItem('damda_token') === 'demo_access_token' ? 'mock' : 'real',
   ), [scans, currentScan]);
   const displayScans = useMemo(() => {
     return filterReportPeriod(availableScans, period, new Date());

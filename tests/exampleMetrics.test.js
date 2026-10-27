@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { withExampleMetrics } from '../src/utils/exampleMetrics.js';
+import { withExampleMetrics, rememberDemoSurvey } from '../src/utils/exampleMetrics.js';
 
 test('same session has fixed examples while all captured data remains unchanged', () => {
   const original = { sessionId: 'real-1', moisture: 0, oil: 42, date: '2026-10-01', white_image_url: 'white.jpg', uv_image_url: 'uv.jpg' };
@@ -21,4 +21,20 @@ test('missing actual measurements and photos are never replaced', () => {
 });
 test('guest data and unknown sessions are not recast as real measurements', () => {
   for (const item of [undefined, {}, { sessionId: 'mock_1' }, { sessionId: 's', is_mock: true }]) assert.equal(withExampleMetrics(item), item);
+});
+
+test('survey context is frozen per account and session', () => {
+  const old = globalThis.localStorage;
+  const values = new Map([['damda_user', JSON.stringify({ user_id: 'A' })]]);
+  globalThis.localStorage = { getItem: k => values.get(k) || null, setItem: (k,v) => values.set(k,v) };
+  try {
+    const original = rememberDemoSurvey('s1', { skin_type: '건성', concerns: ['모공'] });
+    assert.deepEqual(rememberDemoSurvey('s1', { skin_type: '지성', concerns: [] }), original);
+    const scan = { sessionId: 's1', moisture: 60, oil: 35 };
+    const first = withExampleMetrics(scan);
+    assert.ok(first.spots >= 28 && first.spots <= 45);
+    assert.deepEqual(withExampleMetrics(scan), first);
+    values.set('damda_user', JSON.stringify({ user_id: 'B' }));
+    assert.equal(rememberDemoSurvey('s1', { skin_type: '지성' }).skin_type, '지성');
+  } finally { globalThis.localStorage = old; }
 });

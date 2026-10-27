@@ -158,8 +158,8 @@ const useScanStore = create(
           }
           const parsed = Array.isArray(history) ? history.map((s) => parseApiResult(s)) : [];
           set((state) => ({
-            scans: parsed,
-            currentScan: parsed.length === 0 ? null
+            scans: [...parsed, ...state.scans.filter(scan => scan.is_mock && scan.meta?.fallbackReason)],
+            currentScan: state.currentScan?.is_mock && state.currentScan.meta?.fallbackReason ? state.currentScan : parsed.length === 0 ? null
               : parsed.some(scan => (scan.sessionId || scan.id) === (state.currentScan?.sessionId || state.currentScan?.id))
                 ? state.currentScan : parsed[0],
           }));

@@ -1,3 +1,4 @@
+import { buildExampleCare } from '../utils/exampleCare';
 import client from './client';
 
 export function analysisErrorMessage(error) {
@@ -38,6 +39,7 @@ export async function loadAnalysisDetail(sessionId, history = {}, signal) {
     ...history,
     sessionId,
     detailMessage,
+    skinType: data.skin_type_result || data.skinType || history.skinType || null,
     moisture: number(values.moisture ?? values.moisture_on),
     oil: number(values.sebum ?? values.oil),
     spots: number(values.pore ?? values.spots),
@@ -53,9 +55,16 @@ export async function loadAnalysisDetail(sessionId, history = {}, signal) {
   };
 }
 
-export async function loadAnalysisCare(sessionId, signal) {
+export async function loadAnalysisCare(sessionId, signal, scan) {
+  const fallback = () => scan?.sessionId === sessionId ? buildExampleCare(scan) : null;
   try {
     const { data: advice = {} } = await client.get(`/care/${encodeURIComponent(sessionId)}`, { signal });
+    const local = fallback();
+    if (local) {
+      const report = { ...advice.report, ...local.report };
+      return { ...local, report, advice: { ...advice, ...local.advice, report },
+        recommendedProducts: advice.recommended_products || [] };
+    }
     const tips = Array.isArray(advice.tips) ? [...advice.tips] : advice.tips ? [advice.tips] : [];
     for (const key of ['morning_routine', 'night_routine', 'lifestyle_tips']) {
       if (advice[key]) tips.push(advice[key]);
@@ -64,6 +73,10 @@ export async function loadAnalysisCare(sessionId, signal) {
              recommendedProducts: advice.recommended_products || [], careMessage: '' };
   } catch (error) {
     if (signal?.aborted) throw error;
+    if (error.response?.status === 404) {
+      const local = fallback();
+      if (local) return local;
+    }
     return { narrative: { summary: '', tips: [] }, advice: {}, report: null, recommendedProducts: [],
       careMessage: error.response?.status === 404
       ? '이 촬영의 케어 가이드가 아직 없습니다.' : '케어 가이드를 불러오지 못했습니다.' };

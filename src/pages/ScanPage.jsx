@@ -555,7 +555,7 @@ useEffect(() => {
                     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-4 text-center bg-black/85 animate-fadeIn">
                       <div className="flex items-center gap-2 mb-3 bg-emerald-500/20 text-emerald-300 px-3.5 py-1.5 rounded-full border border-emerald-400/30 shadow-sm">
                         <CheckCircle size={16} className="text-emerald-400 shrink-0" />
-                        <span className="text-xs font-bold">촬영 및 분석 완료</span>
+                        <span className="text-xs font-bold">결과 준비 완료</span>
                       </div>
                       <p className="text-sm font-bold tracking-tight text-white">분석 결과를 불러옵니다</p>
                       <p className="mt-1 text-xs font-medium text-emerald-400 animate-pulse">분석 결과 페이지로 이동합니다</p>
@@ -601,7 +601,7 @@ useEffect(() => {
                     {scanStatus === 'ready' && '측정 준비 완료'}
                     {scanStatus === 'countdown' && '카운트다운...'}
                     {scanStatus === 'scanning' && '스캔 중 움직이지 마세요'}
-                    {scanStatus === 'complete' && '스캔 완료!'}
+                    {scanStatus === 'complete' && '결과 준비 완료!'}
                     {scanStatus === 'error' && '측정 실패'}
                   </span>
                 </div>

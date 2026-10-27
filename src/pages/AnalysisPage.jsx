@@ -210,7 +210,7 @@ const AnalysisPage = () => {
     loadAnalysisDetail(sessionId, selected, controller.signal).then(data => {
       if (!active || token !== localStorage.getItem('damda_token')) return;
       setDetail({ key: requestKey, data });
-      loadAnalysisCare(sessionId, controller.signal).then(care => {
+      loadAnalysisCare(sessionId, controller.signal, data).then(care => {
         if (active && token === localStorage.getItem('damda_token')) {
           setDetail(previous => previous?.key === requestKey && previous.data
             ? { ...previous, data: { ...previous.data, ...care } } : previous);
