@@ -507,7 +507,7 @@ const ProductsPage = () => {
                 <p className="text-sm text-primary-700 leading-relaxed">
                   {recommendationError || (loading ? '제품을 불러오는 중이에요.' :
                     recommendationSource === 'catalog' ? '맞춤 추천을 불러오지 못해 일반 제품 목록을 보여드려요.' :
-                    recommendationSource === 'demo' ? '시연용 예시 추천입니다. 카드를 누르면 상세 정보를 볼 수 있어요.' :
+                    recommendationSource === 'demo' ? '카드를 누르면 제품 상세 정보를 볼 수 있어요.' :
                     '선택한 측정 결과를 바탕으로 추천한 제품이에요. 카드를 누르면 상세 정보를 볼 수 있어요.')}
                 </p>
               </div>
