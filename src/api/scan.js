@@ -8,7 +8,7 @@ const DEFAULT_DEVICE_ID = import.meta.env.VITE_SCANNER_DEVICE_ID || 'ESP32_1';
 export const scannerSession = createScannerSessionApi(client, DEFAULT_DEVICE_ID);
 
 // 실기기 측정 시도 제한 시간(ms). 이 시간 안에 응답이 없으면 데모 폴백으로 전환한다.
-const REAL_SCAN_TIMEOUT_MS = Number(import.meta.env.VITE_SCAN_TIMEOUT_MS) || 8000;
+const REAL_SCAN_TIMEOUT_MS = Number(import.meta.env.VITE_SCAN_TIMEOUT_MS) || 12000;
 // 재개(resume) 세션 대기 상한 — 이 시간 안에 기기 결과가 안 오면 데모로 폴백(95% 멈춤 방지)
 const RESUME_SCAN_TIMEOUT_MS = Number(import.meta.env.VITE_RESUME_SCAN_TIMEOUT_MS) || 12000;
 
