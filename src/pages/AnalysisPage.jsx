@@ -109,11 +109,10 @@ const DualLightViewer = ({ analysis }) => {
   const { white_image_url: whiteImg, uv_image_url: uvImg } = scanImages(analysis);
   const [failedWhite, setFailedWhite] = useState(null);
   const [failedUv, setFailedUv] = useState(null);
-  const isDemo = analysis?.is_mock === true;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+    <div className="p-5 bg-white border border-gray-100 shadow-sm rounded-2xl">
+      <div className="flex flex-col justify-between gap-3 mb-4 sm:flex-row sm:items-center">
         <div>
           <div className="flex items-center gap-2">
             <span className="p-1.5 bg-primary-50 text-primary-600 rounded-lg">
@@ -126,16 +125,16 @@ const DualLightViewer = ({ analysis }) => {
               촬영 사진
             </span>
           </div>
-          <p className="text-xs text-text-secondary mt-1">
+          <p className="mt-1 text-xs text-text-secondary">
             동일 측정 부위의 표면 반사광(White 5500K)과 395nm 형광 반응(UV)을 교차 분석합니다.
           </p>
         </div>
       </div>
 
       {/* 2열 비교 카드 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* 1. 일반광 (White Light) */}
-        <div className="flex flex-col rounded-xl border border-gray-200 overflow-hidden bg-white shadow-sm">
+        <div className="flex flex-col overflow-hidden bg-white border border-gray-200 shadow-sm rounded-xl">
           <div className="flex items-center justify-between px-3.5 py-2.5 bg-gray-50 border-b border-gray-200">
             <div className="flex items-center gap-1.5">
               <Sun size={14} className="text-amber-500" />
@@ -146,9 +145,9 @@ const DualLightViewer = ({ analysis }) => {
 
           <div className="aspect-[4/3] relative bg-[#f8ede3] flex items-center justify-center overflow-hidden">
             {whiteImg && failedWhite !== whiteImg ? (
-              <img onError={() => setFailedWhite(whiteImg)} src={whiteImg} alt="일반광 피부 촬영" className="w-full h-full object-cover skin-enhance" />
+              <img onError={() => setFailedWhite(whiteImg)} src={whiteImg} alt="일반광 피부 촬영" className="object-cover w-full h-full skin-enhance" />
             ) : (
-              <p className="p-6 text-center text-sm text-gray-600">일반광 사진을 불러올 수 없습니다.</p>
+              <p className="p-6 text-sm text-center text-gray-600">일반광 사진을 불러올 수 없습니다.</p>
             )}
 
             <div className="absolute bottom-2 left-2 z-10 px-2 py-0.5 rounded bg-black/60 text-[10px] text-white backdrop-blur-sm font-medium">
@@ -156,27 +155,22 @@ const DualLightViewer = ({ analysis }) => {
             </div>
           </div>
 
-          <div className="p-3 bg-white border-t border-gray-100 text-xs text-text-secondary flex items-center justify-between">
-            <span>표면 거칠기: <strong className="text-text-primary">{isDemo ? '양호' : '측정값 없음'}</strong></span>
-            <span>평균 반사율: <strong className="text-emerald-600 font-bold">{isDemo ? '78.4%' : '측정값 없음'}</strong></span>
-          </div>
         </div>
 
         {/* 2. UV 형광광 (UV 395nm Wood's Lamp) */}
-        <div className="flex flex-col rounded-xl border border-purple-200 overflow-hidden bg-white shadow-sm">
+        <div className="flex flex-col overflow-hidden bg-white border border-purple-200 shadow-sm rounded-xl">
           <div className="flex items-center justify-between px-3.5 py-2.5 bg-purple-950 text-purple-200 border-b border-purple-900">
             <div className="flex items-center gap-1.5">
               <Moon size={14} className="text-purple-400" />
-              <span className="text-xs font-bold text-white">UV 형광광 (Wood's Lamp 395nm)</span>
+              <span className="text-xs font-bold text-white">UV 형광 (Wood's Lamp 395nm)</span>
             </div>
-            <span className="text-[10px] text-purple-300 font-medium">피지 포르피린 · 잠재 멜라닌</span>
           </div>
 
           <div className="aspect-[4/3] relative bg-[#090614] flex items-center justify-center overflow-hidden">
             {uvImg && failedUv !== uvImg ? (
-              <img onError={() => setFailedUv(uvImg)} src={uvImg} alt="UV 형광 피부 촬영" className="w-full h-full object-cover skin-enhance" />
+              <img onError={() => setFailedUv(uvImg)} src={uvImg} alt="UV 형광 피부 촬영" className="object-cover w-full h-full skin-enhance" />
             ) : (
-              <p className="p-6 text-center text-sm text-purple-200">UV 사진을 불러올 수 없습니다.</p>
+              <p className="p-6 text-sm text-center text-purple-200">UV 사진을 불러올 수 없습니다.</p>
             )}
 
             <div className="absolute bottom-2 left-2 z-10 px-2 py-0.5 rounded bg-purple-900/80 text-[10px] text-purple-200 border border-purple-700/50 backdrop-blur-sm font-medium">
@@ -184,9 +178,8 @@ const DualLightViewer = ({ analysis }) => {
             </div>
           </div>
 
-          <div className="p-3 bg-white border-t border-gray-100 text-xs text-text-secondary flex items-center justify-between">
-            <span>피지 포르피린: <strong className="text-orange-500 font-bold">{isDemo ? '보통' : '측정값 없음'}</strong></span>
-            <span>색소 침착도: <strong className="text-purple-600 font-bold">{analysis?.pigmentation ?? 55}%</strong></span>
+          <div className="flex items-center justify-between p-3 text-xs bg-white border-t border-gray-100 text-text-secondary">
+            <span>색소 침착도: <strong className="font-bold text-purple-600">{analysis?.pigmentation}%</strong></span>
           </div>
         </div>
       </div>
@@ -248,7 +241,7 @@ const AnalysisPage = () => {
       <Header variant="dashboard" />
       <main className="p-8 text-center" role="status">
         <p>{currentDetail?.error || '촬영 결과를 불러오는 중입니다.'}</p>
-        {currentDetail?.error && <button className="btn-primary mt-4" onClick={() => setRetry(n => n + 1)}>다시 시도</button>}
+        {currentDetail?.error && <button className="mt-4 btn-primary" onClick={() => setRetry(n => n + 1)}>다시 시도</button>}
       </main><BottomNav />
     </div>;
   }
@@ -260,12 +253,12 @@ const AnalysisPage = () => {
         <div className="flex">
           <Sidebar />
           <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-28 desktop:pb-8">
-            <div className="max-w-lg mx-auto text-center py-20 animate-fadeIn">
-              <div className="w-20 h-20 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="max-w-lg py-20 mx-auto text-center animate-fadeIn">
+              <div className="flex items-center justify-center w-20 h-20 mx-auto mb-6 rounded-full bg-primary-50">
                 <BarChart3 size={36} className="text-primary-300" />
               </div>
-              <h2 className="text-xl font-bold text-text-primary mb-3">아직 스캔 데이터가 없습니다</h2>
-              <p className="text-text-secondary mb-8">첫 스캔을 완료하면 피부 분석 결과를 확인할 수 있습니다.</p>
+              <h2 className="mb-3 text-xl font-bold text-text-primary">아직 스캔 데이터가 없습니다</h2>
+              <p className="mb-8 text-text-secondary">첫 스캔을 완료하면 피부 분석 결과를 확인할 수 있습니다.</p>
               <Link to="/scan"><Button icon={Scan}>스캔하러 가기</Button></Link>
             </div>
           </main>
@@ -703,22 +696,22 @@ const AnalysisPage = () => {
         <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-28 desktop:pb-8 animate-fadeIn">
           <div className="max-w-6xl mx-auto">
             {analysis.detailMessage && (
-              <div role="status" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              <div role="status" className="p-4 mb-5 text-sm border rounded-xl border-amber-200 bg-amber-50 text-amber-900">
                 <p>{analysis.detailMessage}</p>
-                <button className="mt-2 underline font-medium" onClick={() => setRetry(n => n + 1)}>상세 결과 다시 조회</button>
+                <button className="mt-2 font-medium underline" onClick={() => setRetry(n => n + 1)}>상세 결과 다시 조회</button>
               </div>
             )}
             {/* ── 상단 요약 배너 ── */}
-            <div className="relative flex flex-col tablet:flex-row items-center gap-5 mb-5 bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+            <div className="relative flex flex-col items-center gap-5 p-5 mb-5 bg-white border border-gray-100 shadow-sm tablet:flex-row rounded-2xl">
               {/* 데모/실제 구분은 헤더의 모드 토글로만 — 결과 화면에는 별도 표기 없음 */}
-              <div className="bg-primary-50 border border-primary-100 rounded-2xl p-5 flex flex-col items-center flex-shrink-0">
+              <div className="flex flex-col items-center flex-shrink-0 p-5 border bg-primary-50 border-primary-100 rounded-2xl">
                 <ScoreCircle score={overallScore} />
-                <span className="mt-2 inline-block bg-primary-500 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-sm">
+                <span className="inline-block px-3 py-1 mt-2 text-xs font-semibold text-white rounded-full shadow-sm bg-primary-500">
                   {analysis.skinType || '복합성 피부'}
                 </span>
               </div>
 
-              <div className="flex flex-wrap gap-3 justify-center tablet:justify-start flex-1 w-full">
+              <div className="flex flex-wrap justify-center flex-1 w-full gap-3 tablet:justify-start">
                 {metrics.map((m) => {
                   const style = statusColorMap[m.statusColor];
                   return (
@@ -738,10 +731,10 @@ const AnalysisPage = () => {
             </div>
 
             {/* 본문 레이아웃 */}
-            <div className="flex flex-col desktop:flex-row gap-6">
+            <div className="flex flex-col gap-6 desktop:flex-row">
               {/* 사이드 탭 가로 이동식 (모바일/태블릿) & 세로형 (데스크톱) */}
-              <div className="w-full desktop:w-64 flex-shrink-0">
-                <nav className="flex desktop:flex-col overflow-x-auto desktop:overflow-x-visible pb-2 desktop:pb-0 gap-1 border-b desktop:border-b-0 desktop:border-r border-gray-200 pr-0 desktop:pr-4 scrollbar-hide">
+              <div className="flex-shrink-0 w-full desktop:w-64">
+                <nav className="flex gap-1 pb-2 pr-0 overflow-x-auto border-b border-gray-200 desktop:flex-col desktop:overflow-x-visible desktop:pb-0 desktop:border-b-0 desktop:border-r desktop:pr-4 scrollbar-hide">
                   {sideMenuItems.map((item) => {
                     const Icon = item.icon;
                     return (
@@ -780,10 +773,10 @@ const AnalysisPage = () => {
                     <DualLightViewer analysis={analysis} />
 
                     {/* 레이더 + 지표 상세 */}
-                    <div className="grid grid-cols-1 desktop:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 gap-6 desktop:grid-cols-2">
                       {/* 레이더 차트 */}
-                      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-                        <h3 className="text-sm font-bold text-text-primary mb-2">피부 상태 레이더 차트</h3>
+                      <div className="p-5 bg-white border border-gray-100 shadow-sm rounded-2xl">
+                        <h3 className="mb-2 text-sm font-bold text-text-primary">피부 상태 레이더 차트</h3>
                         <div className="h-72 tablet:h-80">
                           <ResponsiveContainer width="100%" height="100%">
                             <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
@@ -799,22 +792,22 @@ const AnalysisPage = () => {
                       </div>
 
                       {/* 지표별 상세 */}
-                      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-                        <h3 className="text-sm font-bold text-text-primary mb-4">지표별 세부 진단</h3>
+                      <div className="p-5 bg-white border border-gray-100 shadow-sm rounded-2xl">
+                        <h3 className="mb-4 text-sm font-bold text-text-primary">지표별 세부 진단</h3>
                         <div className="space-y-4">
                           {metrics.map((m) => {
                             const style = statusColorMap[m.statusColor];
                             return (
                               <div key={m.label}>
                                 <div className="flex items-center gap-3 mb-1">
-                                  <span className="text-xs font-semibold text-text-primary w-14 flex-shrink-0">{m.label}</span>
+                                  <span className="flex-shrink-0 text-xs font-semibold text-text-primary w-14">{m.label}</span>
                                   <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
                                     <div
-                                      className="h-full rounded-full transition-all duration-1000 ease-out"
+                                      className="h-full transition-all duration-1000 ease-out rounded-full"
                                       style={{ width: `${m.value ?? 0}%`, backgroundColor: style.color }}
                                     />
                                   </div>
-                                  <span className="text-sm font-bold text-text-primary w-10 text-right">{m.value == null ? '—' : `${m.value}%`}</span>
+                                  <span className="w-10 text-sm font-bold text-right text-text-primary">{m.value == null ? '—' : `${m.value}%`}</span>
                                 </div>
                                 <div className="flex items-center gap-2 ml-[68px]">
                                   <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${style.bg} ${style.text}`}>
@@ -835,27 +828,27 @@ const AnalysisPage = () => {
                     </div>
 
                     {/* 맞춤 화장품 추천 미니 섹션 (3개) */}
-                    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+                    <div className="p-5 bg-white border border-gray-100 shadow-sm rounded-2xl">
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
                           <Star size={15} className="text-yellow-500" />
                           <h3 className="text-sm font-bold text-text-primary">분석 기반 추천 화장품</h3>
                         </div>
-                        <Link to="/products" className="text-xs font-semibold text-primary-600 flex items-center gap-1 hover:text-primary-700 transition-colors">
+                        <Link to="/products" className="flex items-center gap-1 text-xs font-semibold transition-colors text-primary-600 hover:text-primary-700">
                           전체 보기 <ArrowRight size={12} />
                         </Link>
                       </div>
-                      <div className="grid grid-cols-1 tablet:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 gap-3 tablet:grid-cols-3">
                         {reportProducts.map((p, i) => (
-                          <div key={p.id ?? i} className="flex items-center gap-3 bg-background-gray rounded-xl p-3 border border-gray-100 hover:border-primary-200 hover:shadow-sm transition-all">
-                            <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center text-lg flex-shrink-0 shadow-sm border border-gray-100 overflow-hidden">
+                          <div key={p.id ?? i} className="flex items-center gap-3 p-3 transition-all border border-gray-100 bg-background-gray rounded-xl hover:border-primary-200 hover:shadow-sm">
+                            <div className="flex items-center justify-center flex-shrink-0 w-10 h-10 overflow-hidden text-lg bg-white border border-gray-100 rounded-lg shadow-sm">
                               {p.image_url
-                                ? <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.textContent = p.emoji ?? '📦'; }} />
+                                ? <img src={p.image_url} alt={p.name} className="object-cover w-full h-full" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.textContent = p.emoji ?? '📦'; }} />
                                 : (p.emoji ?? '📦')}
                             </div>
-                            <div className="min-w-0 flex-1">
+                            <div className="flex-1 min-w-0">
                               <p className="text-[10px] text-text-secondary truncate">{p.brand ?? p.category ?? '피부 맞춤'}</p>
-                              <p className="text-xs font-bold text-text-primary truncate">{p.name ?? p.name_kr}</p>
+                              <p className="text-xs font-bold truncate text-text-primary">{p.name ?? p.name_kr}</p>
                               {p.efficacy?.length > 0 ? (
                                 <span className="text-[9px] bg-primary-50 text-primary-600 font-semibold px-1.5 py-0.5 rounded-full mt-1 inline-block">{p.efficacy.slice(0, 2).join('·')}</span>
                               ) : p.tag ? (
@@ -873,15 +866,15 @@ const AnalysisPage = () => {
 
                 {/* 2. 항목 히트맵 (H.5.2) */}
                 {activeMenu === 'heatmap' && (
-                  <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm animate-fadeIn">
-                    <h3 className="text-sm font-bold text-text-primary mb-1">얼굴 부위별 수분/유분 분포 히트맵</h3>
-                    <p className="text-xs text-text-secondary mb-8">스캔한 영역별 실시간 수분/유분 검지 히트맵 분포도입니다.</p>
+                  <div className="p-6 bg-white border border-gray-100 shadow-sm rounded-2xl animate-fadeIn">
+                    <h3 className="mb-1 text-sm font-bold text-text-primary">얼굴 부위별 수분/유분 분포 히트맵</h3>
+                    <p className="mb-8 text-xs text-text-secondary">스캔한 영역별 실시간 수분/유분 검지 히트맵 분포도입니다.</p>
 
-                    <div className="flex flex-col tablet:flex-row items-center justify-center gap-10 desktop:gap-16">
+                    <div className="flex flex-col items-center justify-center gap-10 tablet:flex-row desktop:gap-16">
                       {/* 세련된 얼굴 실루엣 히트맵 카드 */}
                       <div className="relative w-64 h-64 bg-gradient-to-b from-primary-50/30 via-white to-gray-50/40 rounded-3xl border border-primary-100/60 p-3.5 flex flex-col items-center justify-around shadow-sm">
                         {/* 은은한 얼굴 실루엣 SVG 백그라운드 */}
-                        <svg className="absolute inset-0 w-full h-full text-primary-200/40 pointer-events-none p-3" viewBox="0 0 100 120" fill="none" stroke="currentColor" strokeWidth="0.8" strokeDasharray="2 2">
+                        <svg className="absolute inset-0 w-full h-full p-3 pointer-events-none text-primary-200/40" viewBox="0 0 100 120" fill="none" stroke="currentColor" strokeWidth="0.8" strokeDasharray="2 2">
                           <ellipse cx="50" cy="55" rx="36" ry="46" />
                           {/* 눈썹/코 라인 가이드 */}
                           <path d="M 32 40 Q 40 37 45 40" strokeWidth="0.5" />
@@ -897,7 +890,7 @@ const AnalysisPage = () => {
                         </div>
 
                         {/* 코 & 양 볼 (중앙 핑거 영역) */}
-                        <div className="z-10 w-full flex items-center justify-between px-1">
+                        <div className="z-10 flex items-center justify-between w-full px-1">
                           {/* 왼볼 */}
                           <div className="bg-white/95 backdrop-blur-sm border border-orange-200 text-orange-700 px-2.5 py-1 rounded-xl text-[11px] font-bold shadow-sm flex flex-col items-center">
                             <span className="text-[9px] text-orange-500 font-semibold">왼쪽 볼</span>
@@ -925,11 +918,11 @@ const AnalysisPage = () => {
                       </div>
 
                       {/* 범례 및 분석 결과 */}
-                      <div className="space-y-4 max-w-sm">
-                        <h4 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                      <div className="max-w-sm space-y-4">
+                        <h4 className="flex items-center gap-2 text-sm font-bold text-text-primary">
                           <span className="w-2 h-2 rounded-full bg-primary-500" /> 부위별 상세 매핑 결과
                         </h4>
-                        <div className="space-y-3 text-xs text-text-secondary leading-relaxed bg-gray-50/70 p-4 rounded-2xl border border-gray-100">
+                        <div className="p-4 space-y-3 text-xs leading-relaxed border border-gray-100 text-text-secondary bg-gray-50/70 rounded-2xl">
                           <div className="flex items-start gap-2.5">
                             <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full mt-1 flex-shrink-0" />
                             <p><strong className="text-text-primary">T존 (이마/코)</strong>: 유분기가 높고 모공 집중 관리가 요구됩니다. 가벼운 수분 제형 토너를 권장합니다.</p>
@@ -952,26 +945,26 @@ const AnalysisPage = () => {
                       <>
                         {/* AI 종합 분석 카드 */}
                         {summary && (
-                          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-                            <h3 className="text-sm font-bold text-text-primary mb-3 flex items-center gap-2">
+                          <div className="p-6 bg-white border border-gray-100 shadow-sm rounded-2xl">
+                            <h3 className="flex items-center gap-2 mb-3 text-sm font-bold text-text-primary">
                               <Sparkles size={18} className="text-primary-500" /> AI 종합 케어 코멘트
                             </h3>
-                            <div className="bg-primary-50/60 border border-primary-100 rounded-xl p-4">
-                              <p className="text-sm text-text-primary font-medium leading-relaxed">{summary}</p>
+                            <div className="p-4 border bg-primary-50/60 border-primary-100 rounded-xl">
+                              <p className="text-sm font-medium leading-relaxed text-text-primary">{summary}</p>
                             </div>
                           </div>
                         )}
 
                         {/* 추천 가이드 */}
                         {tips.length > 0 && (
-                          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-                            <h3 className="text-sm font-bold text-text-primary mb-4 flex items-center gap-2">
+                          <div className="p-6 bg-white border border-gray-100 shadow-sm rounded-2xl">
+                            <h3 className="flex items-center gap-2 mb-4 text-sm font-bold text-text-primary">
                               <FileText size={18} className="text-primary-500" /> 생활 밀착형 스킨케어 팁
                             </h3>
-                            <div className="grid grid-cols-1 tablet:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 tablet:grid-cols-2">
                               {tips.map((tip, i) => (
-                                <div key={i} className="bg-background-gray rounded-xl p-4 border border-gray-100 flex items-start gap-3 hover:border-primary-200 transition-colors">
-                                  <span className="w-6 h-6 rounded-full bg-primary-500 text-white flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-sm">{i + 1}</span>
+                                <div key={i} className="flex items-start gap-3 p-4 transition-colors border border-gray-100 bg-background-gray rounded-xl hover:border-primary-200">
+                                  <span className="flex items-center justify-center flex-shrink-0 w-6 h-6 text-xs font-bold text-white rounded-full shadow-sm bg-primary-500">{i + 1}</span>
                                   <p className="text-xs text-text-secondary leading-relaxed mt-0.5">{tip}</p>
                                 </div>
                               ))}
@@ -980,10 +973,10 @@ const AnalysisPage = () => {
                         )}
                       </>
                     ) : (
-                      <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-text-secondary shadow-sm">
+                      <div className="p-10 text-center bg-white border border-gray-100 shadow-sm rounded-2xl text-text-secondary">
                         <Sparkles className="mx-auto mb-3 text-primary-300" size={40} />
-                        <h4 className="text-base font-bold text-text-primary mb-1">AI 맞춤 케어 코멘트 준비 중</h4>
-                        <p className="text-xs text-text-secondary leading-relaxed max-w-sm mx-auto">
+                        <h4 className="mb-1 text-base font-bold text-text-primary">AI 맞춤 케어 코멘트 준비 중</h4>
+                        <p className="max-w-sm mx-auto text-xs leading-relaxed text-text-secondary">
                           스캔 분석 완료 시 상세한 피부 코멘트와 스킨케어 팁이 이곳에 표시됩니다.
                         </p>
                       </div>
@@ -996,23 +989,23 @@ const AnalysisPage = () => {
                   <div className="space-y-4 animate-fadeIn">
                     <div className="flex items-center justify-between">
                       <h3 className="text-sm font-bold text-text-primary">분석 맞춤 추천 화장품</h3>
-                      <Link to="/products" className="text-xs font-semibold text-primary-600 flex items-center gap-1">
+                      <Link to="/products" className="flex items-center gap-1 text-xs font-semibold text-primary-600">
                         전체 추천 보기 <ArrowRight size={13} />
                       </Link>
                     </div>
 
                     {recommendedProducts.length > 0 ? (
-                      <div className="grid grid-cols-1 tablet:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 gap-4 tablet:grid-cols-2">
                         {recommendedProducts.slice(0, 4).map((p) => (
-                          <div key={p.id} className="bg-white rounded-xl border border-gray-100 p-4 flex gap-3 shadow-sm">
-                            <div className="w-16 h-16 rounded-lg bg-gray-50 flex items-center justify-center text-xl flex-shrink-0 overflow-hidden">
+                          <div key={p.id} className="flex gap-3 p-4 bg-white border border-gray-100 shadow-sm rounded-xl">
+                            <div className="flex items-center justify-center flex-shrink-0 w-16 h-16 overflow-hidden text-xl rounded-lg bg-gray-50">
                               {p.image_url
-                                ? <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.textContent = '📦'; }} />
+                                ? <img src={p.image_url} alt={p.name} className="object-cover w-full h-full" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.textContent = '📦'; }} />
                                 : '📦'}
                             </div>
-                            <div className="min-w-0 flex-1">
+                            <div className="flex-1 min-w-0">
                               <p className="text-[10px] text-text-secondary">{p.brand}</p>
-                              <p className="text-xs font-bold text-text-primary truncate">{p.name}</p>
+                              <p className="text-xs font-bold truncate text-text-primary">{p.name}</p>
                               {p.efficacy?.length > 0 && <p className="text-[10px] text-primary-600 font-semibold mt-0.5 truncate">{p.efficacy.slice(0, 3).join(' · ')}</p>}
                               {p.reason && <p className="text-[10px] text-text-secondary mt-1 leading-snug line-clamp-2">{p.reason}</p>}
                               {p.score != null && <span className="text-[10px] text-emerald-600 font-bold mt-1 inline-block">매칭 {p.score}점</span>}
@@ -1021,10 +1014,10 @@ const AnalysisPage = () => {
                         ))}
                       </div>
                     ) : (
-                      <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-text-secondary">
+                      <div className="p-8 text-center bg-white border border-gray-100 rounded-2xl text-text-secondary">
                         <ShoppingBag className="mx-auto mb-3 text-primary-400/60" size={36} />
-                        <p className="text-sm font-medium text-text-primary mb-1">맞춤 추천 화장품 탐색</p>
-                        <p className="text-xs text-text-secondary mb-5">분석 결과에 적합한 스킨케어 상품들을 바로 확인해 보세요.</p>
+                        <p className="mb-1 text-sm font-medium text-text-primary">맞춤 추천 화장품 탐색</p>
+                        <p className="mb-5 text-xs text-text-secondary">분석 결과에 적합한 스킨케어 상품들을 바로 확인해 보세요.</p>
                         <Link to="/products">
                           <Button size="sm" icon={ArrowRight} className="rounded-full px-5 py-2.5 font-semibold text-xs shadow-sm hover:shadow transition-all">
                             화장품 추천 페이지로 이동
@@ -1037,32 +1030,32 @@ const AnalysisPage = () => {
 
                 {/* 5. 결과 내보내기 (H.7) */}
                 {activeMenu === 'export' && (
-                  <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm animate-fadeIn max-w-lg mx-auto">
-                    <h3 className="text-sm font-bold text-text-primary mb-2 text-center">리포트 다운로드 및 저장</h3>
-                    <p className="text-xs text-text-secondary mb-8 text-center">현재 분석된 피부 상태 상세 진단서를 원하는 형식으로 내보냅니다.</p>
+                  <div className="max-w-lg p-6 mx-auto bg-white border border-gray-100 shadow-sm rounded-2xl animate-fadeIn">
+                    <h3 className="mb-2 text-sm font-bold text-center text-text-primary">리포트 다운로드 및 저장</h3>
+                    <p className="mb-8 text-xs text-center text-text-secondary">현재 분석된 피부 상태 상세 진단서를 원하는 형식으로 내보냅니다.</p>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       {/* PDF */}
                       <button
                         onClick={handleExportPDF}
-                        className="group border border-gray-200 hover:border-primary-400 p-5 rounded-2xl text-left transition-all hover:shadow-md flex flex-col items-center text-center"
+                        className="flex flex-col items-center p-5 text-left text-center transition-all border border-gray-200 group hover:border-primary-400 rounded-2xl hover:shadow-md"
                       >
-                        <div className="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary-100 transition-colors text-primary-500">
+                        <div className="flex items-center justify-center w-12 h-12 mb-4 transition-colors bg-primary-50 rounded-xl group-hover:bg-primary-100 text-primary-500">
                           <FileText size={22} />
                         </div>
-                        <h4 className="text-sm font-bold text-text-primary mb-1">인쇄용 PDF 내보내기</h4>
+                        <h4 className="mb-1 text-sm font-bold text-text-primary">인쇄용 PDF 내보내기</h4>
                         <p className="text-[11px] text-text-secondary">전체 진단 데이터를 A4 인쇄 레이아웃으로 출력하거나 PDF로 저장</p>
                       </button>
 
                       {/* 이미지 카드 */}
                       <button
                         onClick={handleExportImage}
-                        className="group border border-gray-200 hover:border-primary-400 p-5 rounded-2xl text-left transition-all hover:shadow-md flex flex-col items-center text-center"
+                        className="flex flex-col items-center p-5 text-left text-center transition-all border border-gray-200 group hover:border-primary-400 rounded-2xl hover:shadow-md"
                       >
-                        <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-green-100 transition-colors text-green-600">
+                        <div className="flex items-center justify-center w-12 h-12 mb-4 text-green-600 transition-colors bg-green-50 rounded-xl group-hover:bg-green-100">
                           <Download size={22} />
                         </div>
-                        <h4 className="text-sm font-bold text-text-primary mb-1">요약 카드 다운로드</h4>
+                        <h4 className="mb-1 text-sm font-bold text-text-primary">요약 카드 다운로드</h4>
                         <p className="text-[11px] text-text-secondary">핵심 점수 및 주요 5지표 요약 이미지를 스마트폰에 저장 (PNG)</p>
                       </button>
                     </div>
