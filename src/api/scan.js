@@ -7,10 +7,9 @@ const DEVICE_API_BASE = import.meta.env.VITE_DEVICE_API_BASE || '/device-api';
 const DEFAULT_DEVICE_ID = import.meta.env.VITE_SCANNER_DEVICE_ID || 'ESP32_1';
 export const scannerSession = createScannerSessionApi(client, DEFAULT_DEVICE_ID);
 
-// 실기기 측정 시도 제한 시간(ms). 이 시간 안에 응답이 없으면 데모 폴백으로 전환한다.
-const REAL_SCAN_TIMEOUT_MS = Number(import.meta.env.VITE_SCAN_TIMEOUT_MS) || 12000;
-// 재개(resume) 세션 대기 상한 — 이 시간 안에 기기 결과가 안 오면 데모로 폴백(95% 멈춤 방지)
-const RESUME_SCAN_TIMEOUT_MS = Number(import.meta.env.VITE_RESUME_SCAN_TIMEOUT_MS) || 12000;
+// 실측 총 제한 시간(ms). 스캔 시작~완료까지 이 시간을 '하나의 예산'으로 쓴다.
+// (start + 완료대기 합산이 이 값을 넘으면 전체 목업으로 폴백 → "15초 넘으면 목업")
+const SCAN_TIMEOUT_MS = Number(import.meta.env.VITE_SCAN_TIMEOUT_MS) || 15000;
 
 // ── 신규 BE 스캔 세션 생성 (POST /scans) ────────────────────
 export async function createScanSession(data = {}) {
@@ -141,6 +140,36 @@ async function demoViaBackend(region) {
   };
 }
 
+// 실측 성공 결과 조립 — /result(실측 사진·수분 등) + /care(목업 보충 분석·추천)를 합친다.
+// 하드웨어는 수분만 실측(유분은 현재 목업), 모공·탄력·색소·점수·리포트·추천은 목업 보충이라
+// 결과 전체를 실측으로 단언하지 않는다(is_mock=true, 정직성). 사진·수분은 실측값 그대로 노출.
+async function assembleRealResult(sid, region, result) {
+  let advice = {};
+  try {
+    const { data } = await client.get(`/care/${sid}`);
+    advice = data || {};
+  } catch (e) {
+    console.warn('[scan] 실측 케어/추천 조회 실패(사진·수치만 노출):', e?.message);
+  }
+  const rep = advice?.report || {};
+  return {
+    session_id: sid,
+    is_mock: true,                       // 분석·추천은 목업 보충 — 사진·수분만 실측
+    area: REGION_TO_AREA[region] || region,
+    total_score: rep.overall_score ?? null,
+    skin_type_result: rep.skin_type ?? null,
+    result: {
+      moisture: result?.moisture, sebum: result?.sebum, pore: result?.pore,
+      elasticity: result?.elasticity, pigmentation: result?.pigmentation,
+    },
+    advice,
+    recommended_products: advice?.recommended_products || [],
+    white_image_url: result?.white_image_url,   // 실측 촬영 사진
+    uv_image_url: result?.uv_image_url,          // 실측 촬영 사진
+    meta: { region, real_capture: true },
+  };
+}
+
 // promise 에 제한 시간을 건다. 시간 초과 시 TIMEOUT 에러로 reject.
 function withTimeout(promise, ms, label = 'TIMEOUT') {
   let timer;
@@ -171,34 +200,38 @@ async function demoThenMock(region) {
 export async function measureWithScanner(formData, { sessionId, signal, onSession } = {}) {
   const region = formData?.get?.('region') || 'FOREHEAD';
 
-  // (A) 재개 세션(물리 버튼·폴링 감지): 제한 시간 안에서 실제 결과를 기다리고, 초과하면 데모로 폴백.
-  //     타임아웃이 없으면 기기가 끝까지 응답 안 할 때 진행률 95%에서 최대 2분 멈춰 보인다(무한로딩).
+  // (A) 재개 세션(물리 버튼·폴링 감지): 15초 예산 안에서 실측 완료를 기다리고,
+  //     초과/실패하면 전체 목업으로 폴백(95% 무한로딩 방지).
   if (sessionId) {
     onSession?.(sessionId);
     try {
-      return await withTimeout(
-        scannerSession.wait(sessionId, { signal }), RESUME_SCAN_TIMEOUT_MS, 'SCAN_WAIT_TIMEOUT');
+      const result = await withTimeout(
+        scannerSession.wait(sessionId, { signal }), SCAN_TIMEOUT_MS, 'SCAN_WAIT_TIMEOUT');
+      return await assembleRealResult(sessionId, region, result);
     } catch (e) {
       if (signal?.aborted) throw e;
-      console.warn('[scan] 재개 세션 대기 초과 → 데모 폴백:', e?.message);
+      console.warn('[scan] 재개 세션 대기 초과/실패 → 전체 목업 폴백:', e?.message);
       return demoThenMock(region);
     }
   }
 
-  // (B) 화면 버튼 스캔: 실기기 측정 시도(타임아웃)
+  // (B) 화면 버튼 스캔: 실기기 측정 시도. start+완료대기를 15초 '하나의 예산'으로 묶는다.
   try {
+    const deadline = Date.now() + SCAN_TIMEOUT_MS;
+    const remain = () => Math.max(0, deadline - Date.now());
     const session = await withTimeout(
-      scannerSession.start(region, { signal }), REAL_SCAN_TIMEOUT_MS, 'SCAN_START_TIMEOUT');
+      scannerSession.start(region, { signal }), remain(), 'SCAN_START_TIMEOUT');
     onSession?.(session.session_id);
     const result = await withTimeout(
-      scannerSession.wait(session.session_id, { signal }), REAL_SCAN_TIMEOUT_MS, 'SCAN_WAIT_TIMEOUT');
-    return { ...result, is_mock: Boolean(result?.is_mock) };
+      scannerSession.wait(session.session_id, { signal }), remain(), 'SCAN_WAIT_TIMEOUT');
+    // 실측 성공: 실측 사진·수분 + 목업 보충 분석·추천을 조립해 반환.
+    return await assembleRealResult(session.session_id, region, result);
   } catch (e) {
     if (signal?.aborted) throw e; // 사용자가 화면을 벗어난 경우: 폴백하지 않는다.
-    console.warn('[scan] 실기기 측정 실패/시간초과 → 데모 분석으로 전환:', e?.message);
+    console.warn('[scan] 실기기 측정 실패/시간초과(15초) → 전체 목업으로 전환:', e?.message);
   }
 
-  // (C/D) 데모 → 로컬 목업 폴백
+  // (C/D) 전체 목업 폴백 (BE 데모 → 로컬 목업)
   return demoThenMock(region);
 }
 
