@@ -9,6 +9,7 @@ import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
 import useAuthStore from '../store/authStore';
 import { getRecommendations, getProductById, normalizeProductItem } from '../api/products';
+import ScrollTopButton from '../components/common/ScrollTopButton';
 
 // ─── 카테고리 필터 ───────────────────────────────────────────
 const FILTER_CATEGORIES = [
@@ -653,6 +654,7 @@ const ProductsPage = () => {
       </div>
 
       <BottomNav />
+      <ScrollTopButton />
 
       {/* 모달 */}
       <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />
