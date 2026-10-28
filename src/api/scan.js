@@ -9,6 +9,8 @@ export const scannerSession = createScannerSessionApi(client, DEFAULT_DEVICE_ID)
 
 // 실기기 측정 시도 제한 시간(ms). 이 시간 안에 응답이 없으면 데모 폴백으로 전환한다.
 const REAL_SCAN_TIMEOUT_MS = Number(import.meta.env.VITE_SCAN_TIMEOUT_MS) || 8000;
+// 재개(resume) 세션 대기 상한 — 이 시간 안에 기기 결과가 안 오면 데모로 폴백(95% 멈춤 방지)
+const RESUME_SCAN_TIMEOUT_MS = Number(import.meta.env.VITE_RESUME_SCAN_TIMEOUT_MS) || 12000;
 
 // ── 신규 BE 스캔 세션 생성 (POST /scans) ────────────────────
 export async function createScanSession(data = {}) {
@@ -155,13 +157,32 @@ function withTimeout(promise, ms, label = 'TIMEOUT') {
 // ── 단일 측정 흐름 (모드 구분 없음) ──────────────────────────
 // 항상 실기기/실제 AI 측정을 먼저 시도하고, 하드웨어·AI가 응답하지 않으면
 // 자동으로 BE 데모 분석 → 로컬 목업 순으로 폴백한다. (전시 무중단)
+// BE 데모 분석 → 로컬 목업 순으로 폴백 (전시 무중단 안전망)
+async function demoThenMock(region) {
+  try {
+    return await demoViaBackend(region);   // BE 데모(리치 리포트+부위 이미지)
+  } catch (e) {
+    console.warn('[scan] BE 데모 분석 실패 → 로컬 목업 폴백:', e?.message);
+  }
+  await delay(500);
+  return buildMockResult(region);
+}
+
 export async function measureWithScanner(formData, { sessionId, signal, onSession } = {}) {
   const region = formData?.get?.('region') || 'FOREHEAD';
 
-  // (A) 물리 버튼 등으로 이미 시작된 실기기 세션 재개 → 실제 결과를 기다린다(폴백 없음).
+  // (A) 재개 세션(물리 버튼·폴링 감지): 제한 시간 안에서 실제 결과를 기다리고, 초과하면 데모로 폴백.
+  //     타임아웃이 없으면 기기가 끝까지 응답 안 할 때 진행률 95%에서 최대 2분 멈춰 보인다(무한로딩).
   if (sessionId) {
     onSession?.(sessionId);
-    return scannerSession.wait(sessionId, { signal });
+    try {
+      return await withTimeout(
+        scannerSession.wait(sessionId, { signal }), RESUME_SCAN_TIMEOUT_MS, 'SCAN_WAIT_TIMEOUT');
+    } catch (e) {
+      if (signal?.aborted) throw e;
+      console.warn('[scan] 재개 세션 대기 초과 → 데모 폴백:', e?.message);
+      return demoThenMock(region);
+    }
   }
 
   // (B) 화면 버튼 스캔: 실기기 측정 시도(타임아웃)
@@ -177,16 +198,8 @@ export async function measureWithScanner(formData, { sessionId, signal, onSessio
     console.warn('[scan] 실기기 측정 실패/시간초과 → 데모 분석으로 전환:', e?.message);
   }
 
-  // (C) BE 데모 분석 폴백 (설문 기반 리포트 + 부위 매칭 이미지)
-  try {
-    return await demoViaBackend(region);
-  } catch (e) {
-    console.warn('[scan] BE 데모 분석 실패 → 로컬 목업 폴백:', e?.message);
-  }
-
-  // (D) 로컬 목업 최종 폴백 (BE·네트워크 모두 불가 시 전시 안전망)
-  await delay(500);
-  return buildMockResult(region);
+  // (C/D) 데모 → 로컬 목업 폴백
+  return demoThenMock(region);
 }
 
 // ── 사진 업로드 분석 ─────────────────────────────────────
