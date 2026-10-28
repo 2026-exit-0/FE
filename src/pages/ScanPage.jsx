@@ -9,7 +9,6 @@ import useAuth from '../hooks/useAuth';
 import useScanStore from '../store/scanStore';
 import { getScannerHealth, measureWithScanner, scannerSession } from '../api/scan';
 import { shouldResumeScan, scanErrorMessage } from '../api/scannerSession';
-import { safeStreamUrl } from '../utils/scanSafety';
 import { SCAN_AREAS } from '../utils/constants';
 
 const REGION_MAP = {
@@ -50,19 +49,10 @@ const [scannerStatus, setScannerStatus] = useState('checking');
 const [scannerMsg, setScannerMsg] = useState('스캐너 연결 확인 중...');
 
 const [serverStreamUrl, setStreamUrl] = useState('');
-const [localPreview, setLocalPreview] = useState(() => sessionStorage.getItem('damda_local_preview') === 'true');
-const [localStreamInput, setLocalStreamInput] = useState(() => sessionStorage.getItem('damda_local_stream') || '');
 
 const [detectedIp, setDetectedIp] = useState(null);
-const localCandidate = localStreamInput.trim() || (detectedIp && detectedIp !== 'custom' ? `http://${detectedIp}/stream` : '');
-const localStreamUrl = safeStreamUrl(localCandidate, undefined, { allowLocalHttp: true });
-const streamUrl = localPreview ? (localStreamUrl || '') : serverStreamUrl;
+const streamUrl = serverStreamUrl;
 const previewActive = Boolean(streamUrl) && !['scanning', 'countdown', 'complete'].includes(scanStatus);
-
-useEffect(() => {
-  sessionStorage.setItem('damda_local_preview', String(localPreview));
-  sessionStorage.setItem('damda_local_stream', localStreamInput);
-}, [localPreview, localStreamInput]);
 
 // 스트림 연결 상태
 const [streamError, setStreamError] = useState(false);
@@ -526,9 +516,7 @@ useEffect(() => {
                         <span>ESP32 실시간 화면에 연결할 수 없습니다</span>
                       </div>
                       <p className="text-[10px] text-gray-400 leading-relaxed max-w-sm">
-                        {typeof window !== 'undefined' && window.location.protocol === 'https:'
-                          ? '같은 Wi-Fi인지 확인하고, 로컬 영상 설정을 켠 경우 이 사이트의 안전하지 않은 콘텐츠 및 로컬 네트워크 접근 권한을 확인해 주세요. 브라우저 정책에 따라 연결이 제한될 수 있습니다.'
-                          : 'ESP32와 동일한 Wi-Fi 네트워크에 접속되어 있는지 확인해 주세요.'}
+                        기기 전원과 Wi-Fi 연결을 확인한 뒤 다시 시도해 주세요.
                       </p>
                       <button
                       type="button"
