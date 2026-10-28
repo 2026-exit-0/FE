@@ -25,6 +25,7 @@ const DashboardPage = () => {
   const { user } = useAuth(true);
   const { weather } = useWeather();
   const { scans, currentScan, initializeIfNeeded } = useScanStore();
+  const { wishlist, toggleWish } = useAuthStore();
 
   useEffect(() => {
     initializeIfNeeded();
