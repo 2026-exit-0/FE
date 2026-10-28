@@ -1,4 +1,3 @@
-import { scoreColor } from '../utils/scoreColor';
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -69,7 +68,7 @@ const ProgressBar = ({ value, max = 100 }) => {
         className="h-full rounded-full transition-all duration-700 ease-out"
         style={{
           width: `${percent}%`,
-          backgroundColor: scoreColor(value),
+          backgroundColor: percent >= 70 ? '#4CAF50' : percent >= 50 ? '#EAB308' : '#F97316',
         }}
       />
     </div>
@@ -165,8 +164,7 @@ const ReportPage = () => {
   }, [fetchHistory]);
 
   const availableScans = useMemo(() => selectReportScans(
-    [...scans, ...(currentScan ? [currentScan] : [])].filter(scan => currentScan?.is_mock ? scan.is_mock : true),
-    currentScan?.is_mock || localStorage.getItem('damda_token') === 'demo_access_token' ? 'mock' : 'real',
+    [...scans, ...(currentScan ? [currentScan] : [])],
   ), [scans, currentScan]);
   const displayScans = useMemo(() => {
     return filterReportPeriod(availableScans, period, new Date());
@@ -181,7 +179,7 @@ const ReportPage = () => {
   const handleExportPDF = async () => {
     const sessionId = currentScan?.sessionId;
 
-    if (sessionId && !currentScan?.exampleMetrics) {
+    if (sessionId) {
       try {
         const blob = await downloadReportPdf(sessionId);
         const url = URL.createObjectURL(blob);
@@ -445,7 +443,7 @@ const ReportPage = () => {
                                   {item.skinType || '-'}
                                 </td>
                                 <td className="py-3.5 pr-3 font-bold text-text-primary">
-                                  <span style={{ color: scoreColor(score) }}>{score === null ? '-' : `${score}점`}</span>
+                                  {score === null ? '-' : `${score}점`}
                                 </td>
                                 <td className="py-3.5">
                                   <div className="flex items-center gap-2">

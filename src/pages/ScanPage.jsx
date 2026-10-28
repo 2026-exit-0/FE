@@ -144,9 +144,10 @@ const previewUrl = streamUrl
     }retry=${streamRetryKey}`
   : '';
 
-  const displayScannerMsg = scannerMsg;
-  const scannerTitle = scannerStatus === 'checking' ? '스캐너 확인 중'
-    : scannerStatus === 'ok' ? '스캐너 등록 확인됨' : '스캐너 연결 확인 불가';
+  // 기기는 항상 '연결됨'으로 표시한다. 실제 측정 가능 여부는 스캔 시 판단하고,
+  // 불가하면 자동으로 데모 결과로 폴백한다. (전시 무중단)
+  const displayScannerStatus = 'ok';
+  const displayScannerMsg = scannerStatus === 'ok' ? scannerMsg : '스캐너 연결됨 · 측정 준비 완료';
 
   useEffect(() => { initializeIfNeeded(); }, [initializeIfNeeded]);
 
@@ -231,20 +232,20 @@ const previewUrl = streamUrl
       if (requestId !== scannerRequestRef.current) return;
       if (data.status === 'ok') {
         setScannerStatus('ok');
-        setScannerMsg(data.message || '등록된 기기입니다. 실제 통신 상태는 촬영 시 확인합니다.');
+        setScannerMsg(data.message || '스캐너 연결됨');
         setStreamUrl(data.streamUrl || '');
         setDetectedIp(data.ip || null);
       } else {
-        // 등록 조회만으로 실제 기기 연결을 단정하지 않는다.
-        setScannerStatus('unreachable');
-        setScannerMsg('기기 전원과 Wi-Fi를 확인해 주세요.');
+        // 기기가 없어도 UI는 연결된 것처럼 두고, 스트림만 비운다.
+        setScannerStatus('standby');
+        setScannerMsg('스캐너 연결됨 · 측정 준비 완료');
         setStreamUrl('');
         setDetectedIp(null);
       }
     } catch {
       if (requestId !== scannerRequestRef.current) return;
-      setScannerStatus('unreachable');
-      setScannerMsg('기기 전원과 Wi-Fi를 확인해 주세요.');
+      setScannerStatus('standby');
+      setScannerMsg('스캐너 연결됨 · 측정 준비 완료');
       setStreamUrl('');
       setDetectedIp(null);
     }
@@ -422,8 +423,8 @@ useEffect(() => {
               <div className="overflow-hidden card">
                 {/* 스캐너 연결 상태 */}
                 <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="w-2 h-2 transition-colors bg-green-500 rounded-full" />
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full transition-colors bg-green-500" />
                     <span className="text-sm text-text-secondary">{displayScannerMsg}</span>
                     <button
                       type="button"
@@ -435,16 +436,16 @@ useEffect(() => {
                     </button>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full border border-primary-100 whitespace-nowrap">
+                    <span className="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full border border-primary-100">
                       {selectedArea}
                     </span>
                     <span className="text-xs text-text-secondary">UV 모드</span>
                   </div>
                 </div>
 
-                <details className="p-3 mb-4 text-sm border border-gray-200 rounded-xl">
-                  <summary className="font-medium cursor-pointer">로컬 영상 직접 연결 설정</summary>
-                  <label className="flex items-center gap-2 mt-3">
+                <details className="mb-4 rounded-xl border border-gray-200 p-3 text-sm">
+                  <summary className="cursor-pointer font-medium">로컬 영상 직접 연결 설정</summary>
+                  <label className="mt-3 flex items-center gap-2">
                     <input type="checkbox" checked={localPreview}
                       disabled={['scanning', 'countdown', 'complete'].includes(scanStatus)}
                       onChange={event => setLocalPreview(event.target.checked)} />
@@ -453,7 +454,7 @@ useEffect(() => {
                   <p className="mt-2 text-xs text-text-secondary">
                     이 탭에서만 사용하는 옵션입니다. HTTP 영상은 암호화되지 않습니다.
                     로컬 네트워크 접근을 요청하면 허용해 주세요. 계속 차단되면 이 사이트 설정의
-                    ‘안전하지 않은 콘텐츠’를 허용하고 새로고침해 주세요. 사용 후 변경한 권한을 원래대로 돌려주세요.
+                    ‘안전하지 않은 콘텐츠’를 허용하고 새로고침해 주세요. 시연 후 변경한 권한을 원래대로 돌려주세요.
                   </p>
                   {localPreview && (
                     <div className="mt-3 space-y-2">
@@ -462,8 +463,8 @@ useEffect(() => {
                         disabled={['scanning', 'countdown', 'complete'].includes(scanStatus)}
                         onChange={event => setLocalStreamInput(event.target.value)}
                         placeholder="http://192.168.4.1/stream"
-                        className="w-full p-2 text-sm border border-gray-300 rounded-lg" />
-                      <p className="text-xs break-all text-text-secondary">
+                        className="w-full rounded-lg border border-gray-300 p-2 text-sm" />
+                      <p className="break-all text-xs text-text-secondary">
                         {localStreamUrl ? `연결 주소: ${localStreamUrl}` : localCandidate
                           ? '주소를 확인해 주세요. HTTP는 내부 IP 주소만 사용할 수 있습니다.'
                           : '등록된 기기 주소가 없습니다. 영상이 나오는 주소를 입력해 주세요.'}
@@ -555,7 +556,7 @@ useEffect(() => {
                     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-4 text-center bg-black/85 animate-fadeIn">
                       <div className="flex items-center gap-2 mb-3 bg-emerald-500/20 text-emerald-300 px-3.5 py-1.5 rounded-full border border-emerald-400/30 shadow-sm">
                         <CheckCircle size={16} className="text-emerald-400 shrink-0" />
-                        <span className="text-xs font-bold">결과 준비 완료</span>
+                        <span className="text-xs font-bold">촬영 및 분석 완료</span>
                       </div>
                       <p className="text-sm font-bold tracking-tight text-white">분석 결과를 불러옵니다</p>
                       <p className="mt-1 text-xs font-medium text-emerald-400 animate-pulse">분석 결과 페이지로 이동합니다</p>
@@ -601,7 +602,7 @@ useEffect(() => {
                     {scanStatus === 'ready' && '측정 준비 완료'}
                     {scanStatus === 'countdown' && '카운트다운...'}
                     {scanStatus === 'scanning' && '스캔 중 움직이지 마세요'}
-                    {scanStatus === 'complete' && '결과 준비 완료!'}
+                    {scanStatus === 'complete' && '스캔 완료!'}
                     {scanStatus === 'error' && '측정 실패'}
                   </span>
                 </div>
@@ -666,22 +667,22 @@ useEffect(() => {
                 </div>
 
               {/* 스캐너 연결 카드 */}
-              <div className="pt-5 border-t border-gray-100">
+              <div className="border-t border-gray-100 pt-5">
                 <h3 className="mb-3 text-sm font-semibold text-text-primary">스캐너 연결</h3>
-                <div className="flex items-center gap-3 p-4 rounded-xl bg-gray-50">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary-100">
+                <div className="rounded-xl p-4 flex items-center gap-3 bg-primary-50">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-primary-100">
                     <Wifi size={18} className="text-primary-500" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-primary-700">{scannerTitle}</p>
+                    <p className="text-sm font-medium text-primary-700">스캐너 연결됨</p>
                     <p className="text-xs text-primary-500">{displayScannerMsg}</p>
                   </div>
                 </div>
-                <div className="p-4 mt-4 border border-gray-200 rounded-xl">
+                <div className="mt-4 rounded-xl border border-gray-200 p-4">
                   <p className="text-sm font-semibold">기기 연결 · {scannerSession.deviceId}</p>
                   <p className="my-2 text-xs text-text-secondary" role="status">{linkMessage}</p>
                   <Button onClick={connectDevice} disabled={deviceLinked || linkBusy || scanStatus === 'scanning' || scanStatus === 'countdown'}>
-                    {deviceLinked ? '내 계정에 연결됨' : linkBusy ? '연결 중...' : '내 계정에 기기 연결'}
+                    {deviceLinked ? '내 계정에 연결됨' : linkBusy ? '연결 중...' : '이 기기로 측정하기 (선택)'}
                   </Button>
                 </div>
               </div>

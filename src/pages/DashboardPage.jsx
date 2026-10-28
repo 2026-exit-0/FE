@@ -1,4 +1,3 @@
-import { scoreColor } from '../utils/scoreColor';
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -183,14 +182,14 @@ const DashboardPage = () => {
                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                     <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="8" />
                     <circle
-                      cx="50" cy="50" r="42" fill="none" stroke={scoreColor(latestScore)} strokeWidth="8" strokeLinecap="round"
+                      cx="50" cy="50" r="42" fill="none" stroke="#6ee7b7" strokeWidth="8" strokeLinecap="round"
                       strokeDasharray={264} strokeDashoffset={264 - (264 * Math.max(0, Math.min(100, latestScore ?? 0))) / 100}
                       className="transition-all duration-1000 ease-out"
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                     <span className="text-[10px] text-emerald-200 uppercase font-semibold">피부 점수</span>
-                    <span style={{ color: scoreColor(latestScore) }} className="text-3xl font-black leading-none">{latestScore ?? '—'}</span>
+                    <span className="text-3xl font-black text-white leading-none">{latestScore ?? '—'}</span>
                     <span className="text-[9px] text-emerald-300 font-medium">/ 100점</span>
                   </div>
                 </div>
@@ -214,7 +213,7 @@ const DashboardPage = () => {
                     </div>
                   </div>
                   <p className="text-[11px] text-emerald-200/90 pt-1">
-                    {mode === 'mock' ? '예시 분석 데이터' : hasScanData ? '최근 촬영 기록 · 없는 항목은 —로 표시합니다' : '측정 후 피부 상태를 확인할 수 있어요'}
+                    {mode === 'mock' ? '시연용 예시 데이터' : hasScanData ? '최근 촬영 기록 · 없는 항목은 —로 표시합니다' : '측정 후 피부 상태를 확인할 수 있어요'}
                   </p>
                 </div>
               </div>
@@ -234,7 +233,7 @@ const DashboardPage = () => {
                     DAMDA Dual-LED IoT Scanner v1.2
                   </h3>
                   <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-md border border-emerald-200">
-                    {mode === 'mock' ? '예시 분석' : '기기 연결 확인 필요'}
+                    {mode === 'mock' ? '시연용' : '기기 연결 확인 필요'}
                   </span>
                 </div>
                 <p className="text-xs text-text-secondary mt-0.5">

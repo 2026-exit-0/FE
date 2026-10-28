@@ -1,4 +1,3 @@
-import { withExampleMetrics } from '../utils/exampleMetrics';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getScanHistory } from '../api/scan';
@@ -12,10 +11,6 @@ const measurement = value => {
 
 // 백엔드 narrative / result 응답을 flat 구조로 변환 (차트/UI 호환)
 export function parseApiResult(apiResult) {
-  return withExampleMetrics(parseStoredResult(apiResult));
-}
-
-function parseStoredResult(apiResult) {
   if (!apiResult) return {};
 
   // 1. 새 BE 응답 형태: { session_id, total_score, result: { moisture/moisture_on, sebum, pore, elasticity, pigmentation/melanin_on }, advice: {...} }
@@ -158,8 +153,8 @@ const useScanStore = create(
           }
           const parsed = Array.isArray(history) ? history.map((s) => parseApiResult(s)) : [];
           set((state) => ({
-            scans: [...parsed, ...state.scans.filter(scan => scan.is_mock && scan.meta?.fallbackReason)],
-            currentScan: state.currentScan?.is_mock && state.currentScan.meta?.fallbackReason ? state.currentScan : parsed.length === 0 ? null
+            scans: parsed,
+            currentScan: parsed.length === 0 ? null
               : parsed.some(scan => (scan.sessionId || scan.id) === (state.currentScan?.sessionId || state.currentScan?.id))
                 ? state.currentScan : parsed[0],
           }));
@@ -190,7 +185,7 @@ const useScanStore = create(
         return newScan;
       },
 
-      setCurrentScan: (scan) => set({ currentScan: withExampleMetrics(scan) }),
+      setCurrentScan: (scan) => set({ currentScan: scan }),
 
       removeScan: (scanId) => {
         set((state) => {
@@ -209,12 +204,6 @@ const useScanStore = create(
     }),
     {
       name: 'skinlab_scan_store',
-      merge: (saved, current) => ({
-        ...current,
-        ...saved,
-        scans: Array.isArray(saved?.scans) ? saved.scans.map(withExampleMetrics) : [],
-        currentScan: withExampleMetrics(saved?.currentScan) || null,
-      }),
       storage: createJSONStorage(() => localStorage),
     }
   )

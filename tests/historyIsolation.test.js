@@ -27,19 +27,6 @@ test('history responses belong to the authentication session that requested them
     };
     const row = session_id => [{ session_id, moisture: 60 }];
 
-    await t.test('local fallback survives refresh without becoming a server record', async () => {
-      store.getState().clearAll();
-      store.getState().addScan({ session_id: 'mock_local', is_mock: true, moisture: 60, oil: 30, meta: { fallbackReason: 'SCAN_FAILED' } });
-      const pending = await startRequest();
-      pending.respond(row('actual'));
-      await pending.result;
-      assert.equal(store.getState().currentScan.sessionId, 'mock_local');
-      assert.equal(store.getState().scans.length, 2);
-      assert.equal(store.getState().scans.find(scan => scan.sessionId === 'mock_local').is_mock, true);
-      store.getState().clearAll();
-      assert.equal(store.getState().currentScan, null);
-    });
-
     await t.test('late history refresh preserves the selected older session', async () => {
       values.set('damda_token', 'A');
       store.getState().clearAll();

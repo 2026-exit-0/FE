@@ -19,11 +19,10 @@ export function metricValue(scan, metric) {
   return null;
 }
 
-export function selectReportScans(scans, mode = 'real') {
-  // 실제 기록에 과거 전체 목업 촬영이 섞이지 않도록 분리한다.
+export function selectReportScans(scans) {
+  // 모드 구분 없이 전체 측정 기록을 중복 제거 후 최신순 정렬 (데모·실제 통합)
   const seen = new Set();
   return scans.filter(scan => {
-    if (mode !== 'mock' && (scan.is_mock || String(scan.sessionId || scan.session_id || '').startsWith('mock_'))) return false;
     const id = scan.sessionId || scan.session_id || scan.id;
     if (id != null && seen.has(id)) return false;
     if (id != null) seen.add(id);
@@ -109,7 +108,6 @@ export function reportNarrative(scans) {
   const lines = [];
   const improved = [], worsened = [];
   for (const m of NARRATIVE_METRICS) {
-    if (!['moisture', 'oil'].includes(m.id) && scans.some(scan => scan.exampleMetrics)) continue;
     const a = metricValue(first, m.id), b = metricValue(last, m.id);
     if (a === null || b === null) continue;
     const delta = Math.round((b - a) * 10) / 10;

@@ -29,16 +29,6 @@ test('history detail fetches matching result and optional care', async () => {
     assert.equal(data.overallScore, null);
     assert.equal(data.white_image_url, 'https://example.com/white.jpg');
     assert.equal(data.narrative.per_metric, undefined);
-    careMissing = true;
-    const local = await loadAnalysisCare('s1', undefined, data);
-    assert.equal(local.careSource, 'local-template');
-    assert.equal(local.report.metrics[0].sensor, '63%');
-    assert.equal(local.report.metrics[1].sensor, '0%');
-    assert.equal(local.sessionId, 's1');
-    assert.equal((await loadAnalysisCare('s2', undefined, data)).report, null);
-    assert.ok(calls.every(path => !path.includes('analyze')));
-    careMissing = false;
-
     assert.deepEqual((await loadAnalysisCare('s1')).narrative.tips, ['morning', 'tips']);
     assert.equal((await loadAnalysisDetail('s1', { sessionId: 's1', overallScore: 82 })).overallScore, 82);
     assert.equal((await loadAnalysisDetail('s1', { sessionId: 's1', total_score: 0 })).overallScore, 0);
@@ -72,7 +62,7 @@ test('history detail fetches matching result and optional care', async () => {
     assert.equal(fallback.moisture, 0);
     assert.equal(fallback.oil, 12);
     assert.equal(fallback.spots, null);
-    assert.equal(fallback.skinType, null);
+    assert.equal(fallback.skinType, undefined);
     assert.equal(fallback.overallScore, null);
     assert.equal(fallback.white_image_url, 'https://example.com/photo.jpg');
     assert.match(fallback.detailMessage, /404/);
@@ -84,20 +74,6 @@ test('history detail fetches matching result and optional care', async () => {
     };
     await assert.rejects(loadAnalysisDetail('s1'));
     assert.equal(authCalls, 1);
-    for (const status of [401, 403, 500]) {
-      client.defaults.adapter = async () => {
-        throw Object.assign(new Error('failed'), { response: { status } });
-      };
-      const failedCare = await loadAnalysisCare('s1', undefined, data);
-      assert.equal(failedCare.report, null);
-      assert.ok(failedCare.careMessage);
-    }
-    const savedReport = { summary: 'saved report', extra_note: 'keep' };
-    client.defaults.adapter = async config => ({ config, status: 200, headers: {}, data: { report: savedReport } });
-    const combined = (await loadAnalysisCare('s1', undefined, data)).report;
-    assert.equal(combined.extra_note, 'keep');
-    assert.equal(combined.metrics[0].sensor, '63%');
-    assert.notEqual(combined.summary, 'saved report');
 
   } finally {
     await server.close();

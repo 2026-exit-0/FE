@@ -60,7 +60,7 @@ export function createScannerSessionApi(client, deviceId) {
           if (current?.device_id === deviceId && isScanRunning(current.status)) return current;
           throw new Error('기기가 이미 사용 중입니다. 기존 촬영이 끝난 뒤 다시 시도해 주세요.');
         }
-        if (error.response?.status === 502) throw Object.assign(new Error('기기 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.'), { code: 'SCAN_DEVICE_UNAVAILABLE' });
+        if (error.response?.status === 502) throw new Error('기기 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.');
         throw error;
       }
     },
@@ -73,7 +73,7 @@ export function createScannerSessionApi(client, deviceId) {
             ? { session_id: sessionId, status: 'done' }
             : await this.status({ signal });
           if (current?.session_id === sessionId) {
-            if (current.status === 'failed') throw Object.assign(new Error('촬영 또는 저장에 실패했습니다. 기기 상태를 확인해 주세요.'), { code: 'SCAN_FAILED' });
+            if (current.status === 'failed') throw new Error('촬영 또는 저장에 실패했습니다. 기기 상태를 확인해 주세요.');
             if (current.status === 'done') {
               completedSessionId = sessionId;
               let data;

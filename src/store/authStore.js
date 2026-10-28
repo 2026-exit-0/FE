@@ -1,5 +1,3 @@
-import { createWishlistActions } from './wishlistActions.js';
-import { getWishlistApi, toggleWishlistApi, normalizeProductItem } from '../api/products';
 import { create } from 'zustand';
 import { readWishlist, writeWishlist } from '../utils/accountStorage';
 import * as authApi from '../api/auth';
@@ -259,14 +257,27 @@ const useAuthStore = create((set, get) => ({
     }
   },
 
-  ...createWishlistActions(set, get, {
-    token: () => localStorage.getItem(TOKEN_KEY),
-    load: getWishlistApi,
-    change: toggleWishlistApi,
-    normalize: normalizeProductItem,
-    read: readWishlist,
-    write: writeWishlist,
-  }),
+  // ── 찜 목록 토글 액션 (localStorage + State 동기화) ───
+  toggleWish: (product) => {
+    if (!get().user?.user_id) return false;
+    const list = get().wishlist;
+    const isExisted = list.some((p) => p.id === product.id);
+    let nextList;
+    if (isExisted) {
+      nextList = list.filter((p) => p.id !== product.id);
+    } else {
+      nextList = [...list, product];
+    }
+    set({ wishlist: nextList });
+    writeWishlist(get().user?.user_id, nextList);
+    return !isExisted; // 추가됐으면 true, 제거됐으면 false 반환
+  },
+
+  // 찜 목록 직접 저장 (되돌리기 복원용)
+  setWishlist: (list) => {
+    set({ wishlist: list });
+    writeWishlist(get().user?.user_id, list);
+  },
 
   // ── 프로필 이미지 (profile_image_url) ────────────────
   updateProfileImage: async (base64Image) => {

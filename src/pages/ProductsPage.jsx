@@ -1,5 +1,3 @@
-import { productScoreLabel, compareProductScore } from '../utils/productScore';
-import { productPrice, productPriceLabel, compareProductPrice } from '../utils/productPrice';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, Scan, RefreshCw, Sparkles, Heart, Search, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
@@ -25,14 +23,13 @@ const FILTER_CATEGORIES = [
 // ─── 가격대 필터 (price 숫자 기준 — price_range 문자열 표기가 달라도 안전) ──
 const PRICE_RANGES = [
   { id: '', label: '전체 가격' },
-  { id: 'u3', label: '3만원 미만', max: 30000 },
-  { id: '3_5', label: '3만~5만원 미만', min: 30000, max: 50000 },
-  { id: '5_10', label: '5만~10만원 미만', min: 50000, max: 100000 },
+  { id: 'u3', label: '~3만원', max: 30000 },
+  { id: '3_5', label: '3~5만원', min: 30000, max: 50000 },
+  { id: '5_10', label: '5~10만원', min: 50000, max: 100000 },
   { id: '10p', label: '10만원+', min: 100000 },
 ];
 
-function priceInBucket(value, bucketId) {
-  const price = productPrice(value);
+function priceInBucket(price, bucketId) {
   const b = PRICE_RANGES.find((x) => x.id === bucketId);
   if (!b || price == null) return price == null ? false : true;
   if (b.min != null && price < b.min) return false;
@@ -54,9 +51,20 @@ function normalizeIngredients(ingredients) {
   return ingredients.map((ing) => ing?.kr || ing?.inci || String(ing));
 }
 
+// ─── 정렬용 가격 숫자 (price 우선, 없으면 price_range 문자열 추정) ───────
+function productPriceNum(p) {
+  if (typeof p.price === 'number') return p.price;
+  const pr = p.price_range || '';
+  if (pr.includes('10만') || pr.includes('10만원+')) return 110000;
+  if (pr.includes('5') && pr.includes('10')) return 70000;
+  if (pr.includes('3') && pr.includes('5')) return 40000;
+  if (pr.includes('3만')) return 20000;
+  return 9999999;
+}
+
 // ─── 제품 카드 ───────────────────────────────────────────────
 const ProductCard = ({ product, onClick }) => {
-  const { wishlist, toggleWish, wishlistBusy } = useAuthStore();
+  const { wishlist, toggleWish } = useAuthStore();
   const isWished = (wishlist || []).some((p) => p.id === product.id);
   const ingredients = normalizeIngredients(product.main_ingredients);
 
@@ -87,7 +95,7 @@ const ProductCard = ({ product, onClick }) => {
             <div className="flex flex-wrap gap-1 mt-1">{catTags}</div>
           </div>
           <span className="text-xs font-bold bg-gradient-to-r from-emerald-500 to-green-600 text-white px-2.5 py-1 rounded-lg flex-shrink-0 shadow-sm">
-            {productScoreLabel(product)}
+            {product.score?.toFixed(1) ?? '0'}점
           </span>
         </div>
 
@@ -103,9 +111,9 @@ const ProductCard = ({ product, onClick }) => {
         <div className="flex justify-between items-center mt-2 border-t border-gray-50 pt-2">
           <div className="flex items-center gap-1.5 flex-wrap">
             {/* 가격대 */}
-            {(
+            {product.price_range && (
               <span className="text-[10px] bg-blue-50 text-blue-600 font-semibold px-2 py-0.5 rounded-full">
-                {productPriceLabel(product)}
+                {product.price_range}
               </span>
             )}
             {/* 무향료 / 무알코올 뱃지 */}
@@ -125,7 +133,6 @@ const ProductCard = ({ product, onClick }) => {
           </div>
 
           <button
-            disabled={wishlistBusy}
             onClick={(e) => { e.stopPropagation(); toggleWish(product); }}
             className="p-1.5 rounded-full hover:bg-gray-50 transition-colors flex-shrink-0"
           >
@@ -138,8 +145,8 @@ const ProductCard = ({ product, onClick }) => {
 };
 
 // ─── 제품 상세 모달 ──────────────────────────────────────────
-const ProductModal = ({ product, onClose, detailStatus, onRetry }) => {
-  const { wishlist, toggleWish, wishlistBusy } = useAuthStore();
+const ProductModal = ({ product, onClose }) => {
+  const { wishlist, toggleWish } = useAuthStore();
   if (!product) return null;
 
   const isWished = (wishlist || []).some((p) => p.id === product.id);
@@ -168,7 +175,6 @@ const ProductModal = ({ product, onClose, detailStatus, onRetry }) => {
                 <h2 className="text-lg font-bold text-text-primary mt-1">{product.name}</h2>
               </div>
               <button
-                disabled={wishlistBusy}
                 onClick={() => toggleWish(product)}
                 className="p-2 rounded-full border border-gray-100 hover:bg-gray-50 transition-colors flex-shrink-0"
               >
@@ -177,12 +183,12 @@ const ProductModal = ({ product, onClose, detailStatus, onRetry }) => {
             </div>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <span className="text-sm font-bold bg-gradient-to-r from-emerald-500 to-green-600 text-white px-3 py-1 rounded-lg shadow-sm">
-                {productScoreLabel(product)}
+                {product.score?.toFixed(1) ?? '0'}점
               </span>
               {/* 가격대 */}
-              {(
+              {product.price_range && (
                 <span className="text-xs bg-blue-50 text-blue-600 font-semibold px-2.5 py-1 rounded-full">
-                  💰 {productPriceLabel(product)}
+                  💰 {product.price_range}
                 </span>
               )}
               {(product.category || []).map((c) => (
@@ -212,24 +218,6 @@ const ProductModal = ({ product, onClose, detailStatus, onRetry }) => {
             <p className="text-xs text-text-secondary font-semibold uppercase tracking-wide mb-1">추천 이유</p>
             <p className="text-sm text-text-primary bg-gray-50 rounded-lg px-3 py-2 border-l-2 border-primary-400">{product.reason || '범용 케어'}</p>
           </div>
-
-          <div role="status" aria-live="polite" className="rounded-xl bg-gray-50 p-3 text-sm text-text-secondary">
-            {detailStatus === 'loading' ? '상세 성분 정보를 불러오는 중입니다.' :
-              detailStatus === 'error' ? (
-                <>
-                  <p>상세 성분 정보를 불러오지 못했습니다. 현재 확인된 정보만 표시합니다.</p>
-                  <button type="button" onClick={onRetry} className="mt-2 font-semibold text-primary-600 underline">다시 조회</button>
-                </>
-              ) : detailStatus === 'unavailable' ? '이 제품의 추가 상세 정보를 조회할 수 없습니다.' :
-                '등록된 제품 정보입니다. 정보 미제공은 해당 성분이 없다는 의미가 아닙니다.'}
-          </div>
-          {detailStatus === 'success' && (
-            <div className="space-y-1 text-xs text-text-secondary">
-              {!product.caution_ingredients?.length && <p>주의성분: 정보 미제공</p>}
-              {!ingredients.length && <p>주성분: 정보 미제공</p>}
-              {!product.full_ingredients?.trim() && <p>전성분: 정보 미제공</p>}
-            </div>
-          )}
 
           {/* 주의 성분 (상세 전용 · 경고 톤) */}
           {(product.caution_ingredients?.length > 0) && (
@@ -294,8 +282,6 @@ const ProductModal = ({ product, onClose, detailStatus, onRetry }) => {
 // ─── 메인 페이지 ─────────────────────────────────────────────
 const ProductsPage = () => {
   useAuth(true);
-  const { user, fetchWishlist, wishlistError, wishlistBusy } = useAuthStore();
-  useEffect(() => { fetchWishlist(); }, [user?.user_id, fetchWishlist]);
   const { currentScan, initializeIfNeeded } = useScanStore();
 
   const [products, setProducts] = useState([]);
@@ -305,12 +291,11 @@ const ProductsPage = () => {
   const [loading, setLoading] = useState(false);
   const [activeFilters, setActiveFilters] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [detailStatus, setDetailStatus] = useState('idle');
-  const detailRequest = useRef(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [priceFilter, setPriceFilter] = useState('');
   const [sortBy, setSortBy] = useState('score');
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const shownIds = useRef(new Set());
 
   const hasScanData = !!currentScan;
   const userInputs = useMemo(() => (
@@ -319,13 +304,19 @@ const ProductsPage = () => {
       : {}
   ), [currentScan]);
 
-  const fetchProducts = useCallback(async () => {
+  const fetchProducts = useCallback(async ({ filters = [], seed = null, isRefresh = false } = {}) => {
     const generation = ++requestGeneration.current;
     const token = localStorage.getItem('damda_token');
     const isCurrent = () => generation === requestGeneration.current && token === localStorage.getItem('damda_token');
     setLoading(true);
     setRecommendationError('');
     try {
+      // 리프레시 시 이미 많이 본 경우 shownIds를 리셋하여 빈 결과 방지
+      if (isRefresh && shownIds.current.size >= 15) {
+        shownIds.current.clear();
+      }
+
+      const excludeIds = isRefresh ? Array.from(shownIds.current) : [];
       const body = {
         measurement: currentScan
           ? { moisture: currentScan.moisture, oil: currentScan.oil, elasticity: currentScan.elasticity }
@@ -333,15 +324,34 @@ const ProductsPage = () => {
         user_inputs: userInputs,
         top_k: 20,
       };
+      if (filters.length > 0) body.filter_categories = filters;
+      if (seed != null) body.seed = seed;
+      if (excludeIds.length > 0) body.exclude_ids = excludeIds;
+
       const data = await getRecommendations(body, currentScan?.sessionId);
       if (!isCurrent()) return;
       setRecommendationSource(data.source);
-      const list = (data.recommended_products || []).map((p) => ({
+      let list = (data.recommended_products || []).map((p) => ({
         ...p,
         id: p.id || p.product_id,
         name: p.name || p.name_kr,
       }));
 
+      // 만약 exclude_ids 때문에 백엔드가 빈 목록을 줬다면, shownIds 비우고 제외 없이 재요청
+      if (list.length === 0 && excludeIds.length > 0) {
+        shownIds.current.clear();
+        delete body.exclude_ids;
+        const retryData = await getRecommendations(body, currentScan?.sessionId);
+        if (!isCurrent()) return;
+        setRecommendationSource(retryData.source);
+        list = (retryData.recommended_products || []).map((p) => ({
+          ...p,
+          id: p.id || p.product_id,
+          name: p.name || p.name_kr,
+        }));
+      }
+
+      list.forEach((p) => p.id && shownIds.current.add(p.id));
       setProducts(list);
     } catch (err) {
       if (!isCurrent()) return;
@@ -355,20 +365,11 @@ const ProductsPage = () => {
 
   // 카드 클릭 시 목록 데이터로 모달을 먼저 띄우고, BE 상세(주의성분·전성분·판매링크)를 보강
   const openProduct = useCallback(async (p) => {
-    const request = ++detailRequest.current;
-    const token = localStorage.getItem('damda_token');
-    const isCurrent = () => request === detailRequest.current && token === localStorage.getItem('damda_token');
     setSelectedProduct(p);
     const pid = p?.id;
-    if (!pid || String(pid).startsWith('mock') || token === 'demo_access_token') {
-      setDetailStatus('unavailable');
-      return;
-    }
-    setDetailStatus('loading');
+    if (!pid || String(pid).startsWith('mock')) return;
     try {
       const detail = normalizeProductItem(await getProductById(pid));
-      if (!isCurrent()) return;
-      if (!detail || String(detail.id) !== String(pid)) throw new Error('제품 상세 응답 불일치');
       setSelectedProduct((cur) => {
         if (!cur || cur.id !== pid) return cur;
         return {
@@ -383,8 +384,7 @@ const ProductsPage = () => {
           price_range: cur.price_range ?? detail.price_range,
         };
       });
-    setDetailStatus('success');
-    } catch { if (isCurrent()) setDetailStatus('error'); }
+    } catch { /* 상세 조회 실패 시 목록 데이터로 표시 */ }
   }, []);
 
   useEffect(() => {
@@ -392,19 +392,12 @@ const ProductsPage = () => {
   }, [initializeIfNeeded]);
 
   useEffect(() => {
+    shownIds.current.clear();
     setProducts([]);
     setRecommendationSource(null);
     if (hasScanData) fetchProducts();
     return () => { requestGeneration.current++; };
   }, [hasScanData, fetchProducts]);
-
-  const closeProduct = () => {
-    detailRequest.current++;
-    setSelectedProduct(null);
-    setDetailStatus('idle');
-  };
-
-  useEffect(() => () => { detailRequest.current++; }, []);
 
   // 클라이언트 사이드: 카테고리 + 검색 + 가격대 + 정렬
   const filteredProducts = useMemo(() => {
@@ -442,11 +435,11 @@ const ProductsPage = () => {
 
     // 정렬
     if (sortBy === 'score') {
-      list.sort(compareProductScore);
+      list.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
     } else if (sortBy === 'price_asc') {
-      list.sort((a, b) => compareProductPrice(a, b));
+      list.sort((a, b) => productPriceNum(a) - productPriceNum(b));
     } else if (sortBy === 'price_desc') {
-      list.sort((a, b) => compareProductPrice(a, b, true));
+      list.sort((a, b) => productPriceNum(b) - productPriceNum(a));
     }
 
     return list;
@@ -461,7 +454,7 @@ const ProductsPage = () => {
   };
 
   const handleRefresh = () => {
-    fetchProducts();
+    fetchProducts({ filters: activeFilters, seed: Math.floor(Math.random() * 99999), isRefresh: true });
   };
 
   const clearAll = () => {
@@ -514,18 +507,11 @@ const ProductsPage = () => {
                 <p className="text-sm text-primary-700 leading-relaxed">
                   {recommendationError || (loading ? '제품을 불러오는 중이에요.' :
                     recommendationSource === 'catalog' ? '맞춤 추천을 불러오지 못해 일반 제품 목록을 보여드려요.' :
-                    recommendationSource === 'demo' ? '예시 추천입니다. 카드를 누르면 상세 정보를 볼 수 있어요.' :
+                    recommendationSource === 'demo' ? '시연용 예시 추천입니다. 카드를 누르면 상세 정보를 볼 수 있어요.' :
                     '선택한 측정 결과를 바탕으로 추천한 제품이에요. 카드를 누르면 상세 정보를 볼 수 있어요.')}
                 </p>
               </div>
             </div>
-
-            {wishlistError && (
-              <div role="alert" className="mb-4 text-sm text-red-600">
-                {wishlistError}
-                <button disabled={wishlistBusy} onClick={fetchWishlist} className="ml-2 underline">찜 목록 다시 조회</button>
-              </div>
-            )}
 
             {/* 검색바 */}
             <div className="relative mb-3">
@@ -584,7 +570,7 @@ const ProductsPage = () => {
                   className="flex items-center gap-1.5 text-xs font-medium text-text-secondary border border-gray-200 px-3 py-1.5 rounded-lg hover:border-primary-300 hover:text-primary-600 transition-all disabled:opacity-50 bg-white"
                 >
                   <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-                  새로고침
+                  다른 추천
                 </button>
               </div>
             </div>
@@ -644,29 +630,14 @@ const ProductsPage = () => {
                   <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 h-28 animate-pulse" />
                 ))}
               </div>
-            ) : recommendationError ? (
-              <div role="alert" className="text-center py-16 text-text-secondary">
-                <RefreshCw size={40} className="mx-auto mb-3 text-gray-300" />
-                <p className="text-sm font-medium text-text-primary mb-1">제품 목록을 불러오지 못했어요.</p>
-                <p className="text-xs text-text-secondary mb-4">잠시 후 다시 시도해 주세요. 선택한 검색 조건은 유지됩니다.</p>
-                <button onClick={handleRefresh} className="text-primary-500 text-sm font-semibold hover:underline">
-                  다시 시도
-                </button>
-              </div>
             ) : filteredProducts.length === 0 ? (
               <div className="text-center py-16 text-text-secondary">
                 <ShoppingBag size={40} className="mx-auto mb-3 text-gray-300" />
-                <p className="text-sm font-medium text-text-primary mb-1">
-                  {hasActiveFilter ? '해당 조건에 맞는 제품이 없어요.' : '현재 표시할 제품이 없어요.'}
-                </p>
-                <p className="text-xs text-text-secondary mb-4">
-                  {hasActiveFilter ? '검색어나 필터를 변경해 보세요.' : '나중에 새로고침해 주세요.'}
-                </p>
-                {hasActiveFilter && (
-                  <button onClick={clearAll} className="text-primary-500 text-sm font-semibold hover:underline">
-                    필터 초기화
-                  </button>
-                )}
+                <p className="text-sm font-medium text-text-primary mb-1">해당 조건에 맞는 제품이 없어요.</p>
+                <p className="text-xs text-text-secondary mb-4">검색어나 필터를 변경해 보세요.</p>
+                <button onClick={clearAll} className="text-primary-500 text-sm font-semibold hover:underline">
+                  필터 초기화
+                </button>
               </div>
             ) : (
               <div className="space-y-3">
@@ -684,7 +655,7 @@ const ProductsPage = () => {
       <BottomNav />
 
       {/* 모달 */}
-      <ProductModal product={selectedProduct} onClose={closeProduct} detailStatus={detailStatus} onRetry={() => openProduct(selectedProduct)} />
+      <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />
 
       {/* 정렬 메뉴 외부 클릭 닫기 */}
       {showSortMenu && (

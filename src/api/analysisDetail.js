@@ -1,4 +1,3 @@
-import { buildExampleCare } from '../utils/exampleCare';
 import client from './client';
 
 export function analysisErrorMessage(error) {
@@ -29,7 +28,7 @@ export async function loadAnalysisDetail(sessionId, history = {}, signal) {
   }
   if (!data || (data.session_id && data.session_id !== sessionId)) throw new Error('촬영 결과를 확인할 수 없습니다.');
   const values = data.result || data;
-  const number = value => value == null || typeof value === 'boolean' || String(value).trim() === '' || !Number.isFinite(Number(value)) ? null : Number(value);
+  const number = value => value == null || value === '' || !Number.isFinite(Number(value)) ? null : Number(value);
   // 변환 과정에서 붙인 기본 점수 대신 같은 세션의 원본 응답만 보존한다.
   const original = history._raw || history;
   const originalId = original.session_id || original.sessionId || history.sessionId || history.session_id;
@@ -39,7 +38,6 @@ export async function loadAnalysisDetail(sessionId, history = {}, signal) {
     ...history,
     sessionId,
     detailMessage,
-    skinType: data.skin_type_result || data.skinType || history.skinType || null,
     moisture: number(values.moisture ?? values.moisture_on),
     oil: number(values.sebum ?? values.oil),
     spots: number(values.pore ?? values.spots),
@@ -55,16 +53,9 @@ export async function loadAnalysisDetail(sessionId, history = {}, signal) {
   };
 }
 
-export async function loadAnalysisCare(sessionId, signal, scan) {
-  const fallback = () => scan?.sessionId === sessionId ? buildExampleCare(scan) : null;
+export async function loadAnalysisCare(sessionId, signal) {
   try {
     const { data: advice = {} } = await client.get(`/care/${encodeURIComponent(sessionId)}`, { signal });
-    const local = fallback();
-    if (local) {
-      const report = { ...advice.report, ...local.report };
-      return { ...local, report, advice: { ...advice, ...local.advice, report },
-        recommendedProducts: advice.recommended_products || [] };
-    }
     const tips = Array.isArray(advice.tips) ? [...advice.tips] : advice.tips ? [advice.tips] : [];
     for (const key of ['morning_routine', 'night_routine', 'lifestyle_tips']) {
       if (advice[key]) tips.push(advice[key]);
@@ -73,10 +64,6 @@ export async function loadAnalysisCare(sessionId, signal, scan) {
              recommendedProducts: advice.recommended_products || [], careMessage: '' };
   } catch (error) {
     if (signal?.aborted) throw error;
-    if (error.response?.status === 404) {
-      const local = fallback();
-      if (local) return local;
-    }
     return { narrative: { summary: '', tips: [] }, advice: {}, report: null, recommendedProducts: [],
       careMessage: error.response?.status === 404
       ? '이 촬영의 케어 가이드가 아직 없습니다.' : '케어 가이드를 불러오지 못했습니다.' };

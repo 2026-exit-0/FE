@@ -3,7 +3,7 @@ import axios from 'axios';
 const isMock = false;
 
 const baseURL = import.meta.env.PROD
-  ? '/api'
+  ? 'https://api.damdads.kro.kr'
   : (import.meta.env.VITE_API_BASE?.trim() || 'http://localhost:8000');
 
 const client = axios.create({
