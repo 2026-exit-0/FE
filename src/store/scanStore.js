@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getScanHistory } from '../api/scan';
 import { scanImages } from '../utils/scanSafety';
+import { toDateText } from '../utils/dateText';
 
 const measurement = value => {
   if (value == null || typeof value === 'boolean' || String(value).trim() === '') return null;
@@ -32,11 +33,11 @@ export function parseApiResult(apiResult) {
     const pigmentationVal = measurement(r.pigmentation);
     const overall = measurement(apiResult.total_score ?? apiResult.overallScore);
 
-    // 날짜 파싱 (1순위: BE created_at, 2순위: BE date, 3순위: 오늘 날짜)
-    let formattedDate = new Date().toISOString().split('T')[0].replace(/-/g, '.');
+    // 날짜 
+    let formattedDate = toDateText();
     if (apiResult.created_at) {
       try {
-        formattedDate = new Date(apiResult.created_at).toISOString().split('T')[0].replace(/-/g, '.');
+        formattedDate = toDateText();
       } catch { /* ignore parse error */ }
     } else if (apiResult.date) {
       formattedDate = apiResult.date;
@@ -94,10 +95,10 @@ export function parseApiResult(apiResult) {
     metrics[key] = measurement(m.value);
   });
 
-  let fallbackDate = new Date().toISOString().split('T')[0].replace(/-/g, '.');
+  let fallbackDate = toDateText(apiResult.created_at) || formattedDate;
   if (apiResult.created_at) {
     try {
-      fallbackDate = new Date(apiResult.created_at).toISOString().split('T')[0].replace(/-/g, '.');
+      fallbackDate = toDateText(apiResult.created_at) || formattedDate;
     } catch { /* ignore */ }
   } else if (apiResult.date) {
     fallbackDate = apiResult.date;

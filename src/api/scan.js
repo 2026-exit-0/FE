@@ -2,6 +2,7 @@ import client, { isMock } from './client';
 import { mockAnalysis, mockScanHistory } from '../utils/mockData';
 import { safeStreamUrl } from '../utils/scanSafety';
 import { createScannerSessionApi } from './scannerSession';
+import { toDateText } from '../utils/dateText';
 
 const DEVICE_API_BASE = import.meta.env.VITE_DEVICE_API_BASE || '/device-api';
 const DEFAULT_DEVICE_ID = import.meta.env.VITE_SCANNER_DEVICE_ID || 'ESP32_1';
@@ -369,7 +370,7 @@ function buildMockResult(region) {
     pigmentation,
     overallScore: overall,
     skinType: `${skinType} 피부`,
-    date: new Date().toISOString().split('T')[0].replace(/-/g, '.'),
+    date: toDateText,
     area: region,
     is_mock: true,
   };
