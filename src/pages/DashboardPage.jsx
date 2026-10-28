@@ -414,9 +414,6 @@ const DashboardPage = () => {
                     <h4 className="text-xs font-bold text-text-primary mt-0.5 line-clamp-1 group-hover:text-primary-600 transition-colors">
                       {p.name}
                     </h4>
-                    <p className="text-[11px] text-text-secondary mt-1.5 line-clamp-2 bg-white/70 rounded-lg p-1.5 border border-gray-100">
-                      {p.reason || p.effect || (p.efficacy || []).join(' · ')}
-                    </p>
                   </div>
 
                   <div className="mt-3 pt-2.5 border-t border-gray-200/60 flex items-center justify-between">
