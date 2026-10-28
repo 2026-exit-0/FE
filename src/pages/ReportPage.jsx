@@ -215,7 +215,7 @@ const ReportPage = () => {
         <Header variant="dashboard" />
         <div className="flex">
           <Sidebar />
-          <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-28 desktop:pb-8">
+          <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-28 tablet:pb-28 desktop:pb-8">
             <div className="max-w-lg mx-auto text-center py-20 animate-fadeIn">
               <div className="w-20 h-20 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-6">
                 <FileText size={36} className="text-primary-300" />
@@ -244,7 +244,7 @@ const ReportPage = () => {
       <div className="flex">
         <Sidebar />
 
-        <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-28 desktop:pb-8 animate-fadeIn">
+        <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-28 tablet:pb-28 desktop:pb-8 animate-fadeIn">
           <div className="max-w-6xl mx-auto">
             {/* ── 상단 제목 + PDF 내보내기 ──────────────── */}
             <div className="flex items-center justify-between mb-6">

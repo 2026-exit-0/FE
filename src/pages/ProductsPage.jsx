@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { ShoppingBag, Scan, RefreshCw, Sparkles, Heart, Search, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import Header from '../components/common/Header';
 import Sidebar from '../components/common/Sidebar';
@@ -76,8 +76,7 @@ const ProductCard = ({ product, onClick }) => {
   return (
     <div
       onClick={onClick}
-      className="bg-white rounded-2xl border border-gray-100 p-4 flex gap-4 cursor-pointer
-                 hover:border-primary-200 hover:shadow-md transition-all duration-200 group"
+      className="bg-white rounded-2xl border border-gray-100 p-4 flex gap-4 cursor-pointer hover:border-primary-200 hover:shadow-md transition-all duration-200 group"
     >
       {/* 이미지 */}
       <div className="w-20 h-20 rounded-xl bg-gray-50 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform text-2xl">
@@ -387,6 +386,13 @@ const ProductsPage = () => {
       });
     } catch { /* 상세 조회 실패 시 목록 데이터로 표시 */ }
   }, []);
+  
+  // 마이페이지 찜 목록에서 제품을 눌러 들어오면 제품 상세 표시
+  const location = useLocation();
+  useEffect(() => {
+    const p = location.state?.openProduct;
+    if (p) openProduct(p);
+  }, [location.state, openProduct]);
 
   useEffect(() => {
     initializeIfNeeded();

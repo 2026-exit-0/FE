@@ -252,7 +252,7 @@ const AnalysisPage = () => {
         <Header variant="dashboard" />
         <div className="flex">
           <Sidebar />
-          <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-28 desktop:pb-8">
+          <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-28 tablet:pb-28 desktop:pb-8">
             <div className="max-w-lg py-20 mx-auto text-center animate-fadeIn">
               <div className="flex items-center justify-center w-20 h-20 mx-auto mb-6 rounded-full bg-primary-50">
                 <BarChart3 size={36} className="text-primary-300" />
@@ -693,7 +693,7 @@ const AnalysisPage = () => {
       <div className="flex">
         <Sidebar />
 
-        <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-28 desktop:pb-8 animate-fadeIn">
+        <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-28 tablet:pb-28 desktop:pb-8 animate-fadeIn">
           <div className="max-w-6xl mx-auto">
             {analysis.detailMessage && (
               <div role="status" className="p-4 mb-5 text-sm border rounded-xl border-amber-200 bg-amber-50 text-amber-900">
