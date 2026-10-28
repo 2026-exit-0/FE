@@ -1,3 +1,5 @@
+import { productScoreLabel } from '../utils/productScore';
+import { scoreColor } from '../utils/scoreColor';
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, User, Lock, Save, Heart, RotateCcw, Scan, BarChart3, TrendingUp, ChevronRight } from 'lucide-react';
@@ -9,10 +11,25 @@ import BottomNav from '../components/common/BottomNav';
 import Button from '../components/common/Button';
 import { SKIN_TYPES, SKIN_CONCERNS } from '../utils/constants';
 
+const WishlistImage = ({ src, name }) => {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => { setFailed(false); }, [src]);
+  return (
+    <div className="w-16 h-16 rounded-lg bg-gray-50 flex items-center justify-center text-xl flex-shrink-0 overflow-hidden">
+      {src && !failed
+        ? <img src={src} alt={name || '제품 사진'} loading="lazy" className="w-full h-full object-contain" onError={() => setFailed(true)} />
+        : <span aria-label="제품 사진 없음">📦</span>}
+    </div>
+  );
+};
+
 const MyPage = () => {
   const navigate = useNavigate();
-  const { user, survey, wishlist, toggleWish, setWishlist, updateUser, changePassword, updateProfileImage, fetchSurvey, saveSurvey } = useAuthStore();
+  const { user, survey, wishlist, toggleWish, fetchWishlist, wishlistBusy, wishlistError, updateUser, changePassword, updateProfileImage, fetchSurvey, saveSurvey } = useAuthStore();
   const { scans, setCurrentScan } = useScanStore();
+
+  useEffect(() => { fetchWishlist(); }, [user?.user_id, fetchWishlist]);
+  useEffect(() => { setUndoBackup(null); setShowUndoSnackbar(false); }, [user?.user_id]);
 
   const fileInputRef = useRef(null);
   const [activeTab, setActiveTab] = useState('profile'); // profile, password, scans, survey, wishlist
@@ -189,22 +206,23 @@ const MyPage = () => {
     }
   };
 
-  // 찜 삭제 핸들러 (5초 되돌리기 활성화)
-  const handleCancelWish = (product) => {
-    const backup = [...wishlist];
-    setUndoBackup(backup);
-    toggleWish(product);
+  // 삭제 성공 후 해당 제품만 되돌릴 수 있다.
+  const handleCancelWish = async (product) => {
+    const owner = useAuthStore.getState().user?.user_id;
+    const result = await toggleWish(product, false);
+    if (!result.success || owner !== useAuthStore.getState().user?.user_id) return;
+    setUndoBackup(product);
     setShowUndoSnackbar(true);
   };
 
-  // 찜 되돌리기 실행
-  const handleUndo = () => {
-    if (undoBackup) {
-      setWishlist(undoBackup);
-      setShowUndoSnackbar(false);
-      setUndoBackup(null);
-      showToast('찜 취소가 복원되었습니다.');
-    }
+  const handleUndo = async () => {
+    if (!undoBackup) return;
+    const owner = useAuthStore.getState().user?.user_id;
+    const result = await toggleWish(undoBackup, true);
+    if (!result.success || owner !== useAuthStore.getState().user?.user_id) return;
+    setShowUndoSnackbar(false);
+    setUndoBackup(null);
+    showToast('찜 취소가 복원되었습니다.');
   };
 
   return (
@@ -287,7 +305,7 @@ const MyPage = () => {
                       <BarChart3 size={12} className="text-blue-500" />
                       <span className="text-[10px] text-blue-600 font-semibold">최근 점수</span>
                     </div>
-                    <p className="text-xl font-black text-blue-600">
+                    <p style={{ color: scoreColor(scans[0]?.overallScore ?? scans[0]?.narrative?.overall_score) }} className="text-xl font-black">
                       {scans[0]?.overallScore ?? scans[0]?.narrative?.overall_score ?? '-'}
                     </p>
                     <p className="text-[9px] text-blue-500">점</p>
@@ -490,18 +508,26 @@ const MyPage = () => {
                 <div className="animate-fadeIn">
                   <h3 className="text-lg font-bold text-text-primary border-b pb-4 mb-6">내가 찜한 제품</h3>
 
+                  {wishlistError && (
+                    <div role="alert" className="mb-4 text-sm text-red-600">
+                      {wishlistError}
+                      <button disabled={wishlistBusy} onClick={fetchWishlist} className="ml-2 underline">다시 조회</button>
+                    </div>
+                  )}
+                  {wishlistBusy && <p role="status" className="mb-4 text-sm text-text-secondary">찜 목록을 동기화하고 있어요.</p>}
                   {wishlist.length > 0 ? (
                     <div className="grid grid-cols-1 tablet:grid-cols-2 gap-4">
                       {wishlist.map((product) => (
                         <div key={product.id} className="bg-white border border-gray-100 hover:border-primary-200 rounded-xl p-4 flex gap-3 shadow-sm hover:shadow relative group transition-all">
-                          <div className="w-16 h-16 rounded-lg bg-gray-50 flex items-center justify-center text-xl flex-shrink-0">📦</div>
+                          <WishlistImage src={product.image_url} name={product.name} />
                           <div className="min-w-0 flex-1">
                             <p className="text-[10px] text-text-secondary">{product.brand}</p>
                             <p className="text-xs font-bold text-text-primary truncate">{product.name}</p>
-                            <span className="text-[10px] text-primary-600 font-bold mt-1 inline-block">매칭율 {product.compatibility || product.score || 90}%</span>
+                            <span className="text-[10px] text-primary-600 font-bold mt-1 inline-block">{productScoreLabel(product)}</span>
                           </div>
                           
                           <button
+                            disabled={wishlistBusy}
                             onClick={() => handleCancelWish(product)}
                             className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-rose-50 text-rose-500 transition-colors"
                             title="찜 취소"
@@ -514,7 +540,7 @@ const MyPage = () => {
                   ) : (
                     <div className="text-center py-12 text-text-secondary">
                       <Heart size={32} className="mx-auto mb-2 text-gray-300" />
-                      <p className="text-sm">찜한 화장품이 없습니다.</p>
+                      <p className="text-sm">{wishlistError ? '찜 목록을 다시 조회해 주세요.' : wishlistBusy ? '잠시 기다려 주세요.' : '찜한 화장품이 없습니다.'}</p>
                     </div>
                   )}
                 </div>
@@ -544,7 +570,7 @@ const MyPage = () => {
                               <span className="text-xs text-text-secondary">{scan.date}</span>
                             </div>
                             <p className="text-sm font-medium text-text-primary">
-                              종합 피부 점수: <span className="text-lg text-primary-500 ml-1">{scan.overallScore}</span>점
+                              종합 피부 점수: <span style={{ color: scoreColor(scan.overallScore) }} className="text-lg ml-1">{scan.overallScore}</span>점
                             </p>
                           </div>
                           <ChevronRight className="text-gray-300 group-hover:text-primary-500 transition-colors" />

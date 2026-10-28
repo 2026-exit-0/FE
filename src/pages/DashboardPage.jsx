@@ -12,6 +12,7 @@ import BottomNav from '../components/common/BottomNav';
 import useAuth from '../hooks/useAuth';
 import useWeather from '../hooks/useWeather';
 import useScanStore from '../store/scanStore';
+import useAuthStore from '../store/authStore';
 import { UV_LEVELS } from '../utils/constants';
 import { useModeStore } from '../store/modeStore';
 import { dashboardData } from '../utils/dashboardData';
@@ -420,11 +421,15 @@ const DashboardPage = () => {
                     <span className="text-xs font-extrabold text-text-primary">{productPriceLabel(p)}</span>
                     <button
                       type="button"
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleWish(p); }}
                       className="p-1 rounded-full text-gray-400 hover:text-rose-500 transition-colors"
+                      aria-label="찜하기"
                       title="찜하기"
                     >
-                      <Heart size={15} />
+                      <Heart
+                        size={15}
+                        className={(wishlist || []).some((w) => String(w.id) === String(p.id)) ? 'fill-rose-500 text-rose-500' : ''}
+                      />
                     </button>
                   </div>
                 </Link>

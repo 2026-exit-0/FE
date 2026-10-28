@@ -1,3 +1,5 @@
+import { loadSavedRecommendations } from './savedRecommendations.js';
+import { productScore } from '../utils/productScore';
 import client, { isMock } from './client';
 import { mockProducts, calculateCompatibility } from '../utils/mockData';
 
@@ -7,7 +9,7 @@ export function normalizeProductItem(p) {
   if (!p || typeof p !== 'object') return p;
   const main = p.main_ingredients ?? p.key_ingredients ?? p.ingredients ?? [];
   const eff = Array.isArray(p.efficacy) ? p.efficacy : (p.efficacy ? [p.efficacy] : []);
-  const score = p.score ?? (p.match_score != null ? Number(p.match_score) : undefined);
+  const score = productScore(p);
   return {
     ...p,
     id: p.id ?? p.product_id,
@@ -20,14 +22,14 @@ export function normalizeProductItem(p) {
   };
 }
 
-// ── 제품 추천 (POST /scans/{id}/recommend 또는 GET /products) ────────
+// 저장된 추천을 먼저 조회하고, 없을 때만 생성한다.
 export async function getRecommendations(body = {}, sessionId) {
   const isDemo = localStorage.getItem('damda_token') === 'demo_access_token';
   if (isMock || isDemo) return { ...buildMockRecommendations(body), source: 'demo' };
 
   if (sessionId && !String(sessionId).startsWith('mock_')) {
     try {
-      const res = await client.post(`/scans/${encodeURIComponent(sessionId)}/recommend`);
+      const res = await loadSavedRecommendations(client, sessionId);
       const items = Array.isArray(res.data) ? res.data : (res.data?.recommended_products || res.data?.products || []);
       if (items.length > 0) return { recommended_products: items.map(normalizeProductItem), source: 'personalized' };
     } catch (error) {

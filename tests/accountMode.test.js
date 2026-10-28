@@ -19,10 +19,10 @@ test('account, mode and recommendation isolation', async t => {
     await t.test('wishlists survive returning to the same account but do not cross accounts',async()=>{
       await auth.getState().checkAuth();
       assert.deepEqual(auth.getState().wishlist,[]);
-      auth.getState().toggleWish({id:'A-product'});
+      await auth.getState().toggleWish({id:'A-product'});
       values.set('damda_token','B');await auth.getState().checkAuth();
       assert.deepEqual(auth.getState().wishlist,[]);
-      auth.getState().toggleWish({id:'B-product'});
+      await auth.getState().toggleWish({id:'B-product'});
       values.set('damda_token','A');await auth.getState().checkAuth();
       assert.deepEqual(auth.getState().wishlist.map(p=>p.id),['A-product']);
     });
