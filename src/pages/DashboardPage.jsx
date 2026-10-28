@@ -117,53 +117,53 @@ const DashboardPage = () => {
 
         <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-28 tablet:pb-28 desktop:pb-12 max-w-6xl mx-auto space-y-7 animate-fadeIn">
           
-          {/* ── 1. 에디토리얼 프리미엄 히어로 배너 ── */}
-          <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-emerald-800 via-primary-700 to-teal-900 text-white p-6 tablet:p-9 shadow-xl border border-emerald-600/30">
-            <div className="absolute -top-24 -right-24 w-80 h-80 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-20 -left-20 w-72 h-72 bg-teal-300/15 rounded-full blur-2xl pointer-events-none" />
-
-            <div className="relative z-10 flex flex-col desktop:flex-row desktop:items-center justify-between gap-8">
-              <div className="max-w-xl space-y-4">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-emerald-200 text-xs font-semibold border border-white/10">
-                    <Sparkles size={13} className="text-emerald-300" />
-                    AI DAILY PRESCRIPTION
-                  </span>
-                  <span className="text-xs text-emerald-200/80 font-medium">
-                    최근 촬영 기록 확인
-                  </span>
-                </div>
-
-                <h1 className="text-2xl tablet:text-3xl font-extrabold tracking-tight leading-tight">
-                  {user?.nickname || '회원'}님,<br />
-                  <span className="text-emerald-300">
-                    최근 피부 측정 기록
-                  </span>을 확인해 보세요.
-                </h1>
-
-                <p className="text-sm text-emerald-100/90 leading-relaxed font-normal">
-                  촬영 사진과 측정값을 확인하고, 기록을 모아 피부 상태의 변화를 살펴보세요.
+          {/* ── 1. 히어로 배너 ── */}
+          <div className="rounded-3xl bg-gradient-to-br from-primary-700 to-primary-900 text-white p-6 tablet:p-9 shadow-lg">
+            <div className="flex flex-col desktop:flex-row desktop:items-center justify-between gap-8">
+              <div className="max-w-xl space-y-3">
+                <p className="text-sm text-white/80">
+                  {hasScanData
+                    ? `마지막 측정 · ${dashboard.date || '측정일 정보 없음'}`
+                    : '아직 측정 기록이 없어요'}
                 </p>
 
-                <div className="flex flex-wrap items-center gap-3 pt-2">
+                <h1 className="text-2xl tablet:text-[34px] font-extrabold tracking-tight leading-snug">
+                  {user?.nickname || '회원'}님,<br />
+                  {latestScore != null ? (
+                    <>최근 피부 점수는 <span className="text-emerald-300">{latestScore}점</span>이에요</>
+                  ) : hasScanData ? (
+                    <><span className="text-emerald-300">최근 피부 측정 기록</span>을 확인해 보세요</>
+                  ) : (
+                    <><span className="text-emerald-300">첫 피부 측정</span>을 시작해 보세요</>
+                  )}
+                </h1>
+
+                <p className="text-sm tablet:text-[15px] text-white/90 leading-relaxed">
+                  {hasScanData
+                    ? '측정값과 촬영 사진은 분석 결과에서 자세히 볼 수 있어요.'
+                    : '7초 스캔으로 수분·유분·탄력과 피부 점수를 바로 확인할 수 있어요.'}
+                </p>
+
+                <div className="flex flex-wrap items-center gap-3 pt-3">
                   <Link
                     to="/skin-check"
-                    className="inline-flex items-center gap-2 bg-white text-emerald-900 hover:bg-emerald-50 px-6 py-3 rounded-2xl font-bold text-sm shadow-lg hover:shadow-xl transition-all group"
+                    className="inline-flex items-center gap-2 bg-white text-primary-900 hover:bg-primary-50 h-[50px] px-6 rounded-2xl font-bold text-sm shadow-md transition-colors group"
                   >
-                    <Scan size={18} className="text-emerald-700 group-hover:rotate-12 transition-transform" />
-                    지금 7초 정밀 스캔하기
+                    <Scan size={18} className="text-primary-800 group-hover:rotate-12 transition-transform" />
+                    {hasScanData ? '지금 7초 정밀 스캔하기' : '첫 스캔 시작하기'}
                     <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                   </Link>
-
-                  <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-black/20 backdrop-blur-md border border-white/10 text-xs font-medium text-emerald-100">
-                    <Clock size={14} className="text-emerald-300" />
-                    <span>최근 측정: {dashboard.date || (hasScanData ? '측정일 정보 없음' : '측정 기록 없음')}</span>
-                  </div>
+                  <Link
+                    to={hasScanData ? '/analysis' : '/guide'}
+                    className="inline-flex items-center h-[50px] px-5 rounded-2xl border border-white/45 text-white font-bold text-sm hover:bg-white/10 transition-colors"
+                  >
+                    {hasScanData ? '분석 결과 보기' : '사용 방법 보기'}
+                  </Link>
                 </div>
               </div>
 
-              {/* 우측: 종합 피부 점수 링 카드 & 지표 */}
-              <div className="flex flex-col sm:flex-row items-center gap-5 bg-white/10 backdrop-blur-lg border border-white/20 p-5 tablet:p-6 rounded-3xl shadow-inner flex-shrink-0">
+              {/* 오른쪽: 점수 링 + 수치 카드 */}
+              <div className="flex flex-col sm:flex-row items-center gap-6 bg-white/10 border border-white/20 p-5 tablet:p-6 rounded-3xl flex-shrink-0">
                 <div className="relative w-28 h-28 flex items-center justify-center flex-shrink-0">
                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                     <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="8" />
@@ -174,33 +174,28 @@ const DashboardPage = () => {
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                    <span className="text-[10px] text-emerald-200 uppercase font-semibold">피부 점수</span>
-                    <span className="text-3xl font-black text-white leading-none">{latestScore ?? '—'}</span>
-                    <span className="text-[9px] text-emerald-300 font-medium">/ 100점</span>
+                    <span className="text-[11px] text-emerald-200 font-semibold">피부 점수</span>
+                    <span className="text-4xl font-black leading-none">{latestScore ?? '—'}</span>
+                    <span className="text-[11px] text-emerald-300 font-medium mt-0.5">/ 100점</span>
                   </div>
                 </div>
 
-                <div className="space-y-2 text-center sm:text-left">
-                  <div className="inline-block bg-emerald-400 text-emerald-950 text-xs font-bold px-3 py-1 rounded-full shadow-sm">
-                    {userSkinType}
+                <div className="space-y-2.5 text-center sm:text-left">
+                  <span className="inline-block bg-emerald-400 text-emerald-950 text-xs font-bold px-3 py-1 rounded-full">
+                    {dashboard.skinType || '측정 전'}
+                  </span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      ['수분', dashboard.moisture],
+                      ['유분', dashboard.oil],
+                      ['탄력', dashboard.elasticity],
+                    ].map(([label, value]) => (
+                      <div key={label} className="bg-black/20 rounded-2xl px-3 py-3 text-center min-w-[80px]">
+                        <span className="text-xs text-emerald-200 block mb-1">{label}</span>
+                        <span className="text-lg tablet:text-xl font-bold">{value == null ? '—' : `${value}%`}</span>
+                      </div>
+                    ))}
                   </div>
-                  <div className="grid grid-cols-3 gap-2 pt-1">
-                    <div className="bg-black/20 rounded-xl px-2.5 py-1.5 text-center">
-                      <span className="text-[10px] text-emerald-200 block">수분</span>
-                      <span className="text-xs font-bold text-white">{dashboard.moisture == null ? '—' : `${dashboard.moisture}%`}</span>
-                    </div>
-                    <div className="bg-black/20 rounded-xl px-2.5 py-1.5 text-center">
-                      <span className="text-[10px] text-emerald-200 block">유분</span>
-                      <span className="text-xs font-bold text-white">{dashboard.oil == null ? '—' : `${dashboard.oil}%`}</span>
-                    </div>
-                    <div className="bg-black/20 rounded-xl px-2.5 py-1.5 text-center">
-                      <span className="text-[10px] text-emerald-200 block">탄력</span>
-                      <span className="text-xs font-bold text-white">{dashboard.elasticity == null ? '—' : `${dashboard.elasticity}%`}</span>
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-emerald-200/90 pt-1">
-                    {mode === 'mock' ? '피부 상태 요약' : hasScanData ? '최근 촬영 기록 · 없는 항목은 —로 표시합니다' : '측정 후 피부 상태를 확인할 수 있어요'}
-                  </p>
                 </div>
               </div>
             </div>

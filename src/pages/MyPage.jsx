@@ -252,7 +252,7 @@ const MyPage = () => {
       <div className="flex">
         <Sidebar />
 
-        <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-36 desktop:pb-12">
+        <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-36 tablet:pb-36 desktop:pb-12">
           <div className="max-w-4xl mx-auto space-y-6">
             <h1 className="text-2xl font-bold text-text-primary mb-6">마이페이지</h1>
 

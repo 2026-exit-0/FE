@@ -48,7 +48,7 @@ const Header = ({ variant = 'landing' }) => {
 
   return (
     <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+     <div className={`${variant === 'dashboard' ? '' : 'max-w-7xl mx-auto'} px-4 sm:px-6 lg:px-8`}>
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to={isLoggedIn ? '/dashboard' : '/'} className="flex items-center gap-2">
@@ -57,7 +57,7 @@ const Header = ({ variant = 'landing' }) => {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden tablet:flex items-center gap-8">
+          <nav className={`hidden tablet:flex items-center gap-8 ${variant === 'dashboard' ? 'desktop:hidden' : ''}`}>
             {links.map((link) => (
               link.path ? (
                 <Link
