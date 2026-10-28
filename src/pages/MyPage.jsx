@@ -518,7 +518,7 @@ const MyPage = () => {
                   {wishlist.length > 0 ? (
                     <div className="grid grid-cols-1 tablet:grid-cols-2 gap-4">
                       {wishlist.map((product) => (
-                        <div key={product.id} className="bg-white border border-gray-100 hover:border-primary-200 rounded-xl p-4 flex gap-3 shadow-sm hover:shadow relative group transition-all">
+                        <div key={product.id} onClick={() => navigate('/products', {state: {openProduct: product} })} className="bg-white border border-gray-100 hover:border-primary-200 rounded-xl p-4 flex gap-3 shadow-sm hover:shadow relative group transition-all">
                           <WishlistImage src={product.image_url} name={product.name} />
                           <div className="min-w-0 flex-1">
                             <p className="text-[10px] text-text-secondary">{product.brand}</p>
@@ -528,7 +528,7 @@ const MyPage = () => {
                           
                           <button
                             disabled={wishlistBusy}
-                            onClick={() => handleCancelWish(product)}
+                            onClick={(e) => { e.stopPropagation(); handleCancelWish(product); }}
                             className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-rose-50 text-rose-500 transition-colors"
                             title="찜 취소"
                           >

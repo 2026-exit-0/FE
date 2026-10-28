@@ -115,7 +115,7 @@ const DashboardPage = () => {
       <div className="flex">
         <Sidebar />
 
-        <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-28 desktop:pb-12 max-w-6xl mx-auto space-y-7 animate-fadeIn">
+        <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-28 tablet:pb-28 desktop:pb-12 max-w-6xl mx-auto space-y-7 animate-fadeIn">
           
           {/* ── 1. 에디토리얼 프리미엄 히어로 배너 ── */}
           <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-emerald-800 via-primary-700 to-teal-900 text-white p-6 tablet:p-9 shadow-xl border border-emerald-600/30">

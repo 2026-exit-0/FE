@@ -417,7 +417,7 @@ useEffect(() => {
       <div className="flex">
         <Sidebar />
 
-        <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-36 desktop:pb-12">
+        <main className="flex-1 p-4 tablet:p-6 desktop:p-8 pb-36 tablet:pb-36 desktop:pb-12">
           <div className="grid grid-cols-1 gap-6 desktop:grid-cols-12">
 
             {/* 스캔 인터페이스 */}
