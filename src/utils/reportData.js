@@ -89,13 +89,39 @@ const WORSEN_MSG = {
   pigmentation: '색소가 짙어졌으니 자외선 차단과 미백 성분 케어를 권해요',
 };
 
+// 최근 측정 스냅샷 문장/라인 (값·점수 구체 표기)
+function _snapshot(scan) {
+  const overall = metricValue(scan, 'overall');
+  const parts = [];
+  const lines = [];
+  for (const m of NARRATIVE_METRICS) {
+    const v = metricValue(scan, m.id);
+    if (v === null) continue;
+    parts.push(`${m.label} ${v}점`);
+    const good = m.higherBetter ? v >= 60 : v <= 45;
+    const mid = m.higherBetter ? v >= 45 : v <= 60;
+    lines.push({
+      label: m.label,
+      tone: good ? 'up' : mid ? 'flat' : 'down',
+      text: `${m.label} ${v}점 · ${good ? '양호' : mid ? '보통' : '주의 필요'}`,
+    });
+  }
+  const text = parts.length
+    ? `최근 측정 기준 ${overall !== null ? `종합 ${overall}점, ` : ''}${parts.join(' · ')}.`
+    : '';
+  return { text, lines, overall };
+}
+
 export function reportNarrative(scans) {
   const chron = [...scans].sort((a, b) => (reportDate(a)?.getTime() || 0) - (reportDate(b)?.getTime() || 0));
   if (chron.length < 2) {
+    const snap = _snapshot(chron[chron.length - 1] || {});
+    const d = chron.length ? reportDate(chron[chron.length - 1]) : null;
     return {
       enough: false,
-      summary: '아직 비교할 측정이 부족합니다. 같은 부위를 2회 이상 측정하면 구간별 변화 추이를 설명해 드려요.',
-      lines: [],
+      periodText: d ? `${d.toLocaleDateString('ko-KR')} · 1회 측정` : '',
+      summary: (snap.text ? snap.text + ' ' : '') + '다음 측정부터는 이전 대비 지표 변화를 구간별로 분석해 드려요.',
+      lines: snap.lines,
     };
   }
   const first = chron[0], last = chron.at(-1);
@@ -129,17 +155,22 @@ export function reportNarrative(scans) {
   const overallA = metricValue(first, 'overall'), overallB = metricValue(last, 'overall');
   const overallDelta = overallA !== null && overallB !== null ? Math.round((overallB - overallA) * 10) / 10 : null;
 
-  let summary = '';
+  const snap = _snapshot(last);
+  let trend = '';
   if (overallDelta !== null) {
-    const s = overallDelta > 0 ? `종합 점수가 ${overallA}→${overallB}점으로 ${overallDelta}점 올랐어요`
+    trend = overallDelta > 0 ? `종합 점수가 ${overallA}→${overallB}점으로 ${overallDelta}점 올랐어요`
       : overallDelta < 0 ? `종합 점수가 ${overallA}→${overallB}점으로 ${Math.abs(overallDelta)}점 내렸어요`
       : `종합 점수는 ${overallB}점으로 유지됐어요`;
-    summary = s + '. ';
+    trend += '. ';
   }
-  if (improved.length) summary += `특히 ${improved.join('·')}이(가) 좋아졌고`;
-  if (improved.length && worsened.length) summary += ', ';
-  if (worsened.length) summary += `${worsened.join('·')}은(는) 더 신경 쓰면 좋겠어요`;
-  summary = (summary.trim() || '선택한 기간의 지표 변화를 아래에 정리했어요') + '.';
+  if (improved.length) trend += `특히 ${improved.join('·')}이(가) 좋아졌고`;
+  if (improved.length && worsened.length) trend += ', ';
+  if (worsened.length) trend += `${worsened.join('·')}은(는) 더 신경 쓰면 좋겠어요`;
+  trend = trend.trim();
+  if (trend && !trend.endsWith('.')) trend += '.';
+  if (!trend) trend = '기간 내 지표는 큰 변화 없이 유지됐어요.';
+  // 최근 측정 스냅샷(값·점수) + 변화 추이를 함께 → 보고서형 구체 설명
+  const summary = snap.text ? `${snap.text} ${trend}` : trend;
 
   return { enough: true, periodText, summary, lines };
 }

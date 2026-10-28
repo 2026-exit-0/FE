@@ -37,24 +37,44 @@ function ratingFromValue(val) {
   return { rating: 'poor', status: '주의', statusColor: 'orange' };
 }
 
+// 유분·색소침착은 낮을수록 양호 → 색/등급을 역방향으로 평가
+const INVERSE_METRICS = new Set(['유분도', '색소침착']);
+// 지표별 일반 설명(특정 부위를 단정하지 않음) + 정상 범위
+const METRIC_INFO = {
+  '수분도': { description: '피부 수분 보유량', normalRange: '60~90%' },
+  '유분도': { description: '피지 분비 정도', normalRange: '30~60%' },
+  '탄력': { description: '피부 탄력 지수', normalRange: '55~85%' },
+  '모공': { description: '모공·피부결 상태', normalRange: '60~90%' },
+  '색소침착': { description: '색소·피부 톤', normalRange: '70~95%' },
+};
+
 function extractMetrics(scan) {
   if (scan?.narrative?.per_metric?.length > 0) {
-    return scan.narrative.per_metric.map((m) => ({
-      label: m.name,
-      value: parseFloat(m.value) || 0,
-      rating: m.rating,
-      status: m.rating_text,
-      statusColor: ratingToColor(m.rating),
-      description: m.description || '',
-      note: m.personalized_note || null,
-    }));
+    return scan.narrative.per_metric.map((m) => {
+      const value = parseFloat(m.value) || 0;
+      // rating 이 없으면(데모 등) 값 기준으로 색/등급을 계산 → 새로고침 없이도 올바른 색상.
+      const basis = INVERSE_METRICS.has(m.name) ? (100 - value) : value;
+      const byVal = ratingFromValue(basis);
+      const rating = m.rating || byVal.rating;
+      const info = METRIC_INFO[m.name] || {};
+      return {
+        label: m.name,
+        value,
+        rating,
+        status: m.rating_text || byVal.status,
+        statusColor: ratingToColor(rating),
+        description: info.description || '',
+        normalRange: info.normalRange,
+        note: m.personalized_note || null,
+      };
+    });
   }
   return [
-    { label: '수분도', value: scan?.moisture ?? 0, ...ratingFromValue(scan?.moisture ?? 0), description: '정상 범위 (60-90%)', normalRange: '60~90%' },
-    { label: '유분도', value: scan?.oil ?? 0, ...ratingFromValue(100 - (scan?.oil ?? 0)), description: 'T존 유분 분포', normalRange: '30~60%' },
-    { label: '탄력', value: scan?.elasticity ?? 0, ...ratingFromValue(scan?.elasticity ?? 0), description: '볼 부위 탄력 지수', normalRange: '55~85%' },
-    { label: '모공', value: scan?.spots ?? 0, ...ratingFromValue(scan?.spots ?? 0), description: '코 주변 모공 상태', normalRange: '60~90%' },
-    { label: '색소침착', value: scan?.pigmentation ?? 0, ...ratingFromValue(100 - (scan?.pigmentation ?? 0)), description: '이마·볼 상단 색소', normalRange: '70~95%' },
+    { label: '수분도', value: scan?.moisture ?? 0, ...ratingFromValue(scan?.moisture ?? 0), ...METRIC_INFO['수분도'] },
+    { label: '유분도', value: scan?.oil ?? 0, ...ratingFromValue(100 - (scan?.oil ?? 0)), ...METRIC_INFO['유분도'] },
+    { label: '탄력', value: scan?.elasticity ?? 0, ...ratingFromValue(scan?.elasticity ?? 0), ...METRIC_INFO['탄력'] },
+    { label: '모공', value: scan?.spots ?? 0, ...ratingFromValue(scan?.spots ?? 0), ...METRIC_INFO['모공'] },
+    { label: '색소침착', value: scan?.pigmentation ?? 0, ...ratingFromValue(100 - (scan?.pigmentation ?? 0)), ...METRIC_INFO['색소침착'] },
   ];
 }
 
@@ -265,9 +285,14 @@ const AnalysisPage = () => {
   // 백엔드 원본 summary / advice만 추출 (임의 더미 텍스트 제외)
   const summary = analysis.narrative?.summary || analysis.advice?.summary || analysis.narrative?.description || analysis.advice?.description || '';
 
-  // 백엔드 원본 tips 만 추출
-  const rawTips = analysis.narrative?.tips || analysis.advice?.tips || [];
-  const tips = Array.isArray(rawTips) ? rawTips : (rawTips ? [rawTips] : []);
+  // 스킨케어 팁 — narrative.tips 가 비면 advice(report.lifestyle·lifestyle_tips·루틴)에서 보강.
+  // (데모 경로는 narrative.tips 가 비어 있어 이걸 안 하면 '케어 코멘트'만 뜨고 팁이 안 보임)
+  const adviceSrc = analysis.advice || analysis._raw?.advice || {};
+  const tipSource = analysis.narrative?.tips?.length ? analysis.narrative.tips
+    : (Array.isArray(adviceSrc.tips) && adviceSrc.tips.length) ? adviceSrc.tips
+    : (Array.isArray(adviceSrc.report?.lifestyle) && adviceSrc.report.lifestyle.length) ? adviceSrc.report.lifestyle
+    : [adviceSrc.lifestyle_tips, adviceSrc.morning_routine, adviceSrc.night_routine];
+  const tips = (Array.isArray(tipSource) ? tipSource : [tipSource]).filter(Boolean);
 
   const userContextApplied = analysis.narrative?.user_context?.applied ?? false;
   const recommendedProducts = (analysis.recommendedProducts || []).map((p) => ({
@@ -662,7 +687,6 @@ const AnalysisPage = () => {
 
   const sideMenuItems = [
     { id: 'overview', label: '종합 분석', icon: BarChart3 },
-    { id: 'photos', label: '스캔 사진 비교 (White/UV)', icon: Camera },
     { id: 'heatmap', label: '부위별 피부 히트맵', icon: Sparkles },
     { id: 'ai-care', label: 'AI 케어 조언', icon: Sparkles },
     { id: 'products', label: '제품 추천', icon: ShoppingBag },
@@ -846,13 +870,6 @@ const AnalysisPage = () => {
                   </div>
                   );
                 })()}
-
-                {/* 듀얼 스캔 사진 단독 탭 */}
-                {activeMenu === 'photos' && (
-                  <div className="space-y-6 animate-fadeIn">
-                    <DualLightViewer analysis={analysis} />
-                  </div>
-                )}
 
                 {/* 2. 항목 히트맵 (H.5.2) */}
                 {activeMenu === 'heatmap' && (

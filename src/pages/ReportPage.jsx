@@ -158,6 +158,8 @@ const ReportPage = () => {
   const { currentScan, scans, setCurrentScan, fetchHistory } = useScanStore();
   const [period, setPeriod] = useState('month');
   const [metric, setMetric] = useState('moisture');
+  const HISTORY_PAGE = 5;
+  const [historyLimit, setHistoryLimit] = useState(HISTORY_PAGE);
 
   useEffect(() => {
     fetchHistory();
@@ -320,14 +322,14 @@ const ReportPage = () => {
                   <div className="flex items-center gap-2 mb-3">
                     <FileText size={16} className="text-primary-500" />
                     <h3 className="text-sm font-semibold text-text-primary">기간별 변화 리포트</h3>
-                    {narrative.enough && (
+                    {narrative.periodText && (
                       <span className="text-[11px] text-text-secondary ml-1">{narrative.periodText}</span>
                     )}
                   </div>
                   <p className="text-sm text-text-primary leading-relaxed bg-primary-50/60 border border-primary-100 rounded-xl px-4 py-3">
                     {narrative.summary}
                   </p>
-                  {narrative.enough && narrative.lines.length > 0 && (
+                  {narrative.lines.length > 0 && (
                     <ul className="mt-3 space-y-2">
                       {narrative.lines.map((ln, i) => (
                         <li key={i} className="flex items-start gap-2 text-sm text-text-secondary leading-relaxed">
@@ -419,7 +421,7 @@ const ReportPage = () => {
                         </thead>
                         <tbody>
                           {displayScans.length === 0 && <tr><td colSpan={4} className="py-8 text-center text-text-secondary">선택한 기간에 측정 기록이 없습니다.</td></tr>}
-                          {displayScans.map((item, index) => {
+                          {displayScans.slice(0, historyLimit).map((item, index) => {
                             const score = metricValue(item, 'overall');
                             const prevScore = metricValue(displayScans[index + 1] || {}, 'overall');
                             const diff = score !== null && prevScore !== null ? score - prevScore : null;
@@ -469,6 +471,18 @@ const ReportPage = () => {
                         </tbody>
                       </table>
                     </div>
+                    {displayScans.length > HISTORY_PAGE && (
+                      <div className="mt-3 text-center">
+                        <button
+                          onClick={() => setHistoryLimit((n) => (n >= displayScans.length ? HISTORY_PAGE : n + HISTORY_PAGE))}
+                          className="text-xs font-semibold text-primary-600 hover:text-primary-700 px-4 py-2 rounded-lg hover:bg-primary-50 transition-colors"
+                        >
+                          {historyLimit >= displayScans.length
+                            ? '접기'
+                            : `더 보기 (+${Math.min(HISTORY_PAGE, displayScans.length - historyLimit)}개 · 전체 ${displayScans.length})`}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
