@@ -20,6 +20,10 @@ export function parseApiResult(apiResult) {
 
     const tipsList = Array.isArray(advice.tips) ? [...advice.tips] : (advice.tips ? [advice.tips] : []);
     if (advice.recommendation) tipsList.push(advice.recommendation);
+        // 스캔 직후에도 새로고침 후와 같이 아침/저녁 루틴과 생활팁을 보여준다.
+    for (const key of ['morning_routine', 'night_routine', 'lifestyle_tips']) {
+      if (advice[key]) tipsList.push(advice[key]);
+    }
 
     const moistureVal = measurement(r.moisture);
     const oilVal = measurement(r.sebum ?? r.oil);
