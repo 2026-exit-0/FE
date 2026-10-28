@@ -8,7 +8,9 @@ export function isRetryableScanError(error) {
 }
 
 export function shouldResumeScan(current, { deviceId, previousId, activeId, completedId }) {
-  if (!current?.session_id || current.device_id !== deviceId || current.session_id === completedId) return false;
+  // device_id 강제 매칭 제거: 기기(ESP32)가 보내는 device_id 가 FE 기본값과 달라도
+  // 완료 세션을 놓치지 않는다. (단일 사용자 전시 환경 전제 — 물리버튼 실측 감지용)
+  if (!current?.session_id || current.session_id === completedId) return false;
   if (isScanRunning(current.status)) return current.session_id !== previousId;
   return current.status === 'done' && (current.session_id === activeId ||
     (previousId !== undefined && current.session_id !== previousId));
@@ -93,7 +95,29 @@ export function createScannerSessionApi(client, deviceId) {
               return { ...data, session_id: sessionId };
             }
           } else if (current?.session_id) {
-            throw new Error('다른 촬영 세션이 감지됐습니다. 촬영 기록을 확인해 주세요.');
+            // 요청한 세션과 다른 세션이 최신 — 기기발(물리버튼/릴레이) 완료가 다른 session_id 로
+            // 저장됐을 수 있다. 그 세션이 done 이고 이전에 반환한 결과가 아니면 그게 이번 실측 결과다
+            // (세션 id 강제 매칭 완화 — 단일 사용자 전시 환경 전제).
+            if (current.status === 'done' && current.session_id !== completedSessionId) {
+              completedSessionId = current.session_id;
+              const realId = current.session_id;
+              let data;
+              try {
+                ({ data } = await client.get(`/result/${encodeURIComponent(realId)}`, { signal }));
+              } catch (error) {
+                signal?.throwIfAborted();
+                if (error.response?.status !== 404) throw error;
+                const response = await client.get('/history', { signal });
+                data = Array.isArray(response.data)
+                  ? response.data.find(row => row.session_id === realId) : null;
+                if (!data) throw error;
+              }
+              return { ...data, session_id: realId };
+            }
+            if (current.status === 'failed') {
+              throw new Error('촬영 또는 저장에 실패했습니다. 기기 상태를 확인해 주세요.');
+            }
+            // 그 외(다른 세션이 아직 진행 중): throw 하지 않고 계속 폴링한다.
           }
         } catch (error) {
           signal?.throwIfAborted();

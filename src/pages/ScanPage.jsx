@@ -189,7 +189,9 @@ const previewUrl = streamUrl
         if (stopped || busyRef.current) return;
         const previous = seenSessionRef.current;
         seenSessionRef.current = current?.session_id ?? null;
-        if (!current || current.device_id !== scannerSession.deviceId) return;
+        // device_id 강제 매칭 제거: 기기가 보내는 device_id 가 FE 기본값(ESP32_1)과 달라도
+        // 물리버튼 실측 세션을 감지하도록 한다. (단일 사용자 전시 환경 전제)
+        if (!current) return;
         if (shouldResumeScan(current, {
           deviceId: scannerSession.deviceId,
           previousId: previous,
