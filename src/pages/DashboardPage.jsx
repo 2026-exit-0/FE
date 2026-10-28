@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect,useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Scan, BarChart3, ShoppingBag, BookOpen,
@@ -15,6 +15,9 @@ import useScanStore from '../store/scanStore';
 import { UV_LEVELS } from '../utils/constants';
 import { useModeStore } from '../store/modeStore';
 import { dashboardData } from '../utils/dashboardData';
+import { getRecommendations } from '../api/products';
+import { productPriceLabel } from '../utils/productPrice';
+import { productScore } from '../utils/productScore';
 
 const DashboardPage = () => {
   const { mode } = useModeStore();
@@ -78,49 +81,30 @@ const DashboardPage = () => {
     },
   ];
 
-  // 추천 제품 큐레이션 (알차/서울패스 카드형)
-  const curatedProducts = [
-    {
-      id: 'p1',
-      brand: '토리든',
-      name: '다이브인 저분자 히알루론산 세럼',
-      score: 98,
-      effect: '속당김 즉각 해소 · 저자극 수분 충전',
-      tag: '수분 1위',
-      price: '18,000원',
-      emoji: '💧',
-    },
-    {
-      id: 'p2',
-      brand: '아누아',
-      name: '어성초 77 진정 클리어 패드',
-      score: 95,
-      effect: 'T존 유분 컨트롤 · 모공 결 정돈',
-      tag: '모공 케어',
-      price: '21,000원',
-      emoji: '🌿',
-    },
-    {
-      id: 'p3',
-      brand: '에스트라',
-      name: '아토베리어 365 세라마이드 크림',
-      score: 92,
-      effect: '무너진 피부 장벽 강화 · 100시간 보습',
-      tag: '장벽 강화',
-      price: '31,000원',
-      emoji: '🛡️',
-    },
-    {
-      id: 'p4',
-      brand: '라운드랩',
-      name: '자작나무 수분 선크림 SPF 50+',
-      score: 91,
-      effect: '백탁 없는 수분 에센스 텍스처',
-      tag: 'UV 방어',
-      price: '17,500원',
-      emoji: '☀️',
-    },
-  ];
+  // 추천 제품: 스캔 세션의 설문 측정 기반 추천(백엔드)에서 상위 4개
+  const sessionId = currentScan?.sessionId;
+  const [curatedProducts, setCuratedProducts] = useState([]);
+  useEffect(() => {
+    if (!currentScan) { setCuratedProducts([]); return; }
+    let active = true;
+    const body = {
+      measurement: { moisture: currentScan.moisture, oil: currentScan.oil, elasticity: currentScan.elasticity },
+      user_inputs: { skin_type: currentScan.skinType },
+      top_k: 4,
+    };
+    getRecommendations(body, sessionId)
+      .then((data) => {
+        if (!active) return;
+        const list = (data.recommended_products || [])
+          .map((p) => ({ ...p, id: p.id || p.product_id, name: p.name || p.name_kr }))
+          .sort((a, b) => (productScore(b) ?? 0) - (productScore(a) ?? 0))
+          .slice(0, 4);
+        setCuratedProducts(list);
+      })
+      .catch(() => { if (active) setCuratedProducts([]); });
+    return () => { active = false; };
+  }, [sessionId]);
+  
 
   return (
     <div className="min-h-screen bg-[#fafaf8]">
@@ -392,6 +376,13 @@ const DashboardPage = () => {
               </Link>
             </div>
 
+              {curatedProducts.length === 0 && (
+              <p className="text-xs text-text-secondary bg-background-gray rounded-xl p-4">
+                피부 스캔을 하면 설문과 측정 결과에 맞춘 추천 화장품이 여기에 표시돼요.
+              </p>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 desktop:grid-cols-4 gap-4"></div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 desktop:grid-cols-4 gap-4">
               {curatedProducts.map((p) => (
                 <Link
@@ -401,12 +392,21 @@ const DashboardPage = () => {
                 >
                   <div>
                     <div className="aspect-square bg-white rounded-xl flex items-center justify-center text-4xl mb-3 shadow-inner relative overflow-hidden border border-gray-100">
-                      <span>{p.emoji}</span>
-                      <span className="absolute top-2 left-2 text-[10px] font-bold bg-gradient-to-r from-emerald-500 to-green-600 text-white px-2 py-0.5 rounded-lg shadow-sm">
-                        {p.score}점
+                      <ShoppingBag size={36} className="text-gray-300" />
+                      {p.image_url && (
+                        <img
+                          src={p.image_url}
+                          alt={p.name}
+                          loading="lazy"
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          className="absolute inset-0 w-full h-full object-contain p-3 bg-white"
+                        />
+                      )}
+                      <span className="absolute top-2 left-2 z-10 text-[10px] font-bold bg-gradient-to-r from-emerald-500 to-green-600 text-white px-2 py-0.5 rounded-lg shadow-sm">
+                        {Math.round(productScore(p) ?? 0)}점
                       </span>
-                      <span className="absolute top-2 right-2 text-[9px] bg-primary-50 text-primary-700 font-semibold px-1.5 py-0.5 rounded-md">
-                        {p.tag}
+                      <span className="absolute top-2 right-2 z-10 max-w-[60%] truncate text-[9px] bg-primary-50 text-primary-700 font-semibold px-1.5 py-0.5 rounded-md">
+                        {p.efficacy?.[0] || p.category?.[0] || '맞춤 추천'}
                       </span>
                     </div>
 
@@ -415,12 +415,12 @@ const DashboardPage = () => {
                       {p.name}
                     </h4>
                     <p className="text-[11px] text-text-secondary mt-1.5 line-clamp-2 bg-white/70 rounded-lg p-1.5 border border-gray-100">
-                      {p.effect}
+                      {p.reason || p.effect || (p.efficacy || []).join(' · ')}
                     </p>
                   </div>
 
                   <div className="mt-3 pt-2.5 border-t border-gray-200/60 flex items-center justify-between">
-                    <span className="text-xs font-extrabold text-text-primary">{p.price}</span>
+                    <span className="text-xs font-extrabold text-text-primary">{productPriceLabel(p)}</span>
                     <button
                       type="button"
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
