@@ -9,7 +9,7 @@ export const scannerSession = createScannerSessionApi(client, DEFAULT_DEVICE_ID)
 
 // 실측 총 제한 시간(ms). 스캔 시작~완료까지 이 시간을 '하나의 예산'으로 쓴다.
 // (start + 완료대기 합산이 이 값을 넘으면 전체 목업으로 폴백 → "15초 넘으면 목업")
-const SCAN_TIMEOUT_MS = Number(import.meta.env.VITE_SCAN_TIMEOUT_MS) || 15000;
+const SCAN_TIMEOUT_MS = Number(import.meta.env.VITE_SCAN_TIMEOUT_MS) || 25000;
 
 // ── 신규 BE 스캔 세션 생성 (POST /scans) ────────────────────
 export async function createScanSession(data = {}) {
