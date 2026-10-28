@@ -437,11 +437,11 @@ useEffect(() => {
                       <RefreshCw size={13} className={scannerStatus === 'checking' ? 'animate-spin' : ''} />
                     </button>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full border border-primary-100">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full border border-primary-100 whitespace-nowrap">
                       {selectedArea}
                     </span>
-                    <span className="text-xs text-text-secondary">UV 모드</span>
+                    <span className="text-xs text-text-secondary whitespace-nowrap">UV 모드</span>
                   </div>
                 </div>
 
